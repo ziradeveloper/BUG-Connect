@@ -14,7 +14,7 @@ describe('SiteHeader', () => {
     const fixture = TestBed.createComponent(SiteHeader);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('BUGConnect');
+    expect(fixture.nativeElement.textContent).toContain('WABAFlow');
     expect(fixture.nativeElement.textContent).toContain('Plans');
   });
 
