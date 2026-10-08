@@ -59,6 +59,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "allowedHosts": [".e2b.app"]
+          },
           "configurations": {
             "production": {
               "buildTarget": "BUGConnect:build:production"
