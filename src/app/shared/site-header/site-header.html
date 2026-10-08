@@ -1,8 +1,8 @@
 <header class="site-header">
      <div class="site-header__inner">
-          <a class="site-brand" [routerLink]="['/']" aria-label="BUGConnect home" (click)="closeMenu()">
-               <span class="site-brand__mark" aria-hidden="true">B</span>
-               <span class="site-brand__name">BUG<span class="text-brand">Connect</span></span>
+          <a class="site-brand" [routerLink]="['/']" aria-label="WABAFlow home" (click)="closeMenu()">
+               <span class="site-brand__mark" aria-hidden="true">W</span>
+               <span class="site-brand__name">WABA<span class="text-brand">Flow</span></span>
           </a>
 
           <button class="button button-secondary site-header__menu-toggle" type="button"
@@ -22,11 +22,14 @@
           <div id="site-navigation" class="site-header__controls" [class.site-header__controls--open]="menuOpen">
                @if (showMarketingLinks) {
                <nav class="site-nav" aria-label="Main navigation">
-                    <a class="site-nav__link" [routerLink]="['/']" fragment="features" (click)="closeMenu()">
-                         Features
+                    <a class="site-nav__link" [routerLink]="['/']" fragment="modules" (click)="closeMenu()">
+                         Modules
                     </a>
-                    <a class="site-nav__link" [routerLink]="['/']" fragment="workflow" (click)="closeMenu()">
+                    <a class="site-nav__link" [routerLink]="['/']" fragment="flow-first" (click)="closeMenu()">
                          How it works
+                    </a>
+                    <a class="site-nav__link" [routerLink]="['/']" fragment="roles" (click)="closeMenu()">
+                         Roles
                     </a>
                     <a class="site-nav__link" [routerLink]="['/']" fragment="plans" (click)="closeMenu()">
                          Plans

@@ -15,7 +15,7 @@ describe('LoginPage', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('h2')?.textContent).toContain(
-      'Log in to BUGConnect',
+      'Log in to your workspace',
     );
     expect(fixture.nativeElement.querySelector('#login-username')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#login-password')).toBeTruthy();

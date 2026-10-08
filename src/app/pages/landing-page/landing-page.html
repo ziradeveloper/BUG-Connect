@@ -6,30 +6,37 @@
                <div class="landing-hero__copy">
                     <p class="eyebrow landing-hero__eyebrow">
                          <span class="hero-pulse" aria-hidden="true"></span>
-                         BUG REPORTS, BETTER CONNECTED
+                         BUILT ON THE OFFICIAL WHATSAPP BUSINESS PLATFORM
                     </p>
                     <h1 id="hero-heading">
-                         Every bug has a story.
-                         <span class="text-brand">Keep it moving.</span>
+                         One WhatsApp number.
+                         <span class="text-brand">Run by your whole team.</span>
                     </h1>
                     <p class="landing-hero__lead">
-                         BUGConnect brings bug reports, triage, and resolution into one clear workspace—so your
-                         team can spend less time chasing context and more time shipping fixes.
+                         WABAFlow turns a single official business number into a shared sales, support and
+                         marketing workspace. Every business gets its own isolated console where conversations,
+                         no-code automation, approved templates and campaigns stay together.
                     </p>
                     <div class="landing-hero__actions">
                          <a class="button button-primary landing-hero__primary" [routerLink]="['/login']">
-                              Log in
+                              Log in to your workspace
                               <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
                                    <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-linecap="round"
                                         stroke-linejoin="round" stroke-width="1.8" />
                               </svg>
                          </a>
-                         <a class="button button-secondary landing-hero__secondary" href="#plans">Explore plans</a>
+                         <a class="button button-secondary landing-hero__secondary" href="#flow-first">
+                              See the flow-first model
+                         </a>
                     </div>
-                    <div class="landing-hero__reassurance">
-                         <span class="landing-hero__reassurance-icon" aria-hidden="true">✓</span>
-                         <span>From first report to verified fix, in one shared flow.</span>
-                    </div>
+                    <ul class="hero-stats">
+                         @for (stat of heroStats; track stat.label) {
+                         <li class="hero-stat">
+                              <span class="hero-stat__value">{{ stat.value }}</span>
+                              <span class="hero-stat__label">{{ stat.label }}</span>
+                         </li>
+                         }
+                    </ul>
                </div>
 
                <section class="product-preview surface" aria-labelledby="preview-heading">
@@ -37,59 +44,61 @@
                          <div class="product-preview__window-dots">
                               <span></span><span></span><span></span>
                          </div>
-                         <span class="product-preview__address">app.bugconnect / issues</span>
+                         <span class="product-preview__address">nellai-sweets.platform.com / team-inbox</span>
                          <span class="product-preview__topbar-spacer"></span>
                     </div>
                     <div class="product-preview__layout">
-                         <aside class="product-preview__sidebar" aria-label="Example workspace navigation">
+                         <aside class="product-preview__sidebar" aria-label="Workspace module navigation">
                               <span class="product-preview__workspace">WORKSPACE</span>
                               <span class="product-preview__side-item product-preview__side-item--active">
-                                   <span aria-hidden="true">◫</span> Issues
+                                   <span aria-hidden="true">◫</span> Team Inbox
                               </span>
-                              <span class="product-preview__side-item"><span aria-hidden="true">◷</span> My queue</span>
-                              <span class="product-preview__side-item"><span aria-hidden="true">◇</span> Projects</span>
-                              <span class="product-preview__side-item"><span aria-hidden="true">▤</span> Activity</span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">⇄</span> Flow Builder</span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">▤</span> Flows Studio</span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">◨</span> Templates</span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">◉</span> Campaigns</span>
                               <span class="product-preview__sidebar-divider"></span>
-                              <span class="product-preview__workspace">PROJECTS</span>
-                              <span class="product-preview__project"><span></span> Atlas web</span>
-                              <span class="product-preview__project"><span></span> Mobile app</span>
+                              <span class="product-preview__workspace">TIRUNELVELI PILOT</span>
+                              <span class="product-preview__project"><span></span> Counter desk</span>
+                              <span class="product-preview__project"><span></span> Home delivery</span>
                          </aside>
 
                          <div class="product-preview__main">
                               <div class="product-preview__heading">
                                    <div>
-                                        <p class="eyebrow product-preview__eyebrow">ATLAS WEB · ISSUE TRACKING</p>
-                                        <h2 id="preview-heading">Issue inbox</h2>
+                                        <p class="eyebrow product-preview__eyebrow">NELLAI SWEETS · LIVE QUEUE</p>
+                                        <h2 id="preview-heading">Team Inbox</h2>
                                    </div>
-                                   <span class="product-preview__new-issue">+ New report</span>
+                                   <span class="product-preview__new-issue">2 agents online</span>
                               </div>
 
-                              <div class="product-preview__filters" aria-label="Example issue filters">
-                                   <span class="product-preview__filter product-preview__filter--active">All
-                                        issues</span>
-                                   <span class="product-preview__filter">Assigned</span>
-                                   <span class="product-preview__filter">Recently updated</span>
+                              <div class="product-preview__filters" aria-label="Example conversation queues">
+                                   @for (queue of inboxQueues; track queue; let first = $first) {
+                                   <span class="product-preview__filter" [class.product-preview__filter--active]="first">{{
+                                        queue
+                                        }}</span>
+                                   }
                               </div>
 
                               <ul class="preview-issue-list">
-                                   @for (issue of previewIssues; track issue.key) {
+                                   @for (chat of previewConversations; track chat.summary) {
                                    <li>
-                                        <span class="preview-issue-list__key">{{ issue.key }}</span>
-                                        <span class="preview-issue-list__title">{{ issue.title }}</span>
-                                        <span class="badge" [class]="'badge badge-' + issue.tone">{{ issue.status
+                                        <span class="preview-issue-list__key">{{ chat.owner }}</span>
+                                        <span class="preview-issue-list__title">{{ chat.summary }}</span>
+                                        <span class="badge" [class]="'badge badge-' + chat.tone">{{ chat.status
                                              }}</span>
                                    </li>
                                    }
                               </ul>
 
-                              <div class="product-preview__workflow" aria-label="Example issue workflow">
-                                   <span>Report</span>
+                              <div class="product-preview__workflow" aria-label="Flow-first handoff">
+                                   <span>Inbound</span>
                                    <span aria-hidden="true">›</span>
-                                   <span>Triage</span>
+                                   <span>Menu</span>
                                    <span aria-hidden="true">›</span>
-                                   <span>Resolve</span>
+                                   <span>Qualified</span>
                                    <span aria-hidden="true">›</span>
-                                   <span>Verify</span>
+                                   <span>Routed to Ravi</span>
                               </div>
                          </div>
                     </div>
@@ -97,109 +106,287 @@
           </div>
      </section>
 
-     <section class="workflow-ribbon" aria-label="BUGConnect issue workflow">
+     <section class="workflow-ribbon" aria-label="Flow-first message pipeline">
           <div class="app-container workflow-ribbon__inner">
-               <span class="workflow-ribbon__label">A clearer path through every issue</span>
+               <span class="workflow-ribbon__label">No chat reaches a person before it has been qualified</span>
                <div class="workflow-ribbon__steps">
-                    <span>Report</span><span aria-hidden="true">→</span>
-                    <span>Triage</span><span aria-hidden="true">→</span>
-                    <span>Resolve</span><span aria-hidden="true">→</span>
-                    <span>Verify</span>
+                    <span>Hook</span><span aria-hidden="true">→</span>
+                    <span>Menu</span><span aria-hidden="true">→</span>
+                    <span>Evaluate</span><span aria-hidden="true">→</span>
+                    <span>Weighted router</span><span aria-hidden="true">→</span>
+                    <span>Team Inbox</span>
                </div>
           </div>
      </section>
 
-     <section class="landing-section app-container" id="features" aria-labelledby="features-heading">
+     <section class="landing-section app-container" id="promise" aria-labelledby="promise-heading">
           <div class="section-heading">
                <div>
-                    <p class="eyebrow">LESS CHASING. MORE FIXING.</p>
-                    <h2 id="features-heading">Everything around the bug, in one place.</h2>
+                    <p class="eyebrow">WHAT THE PLATFORM PROMISES</p>
+                    <h2 id="promise-heading">More than a shared chat screen.</h2>
                </div>
                <p class="section-heading__description text-muted">
-                    Give reports the context, ownership, and follow-through they need to become fixes.
+                    A business can operate one official number with many staff, automate repeated journeys without
+                    code, and hand a customer to the right person at the right moment.
                </p>
           </div>
 
-          <div class="feature-grid">
-               @for (feature of features; track feature.number) {
-               <article class="feature-card surface">
-                    <span class="feature-card__number">{{ feature.number }}</span>
-                    <div class="feature-card__icon" aria-hidden="true">
-                         @if (feature.number === '01') {
-                         <svg viewBox="0 0 24 24" fill="none">
-                              <path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor"
-                                   stroke-linejoin="round" stroke-width="1.7" />
-                              <path d="M14 3v6h5M9 14h6m-6 3h6" stroke="currentColor" stroke-linecap="round"
-                                   stroke-width="1.7" />
-                         </svg>
-                         } @else if (feature.number === '02') {
-                         <svg viewBox="0 0 24 24" fill="none">
-                              <path d="m12 3 2.3 5.1 5.5.6-4.1 3.7 1.1 5.4-4.8-2.8-4.8 2.8 1.1-5.4-4.1-3.7 5.5-.6L12 3Z"
-                                   stroke="currentColor" stroke-linejoin="round" stroke-width="1.7" />
-                         </svg>
-                         } @else {
-                         <svg viewBox="0 0 24 24" fill="none">
-                              <path d="M4 12h5l2.2-6L15 18l2-6h3" stroke="currentColor" stroke-linecap="round"
-                                   stroke-linejoin="round" stroke-width="1.8" />
-                              <circle cx="4" cy="12" r="1.5" fill="currentColor" />
-                              <circle cx="20" cy="12" r="1.5" fill="currentColor" />
-                         </svg>
-                         }
-                    </div>
-                    <h3>{{ feature.title }}</h3>
-                    <p class="text-muted">{{ feature.description }}</p>
+          <div class="compare-grid">
+               @for (item of differentiators; track item.platform) {
+               <article class="compare-card surface">
+                    <p class="compare-card__legacy"><span aria-hidden="true">✕</span>{{ item.legacy }}</p>
+                    <p class="compare-card__platform"><span aria-hidden="true">✓</span>{{ item.platform }}</p>
+                    <p class="text-muted">{{ item.description }}</p>
                </article>
                }
           </div>
      </section>
 
-     <section class="landing-section workflow-section" id="workflow" aria-labelledby="workflow-heading">
+     <section class="landing-section flow-section" id="flow-first" aria-labelledby="flow-heading">
           <div class="app-container">
                <div class="section-heading section-heading--centered">
                     <div>
-                         <p class="eyebrow">A SIMPLE SHARED FLOW</p>
-                         <h2 id="workflow-heading">From “something’s wrong” to “fixed.”</h2>
+                         <p class="eyebrow">THE CORE ENGINE</p>
+                         <h2 id="flow-heading">The inbox is a node inside the flow.</h2>
                     </div>
                     <p class="section-heading__description text-muted">
-                         Make the handoff between reporting, investigating, and verifying easier to follow.
+                         Every incoming conversation is evaluated by the Flow Engine first. A person receives it
+                         only after automated qualification and weighted load balancing.
                     </p>
                </div>
 
-               <ol class="workflow-grid">
-                    @for (step of workflow; track step.number) {
-                    <li class="workflow-step surface">
-                         <span class="workflow-step__number">{{ step.number }}</span>
-                         <h3>{{ step.title }}</h3>
-                         <p class="text-muted">{{ step.description }}</p>
+               <ol class="pipeline">
+                    @for (node of flowNodes; track node.number) {
+                    <li class="pipeline__item surface">
+                         <span class="pipeline__number">{{ node.number }}</span>
+                         <div class="pipeline__body">
+                              <h3>{{ node.title }}</h3>
+                              <p class="text-muted">{{ node.description }}</p>
+                         </div>
                     </li>
                     }
                </ol>
           </div>
      </section>
 
+     <section class="landing-section app-container" id="modules" aria-labelledby="modules-heading">
+          <div class="section-heading">
+               <div>
+                    <p class="eyebrow">WORKSPACE MODULES</p>
+                    <h2 id="modules-heading">One console, named the same everywhere.</h2>
+               </div>
+               <p class="section-heading__description text-muted">
+                    The same vocabulary is used across the interface, the documentation and the delivery
+                    conversation, so a module means one thing to everyone.
+               </p>
+          </div>
+
+          <div class="module-grid">
+               @for (module of modules; track module.name) {
+               <article class="module-card surface">
+                    <h3>{{ module.name }}</h3>
+                    <p class="module-card__purpose">{{ module.purpose }}</p>
+                    <p class="module-card__description text-muted">{{ module.detail }}</p>
+                    <ul class="module-card__points">
+                         @for (point of module.points; track point) {
+                         <li><span aria-hidden="true">✓</span>{{ point }}</li>
+                         }
+                    </ul>
+               </article>
+               }
+          </div>
+
+          <ul class="module-chips" aria-label="Supporting workspace modules">
+               @for (module of supportingModules; track module.name) {
+               <li class="module-chip surface-raised">
+                    <strong>{{ module.name }}</strong>
+                    <span class="text-muted">{{ module.purpose }}</span>
+               </li>
+               }
+          </ul>
+     </section>
+
+     <section class="landing-section roles-section" id="roles" aria-labelledby="roles-heading">
+          <div class="app-container">
+               <div class="section-heading">
+                    <div>
+                         <p class="eyebrow">ROLES AND PERMISSIONS</p>
+                         <h2 id="roles-heading">Who is allowed to do what.</h2>
+                    </div>
+                    <p class="section-heading__description text-muted">
+                         Staff permissions are separated per module, so an agent can work the queue without
+                         touching a WhatsApp connection, a billing setting or an API key.
+                    </p>
+               </div>
+
+               <div class="roles-layout">
+                    <ul class="role-list">
+                         @for (role of roles; track role.name) {
+                         <li class="role-list__item surface-raised">
+                              <strong>{{ role.name }}</strong>
+                              <span class="text-muted">{{ role.scope }}</span>
+                         </li>
+                         }
+                    </ul>
+
+                    <div class="rbac-scroll">
+                         <table class="rbac-table">
+                              <caption class="sr-only">
+                                   Workspace capability access for each staff role
+                              </caption>
+                              <thead>
+                                   <tr>
+                                        <th scope="col">Capability</th>
+                                        <th scope="col">Workspace Admin</th>
+                                        <th scope="col">Supervisor</th>
+                                        <th scope="col">Agent</th>
+                                   </tr>
+                              </thead>
+                              <tbody>
+                                   @for (row of roleMatrix; track row.capability) {
+                                   <tr>
+                                        <th scope="row">{{ row.capability }}</th>
+                                        <td>{{ row.administrator }}</td>
+                                        <td>{{ row.supervisor }}</td>
+                                        <td>{{ row.agent }}</td>
+                                   </tr>
+                                   }
+                              </tbody>
+                         </table>
+                    </div>
+               </div>
+          </div>
+     </section>
+
+     <section class="landing-section app-container" id="onboarding" aria-labelledby="onboarding-heading">
+          <div class="section-heading">
+               <div>
+                    <p class="eyebrow">FROM INVITATION TO LIVE</p>
+                    <h2 id="onboarding-heading">How a workspace goes live.</h2>
+               </div>
+               <p class="section-heading__description text-muted">
+                    Onboarding is run with the business, not handed to it as documentation. Setup of templates and
+                    initial automation is part of the service.
+               </p>
+          </div>
+
+          <ol class="journey-grid">
+               @for (step of onboarding; track step.number) {
+               <li class="journey-step">
+                    <span class="journey-step__number">{{ step.number }}</span>
+                    <span class="journey-step__text">
+                         <strong>{{ step.title }}</strong>
+                         <small class="text-muted">{{ step.description }}</small>
+                    </span>
+               </li>
+               }
+          </ol>
+
+          <div class="lifecycle">
+               <span class="lifecycle__label">TENANT LIFECYCLE</span>
+               <div class="lifecycle__steps">
+                    @for (state of tenantLifecycle; track state; let last = $last) {
+                    <span class="lifecycle__chip" [class.lifecycle__chip--active]="state === 'Active'">{{ state
+                         }}</span>
+                    @if (!last) {
+                    <span aria-hidden="true">›</span>
+                    }
+                    }
+               </div>
+          </div>
+     </section>
+
+     <section class="landing-section industries-section" id="industries" aria-labelledby="industries-heading">
+          <div class="app-container">
+               <div class="section-heading">
+                    <div>
+                         <p class="eyebrow">BUILT FOR TIRUNELVELI FIRST</p>
+                         <h2 id="industries-heading">Four trades, four clear use cases.</h2>
+                    </div>
+                    <p class="section-heading__description text-muted">
+                         The first launch optimizes for a small number of successful local pilots, then expands
+                         from one proven business into nearby businesses in the same trade.
+                    </p>
+               </div>
+
+               <div class="industry-grid">
+                    @for (industry of industries; track industry.priority) {
+                    <article class="industry-card surface">
+                         <span class="industry-card__priority">PRIORITY {{ industry.priority }}</span>
+                         <h3>{{ industry.name }}</h3>
+                         <p class="text-muted">{{ industry.useCase }}</p>
+                    </article>
+                    }
+               </div>
+
+               <div class="pilot-callout surface-raised">
+                    <div>
+                         <p class="eyebrow">LOCAL DELIVERY MODEL</p>
+                         <p>
+                              On-site onboarding, Tamil-language operational assistance, initial flow and template
+                              setup as a service, hands-on Meta guidance, and a pilot-first sales model measured
+                              against conversation volume, response time and lead conversion.
+                         </p>
+                    </div>
+               </div>
+          </div>
+     </section>
+
+     <section class="landing-section app-container" id="platform" aria-labelledby="platform-heading">
+          <div class="section-heading">
+               <div>
+                    <p class="eyebrow">PLATFORM FOUNDATIONS</p>
+                    <h2 id="platform-heading">Multi-tenant by construction.</h2>
+               </div>
+               <p class="section-heading__description text-muted">
+                    A shared application and shared database keep operating costs controlled, while isolation,
+                    permissions and secret handling are enforced below the interface.
+               </p>
+          </div>
+
+          <div class="assurance-grid">
+               @for (item of assurances; track item.title) {
+               <article class="assurance-card">
+                    <span class="assurance-card__mark" aria-hidden="true">✓</span>
+                    <h3>{{ item.title }}</h3>
+                    <p class="text-muted">{{ item.description }}</p>
+               </article>
+               }
+          </div>
+
+          <ul class="tech-chips" aria-label="Technology direction">
+               <li class="tech-chips__label">TECHNOLOGY DIRECTION</li>
+               @for (tech of ['Angular + TypeScript', '.NET services', 'PostgreSQL with row-level security', 'SignalR', 'Redis', 'Meta Cloud API', 'Wildcard TLS at the edge']; track tech) {
+               <li>{{ tech }}</li>
+               }
+          </ul>
+     </section>
+
      <section class="landing-section app-container plans-section" id="plans" aria-labelledby="plans-heading">
           <div class="section-heading">
                <div>
                     <p class="eyebrow">PLANS</p>
-                    <h2 id="plans-heading">Room to grow with your team.</h2>
+                    <h2 id="plans-heading">Metered on business limits, not headcount.</h2>
                </div>
                <p class="section-heading__description text-muted">
-                    Start with a focused workflow and expand the way your team manages issues.
+                    Agent seats stay unlimited on every plan. What changes between plans is the operational
+                    capacity a business actually consumes.
                </p>
           </div>
 
           <p class="plans-note">
-               Plan names and inclusions are a starting draft. Pricing and limits can be added once the official
-               plan details are confirmed.
+               Plan names and inclusions below follow the published delivery phases and are a starting draft.
+               Pricing and limits will be confirmed only after Meta charges, infrastructure cost and the level of
+               local onboarding included are validated.
           </p>
 
           <div class="plan-grid">
                @for (plan of plans; track plan.name) {
                <article class="plan-card surface" [class.plan-card--featured]="plan.featured">
                     @if (plan.featured) {
-                    <span class="plan-card__badge">TEAM PLAN</span>
+                    <span class="plan-card__badge">GROWTH PLAN</span>
                     } @else {
-                    <span class="plan-card__badge plan-card__badge--quiet">BUGCONNECT PLAN</span>
+                    <span class="plan-card__badge plan-card__badge--quiet">WABAFLOW PLAN</span>
                     }
                     <h3>{{ plan.name }}</h3>
                     <p class="plan-card__audience">{{ plan.audience }}</p>
@@ -216,16 +403,28 @@
                </article>
                }
           </div>
+
+          <div class="plan-meter">
+               <span class="plan-meter__label">EVERY PLAN IS CONTROLLED ON</span>
+               <ul class="plan-meter__list">
+                    @for (dimension of planDimensions; track dimension) {
+                    <li>{{ dimension }}</li>
+                    }
+               </ul>
+          </div>
      </section>
 
      <section class="landing-section faq-section" id="faq" aria-labelledby="faq-heading">
           <div class="app-container faq-layout">
                <div class="faq-intro">
                     <p class="eyebrow">GOOD TO KNOW</p>
-                    <h2 id="faq-heading">A few quick answers.</h2>
-                    <p class="text-muted">Still have a question? Start by exploring the product flow.</p>
-                    <a class="faq-intro__link" href="#workflow">
-                         See how it works
+                    <h2 id="faq-heading">Questions businesses ask first.</h2>
+                    <p class="text-muted">
+                         Several product decisions are still open. Where the answer is not final yet, it says so
+                         here rather than guessing.
+                    </p>
+                    <a class="faq-intro__link" href="#flow-first">
+                         See how the flow works
                          <span aria-hidden="true">→</span>
                     </a>
                </div>
@@ -244,9 +443,12 @@
      <section class="final-cta app-container" aria-labelledby="final-cta-heading">
           <div class="final-cta__panel">
                <div>
-                    <p class="eyebrow">MAKE THE NEXT FIX EASIER</p>
-                    <h2 id="final-cta-heading">Bring issue work into focus.</h2>
-                    <p>Start with BUGConnect and keep every next step visible.</p>
+                    <p class="eyebrow">PILOT-FIRST ROLLOUT</p>
+                    <h2 id="final-cta-heading">Start with one measurable WhatsApp journey.</h2>
+                    <p>
+                         A strong first pilot has frequent WhatsApp enquiries, several staff members, and one outcome
+                         everyone can agree to measure before and after launch.
+                    </p>
                </div>
                <a class="button button-primary final-cta__button" [routerLink]="['/login']">
                     Go to login
@@ -258,14 +460,16 @@
 
 <footer class="site-footer">
      <div class="app-container site-footer__inner">
-          <a class="site-footer__brand" [routerLink]="['/']" aria-label="BUGConnect home">
-               <span class="site-brand__mark" aria-hidden="true">B</span>
-               <span>BUG<span class="text-brand">Connect</span></span>
+          <a class="site-footer__brand" [routerLink]="['/']" aria-label="WABAFlow home">
+               <span class="site-brand__mark" aria-hidden="true">W</span>
+               <span>WABA<span class="text-brand">Flow</span></span>
           </a>
-          <p class="site-footer__tagline text-muted">A clearer way to connect reports to fixes.</p>
+          <p class="site-footer__tagline text-muted">One official WhatsApp number, operated as a real workspace.</p>
           <nav class="site-footer__links" aria-label="Footer navigation">
-               <a href="#features">Features</a>
+               <a href="#modules">Modules</a>
+               <a href="#roles">Roles</a>
                <a href="#plans">Plans</a>
+               <a href="#faq">FAQ</a>
                <a [routerLink]="['/login']">Login</a>
           </nav>
      </div>
