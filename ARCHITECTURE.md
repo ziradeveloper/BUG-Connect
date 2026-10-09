@@ -124,6 +124,51 @@ export type PlatformStaffUser = {
 };
 ```
 
+### `Message` (Cloud API shaped)
+
+One row per message object sent or received. `type` is the Cloud API object; `payload` is
+that object's body; `content` is a plain-text mirror kept for search, CSV export and the
+queue preview.
+
+```typescript
+export type WhatsAppMessageType =
+  | 'text' | 'template' | 'interactive' | 'image' | 'video' | 'audio'
+  | 'voice' | 'document' | 'sticker' | 'location' | 'contacts' | 'reaction' | 'flow';
+
+export interface MessagePayload {
+  text?: string | null;        // text, internal notes
+  caption?: string | null;     // image, video, document
+  media?: MediaMeta | null;    // image, video, audio, voice, document, sticker
+  template?: TemplatePayload | null;   // name, language, category, variables, buttons
+  interactive?: InteractivePayload | null; // button | list | cta_url | flow | catalog
+  location?: LocationPayload | null;
+  contacts?: ContactCard[] | null;
+  reaction?: ReactionPayload | null;
+  flow?: { name: string; screen: string; response: Record<string, string> } | null;
+}
+
+export type Message = {
+  id: string;
+  conversationId: string;
+  direction: 'inbound' | 'outbound';
+  type: WhatsAppMessageType;
+  payload: MessagePayload;
+  content: string;
+  mediaUrl: string | null;
+  deliveryStatus: 'sent' | 'delivered' | 'read' | 'failed';
+  isInternalWhisper: boolean;
+  createdByUserId: string | null;
+  sentAt: string;
+  replyToMessageId?: string | null;
+  reactions?: MessageReaction[];
+  waMessageId?: string | null;
+};
+```
+
+Meta's published limits live in `META_LIMITS` (`whatsapp.ts`) and are enforced by the
+composer before staging: 5 MB images, 16 MB video/audio, 100 MB documents, 100 KB static
+and 500 KB animated stickers, 4096-character text, 3 quick-reply buttons, 10 list rows.
+
 ### `Role` & Permission Matrix
 Defines menu access and operational capabilities.
 ```typescript
@@ -201,6 +246,50 @@ Full-featured data table component with zero third-party UI dependencies:
 - `ConfirmDialog`: Modal dialog for destructive action confirmations.
 - `PlannedState`: Empty state placeholder for deferred product modules.
 
+### Team Inbox (`src/app/client/inbox/`)
+
+```
+inbox-shell                     queue pane + <router-outlet>
+├── inbox-empty                 right-pane placeholder
+└── conversation-detail/
+    ├── conversation-detail-page  header · thread · composer orchestration
+    ├── message-bubble            one branch per Cloud API message object
+    ├── message-composer          text, staging, attach/emoji/sticker panels
+    ├── contact-panel             customer record beside the thread
+    └── dialogs/                  template · interactive · location · contact
+```
+
+#### Fixed-pane layout contract
+
+The inbox is a full-height surface, so the shell itself must not scroll. Three rules make
+that work, and all three are required — dropping any one of them reintroduces page scroll:
+
+1. `.shell` is `height: 100dvh; overflow: hidden`; `.shell__body` is
+   `grid-template-rows: auto minmax(0, 1fr)`; `.shell__main` scrolls page content by
+   default and opts out with `:has(.inbox-layout)`.
+2. Every flex child in the chain — `app-inbox-shell`, `app-conversation-detail-page`,
+   `.inbox-layout`, `.inbox-queue`, `.inbox-main`, `.conv-detail`, `.conv-body`,
+   `.conv-scroll` — sets `min-height: 0`. Without it the browser lets content grow the
+   box instead of scrolling inside it.
+3. Only `.inbox-list`, `.conv-thread` and `.ctx` are scroll containers, each with
+   `overscroll-behavior: contain` so the wheel never chains to the page.
+
+Responsive: ≥1180px three panes · <1180px the customer panel overlays · <900px the queue
+and the thread swap (`.inbox-layout--thread-open`, driven from `NavigationEnd`).
+
+#### Outbound message pipeline
+
+```
+composer (stages files, validates)  →  ComposerSend[]
+  → ConversationDetailPage.send()   →  MockDataService.sendOutbound(draft)
+  → dataset signal                  →  thread re-renders, delivery ticks advance
+```
+
+`whatsapp.ts` owns the contract: `WhatsAppMessageType`, the discriminated
+`MessagePayload`, `META_LIMITS` (sizes, button counts, character caps),
+`META_MIME_ACCEPT`, `renderTemplateBody()` and `payloadPreview()`. Swapping the mock for
+the .NET API means replacing `MockDataService` only — no component imports the transport.
+
 ---
 
 ## 6. Comprehensive Implementation Roadmap (Waves 1–6)
@@ -211,13 +300,18 @@ Full-featured data table component with zero third-party UI dependencies:
 - Pages: Landing page, Login page, Client Users list & form, Client Roles list & matrix, Client & Admin Dashboards, Admin Clients list, Platform Staff list, Profile page, Error pages (`404`, `no-access`).
 - Rebranding to **BUGConnect**, credential mapping, dev server host header fix, login UI fixes, responsive layout fixes, 75/75 passing unit tests.
 
-### Wave 2: Team Inbox & Conversation Queue (`[ ]`)
+### Wave 2: Team Inbox & Conversation Queue (`[x]`)
 - **Pages**: `/inbox` (Split-pane view), `/inbox/:conversationId` (Active thread view).
 - **Features**:
   - Weighted agent load router simulation (assigns new chats to online agents under capacity).
-  - Queue filters: `Unassigned`, `Mine`, `Open`, `Resolved`.
-  - Message bubble rendering (text, media, interactive template buttons, native flow responses).
-  - Agent action panel: internal notes, reassignment dropdown, status toggle, typing indicator.
+  - Queue filters: `Unassigned`, `Mine`, `Open`, `Resolved`, with live counts and search.
+  - Message bubble rendering for **every Cloud API object**: text, image, video, audio,
+    voice note, document, sticker (static + animated), location, contact card, template,
+    interactive (quick replies / CTA / list / flow), WhatsApp Flow responses and reactions.
+  - Agent action panel: internal notes, reassignment dropdown, status toggle, priority.
+  - Fixed-pane layout with independent scroll for queue, thread and customer panel.
+  - Thread ergonomics: day separators, quote-replies, hover reactions, jump-to-latest,
+    lightbox, drag-and-drop attachments, `{{n}}` template variables, slash shortcuts.
 
 ### Wave 3: Client Operations & Directory (`[ ]`)
 - **Contact Hub** (`/contacts`, `/contacts/:id`): Directory with tags, segments, lead status, opt-out enforcement.

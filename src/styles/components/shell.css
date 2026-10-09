@@ -4,15 +4,26 @@
  * Breakpoints: ≥1120 full rail · 861–1119 icon rail · ≤860 off-canvas drawer.
  */
 
+/*
+ * Height contract: the shell owns exactly one viewport of height and never
+ * scrolls as a whole. The rail scrolls on its own; the main column scrolls its
+ * page content. Full-height surfaces (the Team Inbox) opt out of that scroll
+ * and lay out their own panes — the Team Inbox is the first of them.
+ */
 .shell {
   display: grid;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   grid-template-columns: var(--shell-rail-width) minmax(0, 1fr);
 }
 
 .shell--orphan {
   display: grid;
   place-items: center;
+  height: 100vh;
+  height: 100dvh;
+  overflow: auto;
   padding: clamp(2rem, 6vw, 5rem);
 }
 
@@ -24,7 +35,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
-  block-size: 100vh;
+  block-size: 100%;
   overflow-y: auto;
   border-inline-end: 1px solid var(--theme-border);
   background-color: var(--theme-surface);
@@ -190,6 +201,8 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background-color: var(--theme-page);
 }
 
@@ -387,9 +400,27 @@
 
 /* ── Main content ──────────────────────────────────────────── */
 
+/*
+ * Default: the page scrolls inside this column, so the top bar and rail stay
+ * fixed. Full-height workspaces opt out with `:has(.inbox-layout)` below: they
+ * drop the padding and the scroll, then split the space between their own
+ * panes (queue / thread / composer) instead.
+ */
 .shell__main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: clamp(1.25rem, 2.6vw, 2.25rem);
+  scrollbar-gutter: stable;
+}
+
+.shell__main:has(> .inbox-layout),
+.shell__main:has(> app-inbox-shell > .inbox-layout) {
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Every workspace page stacks its header, toolbar and content on this rhythm. */

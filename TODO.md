@@ -41,7 +41,7 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 | Wave | Scope | Page Count | Status |
 |---|---|---|---|
 | **1** | **Foundation**: Workspace context, auth, login fixes, brand alignment, roles/menu CRUD, users CRUD, shells, DataTable, error routes | 12 | `[x]` |
-| **2** | **Team Inbox**: Split-pane inbox, active conversation view, weighted router, internal notes, resolution handoff | 4 | `[x]` |
+| **2** | **Team Inbox**: Split-pane inbox, active conversation view, weighted router, internal notes, resolution handoff, full Meta Cloud API send support, fixed-pane layout | 4 | `[x]` |
 | **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 7 | `[ ]` |
 | **4** | **Platform Admin**: Onboard client wizard, client detail tabs, plans feature matrix, subscriptions, webhook health monitor | 9 | `[ ]` |
 | **5** | **Lifecycle & Self-Service**: Billing, audit logging, onboarding wizard, suspended state, password reset, invite acceptance | 7 | `[ ]` |
@@ -89,7 +89,10 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[x]` `W1` **Role Menu Matrix** (`/roles/:roleId`) — Interactive permission matrix mapping roles to menu keys and capability levels.
 - `[x]` `W1` **Planned Stubs** (`/inbox`, `/contacts`, `/flows`, `/templates`, `/campaigns`, `/reports`, `/teams`, `/replies`, `/settings`, `/developer`, `/billing`, `/audit`) — Route stubs with `PlannedState` placeholders.
 - `[x]` `W2` **Team Inbox Queue** (`/inbox`) — Split-pane conversation list (`Unassigned`, `Mine`, `Open`, `Resolved`). Implemented as `InboxShellComponent` with search, tab counts, avatar initials, unread badge, priority badge, status pill, time.
-- `[x]` `W2` **Active Conversation View** (`/inbox/:conversationId`) — Message thread (inbound orange / outbound accent / whisper amber dashed), agent response bar with character counter, internal note toggle (🔒), Ctrl+Enter send, Resolve/Re-open, Assign agent, Set priority. Delivery tick icons (✓ sent, ✓✓ delivered/read, ✗ failed). Simulate inbound (+) button triggers `MockDataService.simulateInboundMessage()` with weighted agent router.
+- `[x]` `W2` **Active Conversation View** (`/inbox/:conversationId`) — Message thread (inbound surface / outbound brand gradient / whisper amber dashed), agent response bar with character counter, internal note toggle (🔒), Enter send, Resolve/Re-open, Assign agent, Set priority. Delivery tick icons (✓ sent, ✓✓ delivered/read, ✗ failed). Simulate inbound (+) button triggers `MockDataService.simulateInboundMessage()` with weighted agent router.
+- `[x]` `W2` **Meta Cloud API Send Support** — Every message object is sendable from one composer: `text`, `template` (approved only, `{{n}}` variables resolved live), `interactive` (quick replies, CTA, list picker, Flow), `image`, `video`, `audio`, `voice`, `document`, `sticker` (static **and animated**), `location`, `contacts`, `reaction`, plus internal notes. `AttachmentService` stages files with previews and enforces `META_LIMITS` before staging.
+- `[x]` `W2` **Fixed-Pane Inbox Layout** — Shell is one viewport tall (`height: 100dvh; overflow: hidden`); the queue, the thread and the customer panel each scroll independently with `overscroll-behavior: contain`; the composer is pinned to the bottom. Component hosts (`app-inbox-shell`, `app-conversation-detail-page`, `app-inbox-empty`) join the flex chain and every link sets `min-height: 0`. Below 900px the queue and thread swap instead of stacking.
+- `[x]` `W2` **Thread Ergonomics** — Day separators, conversation-start line, quote-reply context, hover reaction picker, reaction chips, jump-to-latest FAB with unread count, image lightbox, drag-and-drop attachments, slash shortcuts (`/hi`, `/hours`, …), emoji panel, sticker packs, optimistic sent → delivered → read lifecycle.
 - `[ ]` `W3` **Contact Hub Directory** (`/contacts`) — Implement `<app-data-table>` with `MockDataService.contacts()`. Needs server-side pagination simulation, tag filtering UI, and an opt-out badge column.
 - `[ ]` `W3` **Contact Detail View** (`/contacts/:id`) — Create split layout: Left pane for customer profile/attributes, right pane for timeline (`ConversationHistoryComponent`). Include edit form for custom attributes.
 - `[ ]` `W3` **Contact Segments** (`/contacts/segments`) — Builder UI using a reactive form array for `AND`/`OR` rules (e.g., `tag = VIP`, `lastOrder > 30 days`).
@@ -126,6 +129,18 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - Fixed inbox styles that referenced undefined variables (`--surface-0`, `--text-secondary`, …) and hard-coded colours; both now resolve through tokens.
 - Added `src/app/styles-convention.spec.ts` to keep component styles out of `src/app`.
 - Known follow-ups: landing page still has a few duplicated selectors (`.faq-section`, `.faq-intro h2`, `.faq-item__toggle::after`) that need a visual check before merging; `permission.service.spec.ts` fails on the base commit too and is unrelated to styling.
+
+### 2026-10-09 — Meta Cloud API message types & fixed-pane inbox layout
+- Added `src/app/core/data/whatsapp.ts`: `WhatsAppMessageType`, the discriminated `MessagePayload`, `META_LIMITS` (Meta's published caps), `META_MIME_ACCEPT`, `renderTemplateBody()` and `payloadPreview()`. `Message` now carries `type` + `payload`; `content` stays a plain-text mirror so search, CSV export and previews are unchanged.
+- Added `AttachmentService` (`src/app/core/data/attachment.service.ts`): stages files, reads intrinsic dimensions/duration, creates object URLs for previews, validates size and MIME type against Meta's limits and revokes URLs when a draft is dropped.
+- Rewrote the composer as `message-composer/`: auto-growing textarea, attach menu (photo, video, document, audio, voice note), sticker panel (static + animated packs), emoji panel, template picker, interactive builder, location picker, contact builder, staging strip with per-file captions, reply context chip, slash shortcuts, internal-note mode and drag-and-drop.
+- Added `dialogs/`: `template-picker-dialog` (approved templates only, live `{{n}}` preview), `interactive-builder-dialog` (quick replies / CTA / list / Flow with live preview), `location-picker-dialog`, `contact-picker-dialog`.
+- Added `message-bubble/` with a render branch for every message object, and `contact-panel/` for the customer record beside the thread.
+- `MockDataService`: added `sendOutbound()` (single write path for all types), `toggleReaction()`, `markRead()`, `sendableTemplates()`, and a simulated sent → delivered → read status webhook. `sendMessage()` is now a text-only wrapper.
+- Seeded data now emits real Cloud API objects — photos, videos, voice notes, documents, stickers, locations, contact cards, templates with resolved variables, interactive lists and Flow responses — and threads span several days so day separators are exercised.
+- Fixed the layout: the shell is one viewport tall, page scroll moved inside `.shell__main`, and the inbox opts out via `:has(.inbox-layout)`. Styles split into `inbox.css` (layout), `inbox-bubbles.css` (message objects) and `inbox-composer.css` (send bar), plus a shared `sheet.css` for the composer dialogs.
+- `angular.json`: replaced the ineffective `"all"` entry with `".e2b.app"` so the Arena preview host is accepted by the Vite dev server.
+- Tests: added `whatsapp.spec.ts`, `mock-data.inbox.spec.ts`, `message-bubble.spec.ts`, `message-composer.spec.ts`. Suite is 121 passing / 1 pre-existing failure (`permission.service.spec.ts` — fails on the base commit too).
 
 ### 2026-10-09 — Wave 2 Team Inbox Shipped
 - Built full Team Inbox module: `InboxShellComponent` (queue pane) + `ConversationDetailPageComponent` (thread + composer) + `InboxEmptyComponent`.

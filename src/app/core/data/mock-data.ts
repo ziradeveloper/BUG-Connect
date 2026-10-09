@@ -11,6 +11,12 @@ import type {
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
+import {
+  payloadPreview,
+  type MessagePayload,
+  type TemplateButtonPayload,
+  type WhatsAppMessageType,
+} from './whatsapp';
 
 /**
  * Deterministic seeded generator (mulberry32) — never Math.random, so tests can
@@ -168,6 +174,175 @@ const MESSAGE_LINES_OUT = [
   'Appointment moved to Friday 4:00 pm.',
 ];
 
+const MEDIA_CAPTIONS = [
+  'Bridal silk — bottle green with gold zari',
+  'This is the shade we discussed.',
+  'Please confirm the border width.',
+  'Sample stitching reference.',
+];
+
+const DOCUMENT_NAMES = [
+  { fileName: 'Invoice-INV-2481.pdf', mimeType: 'application/pdf', fileSize: 184_320 },
+  { fileName: 'Price-list-2026.xlsx', mimeType: 'application/vnd.ms-excel', fileSize: 46_080 },
+  { fileName: 'Measurement-form.pdf', mimeType: 'application/pdf', fileSize: 92_160 },
+  { fileName: 'Halwa-bulk-order.docx', mimeType: 'application/msword', fileSize: 28_672 },
+];
+
+const STICKERS = ['🙏', '❤️', '🎉', '👍', '😍', '🥳', '🙌', '😊'];
+const STICKER_ANIMATIONS = ['pulse', 'bounce', 'wiggle', 'spin', 'heartbeat', 'shake'];
+
+const LOCATION_SEEDS = [
+  {
+    name: 'Nazeel Silks & Bridal',
+    address: '12 West Car Street, Tirunelveli 627001',
+    latitude: 8.7139,
+    longitude: 77.7567,
+  },
+  {
+    name: 'Nellai Sweets — Junction',
+    address: '84 Trivandrum Road, Palayamkottai',
+    latitude: 8.7294,
+    longitude: 77.7412,
+  },
+  {
+    name: 'Scanwell Diagnostics',
+    address: '3 High Ground, Tirunelveli 627002',
+    latitude: 8.7265,
+    longitude: 77.7512,
+  },
+];
+
+/**
+ * Meta message templates a tenant has submitted. Approval state is randomised
+ * per tenant so the composer's "approved only" gate is exercised.
+ */
+const TEMPLATE_SEEDS: {
+  name: string;
+  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+  language: string;
+  body: string;
+  header?: { type: 'text' | 'image'; text?: string } | null;
+  footer?: string | null;
+  buttons?: TemplateButtonPayload[];
+  variables: string[];
+}[] = [
+  {
+    name: 'order_confirmation',
+    category: 'UTILITY',
+    language: 'en',
+    header: { type: 'text', text: 'Order confirmed' },
+    body: 'Hi {{1}}, your order {{2}} is confirmed and will reach {{3}} by 6 pm. Reply here if you need to change anything.',
+    footer: 'Reply STOP to opt out',
+    buttons: [
+      { type: 'QUICK_REPLY', text: 'Track order' },
+      { type: 'QUICK_REPLY', text: 'Talk to agent' },
+    ],
+    variables: ['Customer name', 'Order number', 'Delivery area'],
+  },
+  {
+    name: 'invoice_ready',
+    category: 'UTILITY',
+    language: 'en',
+    header: { type: 'image' },
+    body: 'Hi {{1}}, invoice {{2}} for ₹{{3}} is ready. Tap the button to download the PDF.',
+    footer: 'Include GST number for business orders',
+    buttons: [{ type: 'URL', text: 'Download invoice', url: 'https://example.com/invoice' }],
+    variables: ['Customer name', 'Invoice number', 'Amount'],
+  },
+  {
+    name: 'appointment_reminder',
+    category: 'UTILITY',
+    language: 'en',
+    body: 'Hello {{1}}, this is a reminder for your {{2}} appointment on {{3}}. Reply YES to confirm.',
+    buttons: [
+      { type: 'QUICK_REPLY', text: 'Confirm' },
+      { type: 'QUICK_REPLY', text: 'Reschedule' },
+    ],
+    variables: ['Customer name', 'Service', 'Date & time'],
+  },
+  {
+    name: 'catalogue_weekly',
+    category: 'MARKETING',
+    language: 'en',
+    header: { type: 'image' },
+    body: 'Fresh arrivals this week, {{1}}! Explore the {{2}} collection — prices start at ₹{{3}}.',
+    footer: 'Valid until stocks last',
+    buttons: [{ type: 'URL', text: 'View catalogue', url: 'https://example.com/catalogue' }],
+    variables: ['First name', 'Collection', 'Starting price'],
+  },
+  {
+    name: 'delivery_update',
+    category: 'UTILITY',
+    language: 'en',
+    body: 'Hi {{1}}, your parcel {{2}} is out for delivery and will arrive by {{3}} today.',
+    buttons: [{ type: 'QUICK_REPLY', text: 'Share live location' }],
+    variables: ['Customer name', 'Tracking id', 'Time'],
+  },
+  {
+    name: 'payment_followup',
+    category: 'MARKETING',
+    language: 'en',
+    body: '{{1}}, balance of ₹{{2}} is pending against order {{3}}. Pay before the 5th to keep your credit terms.',
+    footer: 'Ignore if already paid',
+    variables: ['Customer name', 'Amount', 'Order number'],
+  },
+  {
+    name: 'login_verification',
+    category: 'AUTHENTICATION',
+    language: 'en',
+    body: '{{1}} is your BUGConnect verification code. It expires in 10 minutes.',
+    buttons: [{ type: 'URL', text: 'Copy code', url: 'https://example.com/otp' }],
+    variables: ['Code'],
+  },
+];
+
+/** Message objects the contact can originate, with relative frequency. */
+const INBOUND_TYPE_WEIGHTS: [WhatsAppMessageType, number][] = [
+  ['text', 58],
+  ['image', 14],
+  ['voice', 8],
+  ['document', 6],
+  ['sticker', 5],
+  ['location', 4],
+  ['video', 3],
+  ['contacts', 1],
+  ['audio', 1],
+];
+
+/** Message objects the business can originate. */
+const OUTBOUND_TYPE_WEIGHTS: [WhatsAppMessageType, number][] = [
+  ['text', 52],
+  ['template', 12],
+  ['interactive', 12],
+  ['image', 10],
+  ['document', 6],
+  ['video', 3],
+  ['sticker', 2],
+  ['audio', 2],
+  ['flow', 1],
+];
+
+/**
+ * A deterministic placeholder photo. The demo has no CDN, so seeded media
+ * renders as a generated gradient JPEG-ish SVG instead of a broken <img>.
+ */
+function sampleImage(rng: Rng, label: string): string {
+  const hueA = rng.int(140, 200);
+  const hueB = (hueA + rng.int(30, 90)) % 360;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360">` +
+    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
+    `<stop offset="0" stop-color="hsl(${hueA} 42% 72%)"/>` +
+    `<stop offset="1" stop-color="hsl(${hueB} 48% 44%)"/>` +
+    `</linearGradient></defs>` +
+    `<rect width="480" height="360" fill="url(#g)"/>` +
+    `<circle cx="${rng.int(120, 360)}" cy="${rng.int(90, 240)}" r="${rng.int(50, 120)}" fill="hsl(${hueB} 60% 92%)" opacity="0.28"/>` +
+    `<text x="24" y="332" font-family="sans-serif" font-size="22" fill="rgba(255,255,255,.92)">${label}</text>` +
+    `</svg>`;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 function nameFor(rng: Rng): string {
   return `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`;
 }
@@ -175,6 +350,261 @@ function nameFor(rng: Rng): string {
 function emailFor(name: string, tenant: { subdomain: string }): string {
   const local = name.toLowerCase().replace(/[^a-z]+/g, '.');
   return `${local}@${tenant.subdomain.replace(/[^a-z0-9]/g, '')}.example`;
+}
+
+function weightedPick<T>(rng: Rng, entries: [T, number][]): T {
+  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  let roll = rng.next() * total;
+
+  for (const [value, weight] of entries) {
+    roll -= weight;
+    if (roll <= 0) {
+      return value;
+    }
+  }
+
+  return entries[entries.length - 1]![0];
+}
+
+type MessageSeed = {
+  id: string;
+  conversationId: string;
+  direction: 'inbound' | 'outbound';
+  deliveryStatus: Message['deliveryStatus'];
+  createdByUserId: string | null;
+  sentAt: string;
+  whisper: boolean;
+  contactName: string;
+  template: MessageTemplate | null;
+};
+
+/**
+ * Builds one Cloud API-shaped message. Whispers (internal notes) are always
+ * plain text — they are ours, not Meta's.
+ */
+function buildMessage(rng: Rng, seed: MessageSeed): Message {
+  const inbound = seed.direction === 'inbound';
+  const firstName = seed.contactName.split(' ')[0] ?? 'there';
+  const type = seed.whisper
+    ? 'text'
+    : weightedPick(rng, inbound ? INBOUND_TYPE_WEIGHTS : OUTBOUND_TYPE_WEIGHTS);
+
+  const payload: MessagePayload = {};
+  let mediaUrl: string | null = null;
+
+  switch (type) {
+    case 'image': {
+      const url = sampleImage(rng, inbound ? 'Customer photo' : 'Catalogue');
+      payload.media = {
+        mimeType: 'image/jpeg',
+        fileName: `photo-${rng.int(1000, 9999)}.jpg`,
+        fileSize: rng.int(180, 2200) * 1024,
+        width: 1280,
+        height: 960,
+        url,
+      };
+      payload.caption = rng.chance(0.55) ? rng.pick(MEDIA_CAPTIONS) : null;
+      mediaUrl = url;
+      break;
+    }
+
+    case 'video': {
+      payload.media = {
+        mimeType: 'video/mp4',
+        fileName: `clip-${rng.int(1000, 9999)}.mp4`,
+        fileSize: rng.int(1, 12) * 1024 * 1024,
+        durationSeconds: rng.int(6, 78),
+        thumbnailUrl: sampleImage(rng, 'Video'),
+      };
+      payload.caption = rng.chance(0.4) ? rng.pick(MEDIA_CAPTIONS) : null;
+      mediaUrl = payload.media.thumbnailUrl ?? null;
+      break;
+    }
+
+    case 'audio': {
+      payload.media = {
+        mimeType: 'audio/mpeg',
+        fileName: `audio-${rng.int(1000, 9999)}.mp3`,
+        fileSize: rng.int(120, 4800) * 1024,
+        durationSeconds: rng.int(12, 240),
+      };
+      break;
+    }
+
+    case 'voice': {
+      payload.media = {
+        mimeType: 'audio/ogg; codecs=opus',
+        fileSize: rng.int(18, 220) * 1024,
+        durationSeconds: rng.int(3, 42),
+      };
+      break;
+    }
+
+    case 'document': {
+      const doc = rng.pick(DOCUMENT_NAMES);
+      payload.media = { ...doc };
+      payload.caption = rng.chance(0.5) ? 'Please check and confirm.' : null;
+      break;
+    }
+
+    case 'sticker': {
+      const animated = rng.chance(0.35);
+      payload.media = {
+        mimeType: 'image/webp',
+        fileSize: rng.int(12, animated ? 180 : 96) * 1024,
+        animated,
+        glyph: rng.pick(animated ? STICKERS.slice(4) : STICKERS.slice(0, 4)),
+        animation: animated ? rng.pick(STICKER_ANIMATIONS) : undefined,
+      };
+      break;
+    }
+
+    case 'location': {
+      const place = rng.pick(LOCATION_SEEDS);
+      payload.location = place;
+      break;
+    }
+
+    case 'contacts': {
+      payload.contacts = [
+        {
+          name: seed.contactName,
+          phone: `+91 9${rng.int(100000000, 999999999)}`.slice(0, 14),
+          email: `${firstName.toLowerCase()}@example.com`,
+        },
+      ];
+      break;
+    }
+
+    case 'template': {
+      const template = seed.template;
+      if (template) {
+        payload.template = {
+          name: template.name,
+          language: template.language,
+          category: template.category,
+          header: template.header
+            ? {
+                type: 'image',
+                mediaUrl: sampleImage(rng, template.name.replace(/_/g, ' ')),
+              }
+            : null,
+          body: template.body,
+          footer: template.footer ?? null,
+          buttons: template.buttons ?? [],
+          variables: template.variableLabels?.map((label, index) =>
+            templateVariableValue(label, index, firstName, rng),
+          ) ?? [],
+        };
+      } else {
+        payload.text = rng.pick(MESSAGE_LINES_OUT);
+      }
+      break;
+    }
+
+    case 'interactive': {
+      payload.interactive = rng.chance(0.5)
+        ? {
+            subtype: 'button',
+            body: `Hi ${firstName}, how would you like to continue?`,
+            footer: 'Powered by BUGConnect',
+            buttons: [
+              { id: 'opt-1', title: 'Confirm order' },
+              { id: 'opt-2', title: 'Change size' },
+              { id: 'opt-3', title: 'Call me back' },
+            ],
+          }
+        : {
+            subtype: 'list',
+            body: `Choose a slot for your ${rng.pick(['fitting', 'delivery', 'callback'])}.`,
+            footer: 'Tap to open the list',
+            actionLabel: 'View slots',
+            buttons: [],
+            sections: [
+              {
+                title: 'Today',
+                rows: [
+                  { id: 'slot-1', title: '11:00 AM', description: 'Counter 2' },
+                  { id: 'slot-2', title: '4:30 PM', description: 'Counter 1' },
+                ],
+              },
+              {
+                title: 'Tomorrow',
+                rows: [{ id: 'slot-3', title: '10:00 AM', description: 'Counter 3' }],
+              },
+            ],
+          };
+      break;
+    }
+
+    case 'flow': {
+      payload.flow = {
+        name: 'Appointment booking',
+        screen: 'DETAILS',
+        response: {
+          'Preferred date': isoAt(rng.int(1, 6) * 24 * 60 * 60_000).slice(0, 10),
+          'Time slot': rng.pick(['Morning', 'Afternoon', 'Evening']),
+          Notes: 'First-time customer',
+        },
+      };
+      break;
+    }
+
+    default: {
+      payload.text = seed.whisper
+        ? `@supervisor Can we offer 5% on this order? (internal note)`
+        : inbound
+          ? rng.pick(MESSAGE_LINES_IN)
+          : rng.pick(MESSAGE_LINES_OUT);
+      break;
+    }
+  }
+
+  return {
+    id: seed.id,
+    conversationId: seed.conversationId,
+    direction: seed.direction,
+    type,
+    payload,
+    content: payloadPreview(type, payload),
+    mediaUrl,
+    deliveryStatus: seed.deliveryStatus,
+    isInternalWhisper: seed.whisper,
+    createdByUserId: seed.createdByUserId,
+    sentAt: seed.sentAt,
+    replyToMessageId: null,
+    reactions: [],
+    waMessageId: inbound ? `wamid.inbound-${seed.id}` : null,
+  };
+}
+
+/** Plausible filler for a template variable, so rendered bodies read naturally. */
+function templateVariableValue(
+  label: string,
+  index: number,
+  firstName: string,
+  rng: Rng,
+): string {
+  if (index === 0) {
+    return firstName;
+  }
+
+  const pool: Record<string, string[]> = {
+    'Order number': ['ORD-4821', 'ORD-5177', 'ORD-6304'],
+    'Invoice number': ['INV-2481', 'INV-3012'],
+    'Delivery area': ['Palayamkottai', 'Tirunelveli Town', 'Vannarpettai'],
+    Amount: ['4,250', '12,800', '1,150'],
+    'Starting price': ['1,499', '2,999', '899'],
+    Service: ['measurement fitting', 'trial session', 'report collection'],
+    'Date & time': ['Sat 4:00 pm', 'Mon 11:00 am', 'Wed 6:30 pm'],
+    'Tracking id': ['AWB-77213', 'AWB-44890'],
+    Code: [`${rng.int(100000, 999999)}`],
+    Time: ['4:00 pm', '11:30 am'],
+    Collection: ['bridal silk', 'festive halwa', 'coaching batch'],
+  };
+
+  const options = pool[label];
+  return options ? rng.pick(options) : label;
 }
 
 export type Dataset = {
@@ -295,6 +725,37 @@ export function buildDataset(seed = SEED): Dataset {
 
     tenant.contactCount = tenantContacts.length;
 
+    // ---- Meta message templates (seeded before conversations so a thread can
+    // quote a template the tenant actually owns)
+    for (const template of TEMPLATE_SEEDS) {
+      const status = rng.pick([
+        'draft',
+        'pending',
+        'approved',
+        'approved',
+        'approved',
+        'rejected',
+        'paused',
+      ] as const);
+
+      templates.push({
+        id: `${tenantId}-tpl-${template.name}`,
+        tenantId,
+        name: template.name,
+        category: template.category,
+        language: template.language,
+        status,
+        body: template.body,
+        variables: template.variables.length,
+        header: template.header ?? null,
+        footer: template.footer ?? null,
+        buttons: template.buttons ?? [],
+        variableLabels: template.variables,
+        updatedAt: isoAt(-rng.int(1, 60) * 24 * HOUR),
+        submittedAt: status === 'draft' ? null : isoAt(-rng.int(2, 90) * 24 * HOUR),
+      });
+    }
+
     // ---- conversations + messages
     const conversationCount = Math.round(120 / TENANT_SEEDS.length);
 
@@ -322,27 +783,56 @@ export function buildDataset(seed = SEED): Dataset {
       conversations.push(conversation);
 
       const turnCount = rng.int(2, 7);
+      const thread: Message[] = [];
+      // Threads stretch over a few days so the thread's day separators are real.
+      const startMinutesAgo = rng.int(0, 3) * 24 * 60;
+
       for (let turn = 0; turn < turnCount; turn += 1) {
         const inbound = turn % 2 === 0;
         const whisper = !inbound && rng.chance(0.18);
-        messages.push({
+
+        const message = buildMessage(rng, {
           id: `${conversation.id}-msg-${turn + 1}`,
           conversationId: conversation.id,
           direction: inbound ? 'inbound' : 'outbound',
-          type: rng.chance(0.12) ? 'media' : rng.chance(0.2) ? 'interactive' : 'text',
-          content: whisper
-            ? `@supervisor Can we offer 5% on this order? (internal note)`
-            : inbound
-              ? (rng.pick(MESSAGE_LINES_IN) as string)
-              : (rng.pick(MESSAGE_LINES_OUT) as string),
-          mediaUrl: null,
           deliveryStatus: inbound
             ? 'read'
             : rng.pick(['sent', 'delivered', 'read', 'failed'] as const),
-          isInternalWhisper: whisper,
           createdByUserId: inbound ? null : assigned,
-          sentAt: isoAt(-((turnCount - turn) * 40 + rng.int(0, 30)) * 60_000),
+          sentAt: isoAt(-(startMinutesAgo + (turnCount - turn) * 40 + rng.int(0, 30)) * 60_000),
+          whisper,
+          contactName: contact.displayName,
+          template: inbound ? null : (rng.pick(templates) ?? null),
         });
+
+        // A few threads show the contact reacting to the business reply, which
+        // is how reactions arrive on the webhook.
+        if (!inbound && !whisper && rng.chance(0.16)) {
+          message.reactions = [
+            {
+              emoji: rng.pick(['❤️', '👍', '🙏', '😍']),
+              userId: null,
+              displayName: contact.displayName,
+            },
+          ];
+        }
+
+        thread.push(message);
+        messages.push(message);
+      }
+
+      // Quote-reply context: later messages occasionally reply to the opener.
+      if (thread.length > 2 && rng.chance(0.22)) {
+        const target = thread[thread.length - 1];
+        if (target) {
+          target.replyToMessageId = thread[0]!.id;
+        }
+      }
+
+      // The queue's "last activity" must agree with the newest message.
+      const newest = thread[thread.length - 1];
+      if (newest) {
+        conversation.lastMessageAt = newest.sentAt;
       }
     }
 
@@ -367,41 +857,6 @@ export function buildDataset(seed = SEED): Dataset {
         sessions30d: rng.int(40, 1200),
         handoffRate: rng.int(8, 62),
         updatedAt: isoAt(-rng.int(1, 45) * 24 * HOUR),
-      });
-    }
-
-    // ---- templates
-    const templateNames = [
-      'order_confirmation',
-      'invoice_ready',
-      'appointment_reminder',
-      'catalogue_weekly',
-      'delivery_update',
-      'report_ready',
-      'payment_followup',
-      'welcome_message',
-    ];
-
-    for (let i = 0; i < rng.int(5, 8); i += 1) {
-      const status = rng.pick([
-        'draft',
-        'pending',
-        'approved',
-        'approved',
-        'rejected',
-        'paused',
-      ] as const);
-      templates.push({
-        id: `${tenantId}-tpl-${i + 1}`,
-        tenantId,
-        name: (templateNames[i] ?? `template_${i}`) as string,
-        category: rng.pick(['MARKETING', 'UTILITY', 'UTILITY'] as const),
-        language: rng.chance(0.35) ? 'ta_IN' : 'en',
-        status,
-        body: 'Hi {{1}}, your order {{2}} is {{3}}. Reply here to speak with our team.',
-        variables: rng.int(1, 3),
-        updatedAt: isoAt(-rng.int(1, 60) * 24 * HOUR),
-        submittedAt: status === 'draft' ? null : isoAt(-rng.int(2, 90) * 24 * HOUR),
       });
     }
 

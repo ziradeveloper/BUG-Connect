@@ -55,7 +55,14 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "allowedHosts": ["localhost", ".localhost", "admin.localhost", "nazeel.localhost", "127.0.0.1", "all"],
+            "allowedHosts": [
+              "localhost",
+              ".localhost",
+              "admin.localhost",
+              "nazeel.localhost",
+              "127.0.0.1",
+              ".e2b.app"
+            ],
             "host": "0.0.0.0"
           },
           "configurations": {

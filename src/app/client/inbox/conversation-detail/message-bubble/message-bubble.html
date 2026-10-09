@@ -1,0 +1,350 @@
+<div
+  class="msg"
+  [class.msg--outbound]="outbound()"
+  [class.msg--inbound]="!outbound()"
+  [class.msg--whisper]="whisper()"
+  [class.msg--stacked]="!showAvatar()"
+>
+  @if (showAvatar()) {
+    <div class="msg__avatar" [class.msg__avatar--agent]="outbound()" aria-hidden="true">
+      {{ outbound() ? agentInitials() : contactInitials() }}
+    </div>
+  } @else {
+    <div class="msg__avatar msg__avatar--spacer" aria-hidden="true"></div>
+  }
+
+  <div class="msg__stack">
+    <div
+      class="bubble"
+      [class.bubble--inbound]="!outbound() && !whisper()"
+      [class.bubble--outbound]="outbound() && !whisper()"
+      [class.bubble--whisper]="whisper()"
+      [class.bubble--bare]="type() === 'sticker'"
+      [class.bubble--failed]="message().deliveryStatus === 'failed'"
+    >
+      @if (whisper()) {
+        <span class="bubble__whisper-tag">🔒 Internal note · team only</span>
+      }
+
+      <!-- Quoted context (WhatsApp reply) ───────────────────────── -->
+      @if (quoted(); as quote) {
+        <div class="bubble__quote" [class.bubble__quote--own]="outbound()">
+          <span class="bubble__quote-author">
+            {{ quote.direction === 'outbound' ? 'You' : 'Customer' }}
+          </span>
+          <span class="bubble__quote-text">{{ quotedPreview(quote) }}</span>
+        </div>
+      }
+
+      <!-- Text ─────────────────────────────────────────────────── -->
+      @switch (type()) {
+        @case ('text') {
+          <p class="bubble__text">{{ text() }}</p>
+        }
+
+        <!-- Image ──────────────────────────────────────────────── -->
+        @case ('image') {
+          @if (media(); as image) {
+            <button
+              type="button"
+              class="bubble__media"
+              [class.bubble__media--tall]="(image.height ?? 0) > (image.width ?? 0)"
+              (click)="openMedia.emit(message())"
+              aria-label="Open image"
+            >
+              <img [src]="image.url ?? ''" [alt]="image.fileName ?? 'Photo'" loading="lazy" />
+              <span class="bubble__media-zoom" aria-hidden="true">⤢</span>
+            </button>
+            @if (caption()) {
+              <p class="bubble__text bubble__text--caption">{{ caption() }}</p>
+            }
+          }
+        }
+
+        <!-- Video ──────────────────────────────────────────────── -->
+        @case ('video') {
+          @if (media(); as video) {
+            <div class="bubble__video">
+              @if (video.thumbnailUrl) {
+                <img class="bubble__video-poster" [src]="video.thumbnailUrl" alt="" />
+              } @else {
+                <div class="bubble__video-fallback" aria-hidden="true">🎬</div>
+              }
+              <span class="bubble__video-play" aria-hidden="true">▶</span>
+              <span class="bubble__video-time">{{ duration() }}</span>
+            </div>
+            @if (caption()) {
+              <p class="bubble__text bubble__text--caption">{{ caption() }}</p>
+            }
+          }
+        }
+
+        <!-- Audio / voice note ─────────────────────────────────── -->
+        @case ('audio') {
+          <div class="bubble__audio">
+            <span class="bubble__audio-icon" aria-hidden="true">🎵</span>
+            <span class="bubble__wave">
+              @for (bar of waveform(); track $index) {
+                <i [style.height.%]="bar"></i>
+              }
+            </span>
+            <span class="bubble__audio-time">{{ duration() }}</span>
+          </div>
+        }
+
+        @case ('voice') {
+          <div class="bubble__audio">
+            <span class="bubble__audio-icon" aria-hidden="true">🎤</span>
+            <span class="bubble__wave">
+              @for (bar of waveform(); track $index) {
+                <i [style.height.%]="bar"></i>
+              }
+            </span>
+            <span class="bubble__audio-time">{{ duration() }}</span>
+          </div>
+        }
+
+        <!-- Document / file ────────────────────────────────────── -->
+        @case ('document') {
+          <div class="bubble__doc">
+            <span class="bubble__doc-icon" aria-hidden="true">{{ fileIcon() }}</span>
+            <span class="bubble__doc-copy">
+              <span class="bubble__doc-name">{{ media()?.fileName ?? 'Document' }}</span>
+              <span class="bubble__doc-meta">{{ fileExtension() }} · {{ fileSize() }}</span>
+            </span>
+            <span class="bubble__doc-ext">{{ fileExtension() }}</span>
+          </div>
+          @if (caption()) {
+            <p class="bubble__text bubble__text--caption">{{ caption() }}</p>
+          }
+        }
+
+        <!-- Sticker (static + animated) ────────────────────────── -->
+        @case ('sticker') {
+          <div class="bubble__sticker">
+            <span
+              class="bubble__sticker-glyph"
+              [class.bubble__sticker-glyph--animated]="stickerAnimation()"
+              [ngClass]="stickerAnimationClass()"
+              aria-hidden="true"
+              >{{ stickerGlyph() }}</span
+            >
+            @if (stickerAnimation()) {
+              <span class="bubble__sticker-badge">ANIMATED</span>
+            }
+          </div>
+        }
+
+        <!-- Location ───────────────────────────────────────────── -->
+        @case ('location') {
+          @if (location(); as place) {
+            <a class="bubble__location" [href]="mapsUrl()" target="_blank" rel="noopener">
+              <span class="bubble__map" aria-hidden="true"><i class="bubble__pin">📍</i></span>
+              <span class="bubble__location-copy">
+                <strong>{{ place.name || 'Shared location' }}</strong>
+                <small>{{ place.address || place.latitude + ', ' + place.longitude }}</small>
+                <small class="bubble__location-link">Open in Maps ↗</small>
+              </span>
+            </a>
+          }
+        }
+
+        <!-- Contact card ───────────────────────────────────────── -->
+        @case ('contacts') {
+          <div class="bubble__contacts">
+            @for (card of contacts(); track card.phone) {
+              <div class="bubble__contact">
+                <span class="bubble__contact-avatar" aria-hidden="true">{{
+                  card.name.charAt(0)
+                }}</span>
+                <span class="bubble__contact-copy">
+                  <strong>{{ card.name }}</strong>
+                  <small>{{ card.phone }}</small>
+                  @if (card.email) {
+                    <small>{{ card.email }}</small>
+                  }
+                </span>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Template ───────────────────────────────────────────── -->
+        @case ('template') {
+          @if (template(); as tpl) {
+            <div class="bubble__template">
+              <div class="bubble__template-tag">
+                <span aria-hidden="true">📋</span> {{ tpl.name }}
+                <span class="bubble__template-lang">{{ tpl.language }}</span>
+              </div>
+
+              @if (tpl.header; as header) {
+                @if (header.type === 'text' && header.text) {
+                  <p class="bubble__template-header">{{ header.text }}</p>
+                }
+                @if (header.type === 'image') {
+                  @if (header.mediaUrl) {
+                    <img class="bubble__template-media" [src]="header.mediaUrl" alt="" />
+                  } @else {
+                    <div class="tpl-preview__media" aria-hidden="true">🖼 Header image</div>
+                  }
+                }
+              }
+
+              <p class="bubble__text">{{ templateBody() }}</p>
+
+              @if (tpl.footer) {
+                <p class="bubble__template-footer">{{ tpl.footer }}</p>
+              }
+
+              @if (tpl.buttons?.length) {
+                <div class="bubble__buttons">
+                  @for (button of tpl.buttons; track button.text) {
+                    <span class="bubble__button">
+                      @if (button.type === 'URL') {
+                        <span aria-hidden="true">🔗</span>
+                      } @else if (button.type === 'PHONE_NUMBER') {
+                        <span aria-hidden="true">📞</span>
+                      }
+                      {{ button.text }}
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- Interactive: buttons, list, CTA, catalog, flow ───────── -->
+        @case ('interactive') {
+          @if (interactive(); as interactiveMessage) {
+            <div class="bubble__interactive">
+              @if (interactiveMessage.header; as header) {
+                @if (header.text) {
+                  <p class="bubble__template-header">{{ header.text }}</p>
+                }
+              }
+
+              <p class="bubble__text">{{ interactiveBody() }}</p>
+
+              @if (interactiveMessage.footer) {
+                <p class="bubble__template-footer">{{ interactiveMessage.footer }}</p>
+              }
+
+              @if (interactiveMessage.subtype === 'list') {
+                <div class="bubble__list">
+                  @for (section of listRows(); track $index) {
+                    <div class="bubble__list-group">
+                      @if (section.title) {
+                        <p class="bubble__list-title">{{ section.title }}</p>
+                      }
+                      @for (row of section.rows; track row.id) {
+                        <div class="bubble__list-row">
+                          <strong>{{ row.title }}</strong>
+                          @if (row.description) {
+                            <small>{{ row.description }}</small>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                  <div class="bubble__button bubble__button--block">
+                    {{ interactiveMessage.actionLabel || 'View options' }}
+                  </div>
+                </div>
+              } @else {
+                <div class="bubble__buttons">
+                  @for (button of interactiveMessage.buttons; track button.id) {
+                    <span class="bubble__button">{{ button.title }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- WhatsApp Flow response ─────────────────────────────── -->
+        @case ('flow') {
+          @if (flow(); as flowPayload) {
+            <div class="bubble__flow">
+              <div class="bubble__template-tag"><span aria-hidden="true">🧾</span> WhatsApp Flow</div>
+              <strong class="bubble__flow-name">{{ flowPayload.name }}</strong>
+              <dl class="bubble__flow-rows">
+                @for (entry of flowPayload.response | keyvalue; track entry.key) {
+                  <div class="bubble__flow-row">
+                    <dt>{{ entry.key }}</dt>
+                    <dd>{{ entry.value }}</dd>
+                  </div>
+                }
+              </dl>
+            </div>
+          }
+        }
+
+        <!-- Reaction ───────────────────────────────────────────── -->
+        @case ('reaction') {
+          <p class="bubble__reaction-line">
+            <span class="bubble__reaction-emoji">{{ payload().reaction?.emoji ?? '👍' }}</span>
+            Reacted to a message
+          </p>
+        }
+      }
+
+      <!-- Meta row: time + delivery ticks ─────────────────────── -->
+      <span class="bubble__meta">
+        <span class="bubble__time">{{ time() }}</span>
+        @if (outbound() && !whisper()) {
+          <span
+            class="bubble__ticks bubble__ticks--{{ message().deliveryStatus }}"
+            [title]="deliveryLabel()"
+            >{{ deliveryIcon() }}</span
+          >
+        }
+        @if (whisper()) {
+          <span class="bubble__ticks" title="Visible to your team only">🔒</span>
+        }
+      </span>
+    </div>
+
+    <!-- Reactions left on this message ────────────────────────── -->
+    @if (reactions().length) {
+      <div class="msg__reactions" [title]="reactionSummary()">
+        @for (reaction of reactions(); track reaction.emoji + reaction.userId) {
+          <button
+            type="button"
+            class="msg__reaction"
+            [class.msg__reaction--mine]="reaction.userId !== null"
+            (click)="toggleReaction(reaction.emoji)"
+          >
+            {{ reaction.emoji }}
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Hover actions ───────────────────────────────────────────── -->
+  <div class="msg__tools">
+    <div class="msg__tool-group">
+      @for (emoji of quickReactions; track emoji) {
+        <button
+          type="button"
+          class="msg__tool msg__tool--emoji"
+          [attr.aria-label]="'React with ' + emoji"
+          (click)="toggleReaction(emoji)"
+        >
+          {{ emoji }}
+        </button>
+      }
+    </div>
+    <button
+      type="button"
+      class="msg__tool"
+      aria-label="Reply to this message"
+      title="Reply"
+      (click)="reply.emit(message())"
+    >
+      ↩
+    </button>
+  </div>
+</div>
