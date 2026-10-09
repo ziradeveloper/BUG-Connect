@@ -17,6 +17,7 @@
   body {
     min-width: 320px;
     min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
     background-color: var(--theme-page);
     color: var(--theme-text-primary);
@@ -89,6 +90,7 @@
   app-root {
     display: block;
     min-height: 100vh;
+    min-height: 100dvh;
   }
 }
 

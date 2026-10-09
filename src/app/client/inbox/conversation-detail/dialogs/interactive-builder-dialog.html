@@ -1,0 +1,296 @@
+@if (visible()) {
+  <div class="sheet-backdrop" role="presentation" (click)="close()">
+    <div
+      class="sheet sheet--wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="interactive-builder-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="sheet__head">
+        <div>
+          <p class="eyebrow">Interactive message</p>
+          <h2 id="interactive-builder-title" class="sheet__title">Build an interactive message</h2>
+          <p class="sheet__sub">
+            Interactive objects let the customer tap instead of type. Limits match the Cloud API.
+          </p>
+        </div>
+        <button type="button" class="sheet__close" aria-label="Close" (click)="close()">✕</button>
+      </header>
+
+      <div class="sheet__body sheet__body--split">
+        <!-- Editor -->
+        <div class="sheet__pane">
+          <div class="seg" role="group" aria-label="Interactive type">
+            @for (option of subtypes; track option.id) {
+              <button
+                type="button"
+                class="seg__option"
+                [class.seg__option--active]="subtype() === option.id"
+                [title]="option.hint"
+                (click)="subtype.set(option.id)"
+              >
+                {{ option.label }}
+              </button>
+            }
+          </div>
+
+          <div class="sheet__fields">
+            <div class="form-group">
+              <label for="it-header">Header <span class="sheet__optional">optional</span></label>
+              <input
+                id="it-header"
+                class="form-control"
+                type="text"
+                [attr.maxlength]="limits.headerChars"
+                placeholder="Order update"
+                [value]="header()"
+                (input)="header.set($any($event.target).value)"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="it-body">Body</label>
+              <textarea
+                id="it-body"
+                class="form-control"
+                rows="3"
+                [attr.maxlength]="limits.bodyChars"
+                placeholder="Hi, how would you like to continue?"
+                [value]="body()"
+                (input)="body.set($any($event.target).value)"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="it-footer">Footer <span class="sheet__optional">optional</span></label>
+              <input
+                id="it-footer"
+                class="form-control"
+                type="text"
+                [attr.maxlength]="limits.footerChars"
+                placeholder="Powered by BUGConnect"
+                [value]="footer()"
+                (input)="footer.set($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          @if (subtype() === 'list') {
+            <h3 class="sheet__section">
+              List rows
+              <span class="sheet__count">{{ rows().length }}/{{ limits.listRows }}</span>
+            </h3>
+
+            <div class="form-group">
+              <label for="it-section">Section title</label>
+              <input
+                id="it-section"
+                class="form-control"
+                type="text"
+                placeholder="Available slots"
+                [value]="sectionTitle()"
+                (input)="sectionTitle.set($any($event.target).value)"
+              />
+            </div>
+
+            <ul class="row-editor">
+              @for (row of rows(); track row.key) {
+                <li class="row-editor__item">
+                  <input
+                    class="form-control"
+                    type="text"
+                    [attr.maxlength]="limits.rowTitleChars"
+                    placeholder="Row title"
+                    [value]="row.title"
+                    (input)="updateRow(row.key, 'title', $event)"
+                  />
+                  <input
+                    class="form-control"
+                    type="text"
+                    [attr.maxlength]="limits.rowDescriptionChars"
+                    placeholder="Description (optional)"
+                    [value]="row.description"
+                    (input)="updateRow(row.key, 'description', $event)"
+                  />
+                  <button
+                    type="button"
+                    class="row-editor__remove"
+                    aria-label="Remove row"
+                    (click)="removeRow(row.key)"
+                  >
+                    ✕
+                  </button>
+                </li>
+              }
+            </ul>
+
+            <button
+              type="button"
+              class="button button-secondary button-sm"
+              [disabled]="rows().length >= limits.listRows"
+              (click)="addRow()"
+            >
+              + Add row
+            </button>
+
+            <div class="form-group sheet__fields-gap">
+              <label for="it-action">List button label</label>
+              <input
+                id="it-action"
+                class="form-control"
+                type="text"
+                [attr.maxlength]="limits.buttonTitleChars"
+                [value]="actionLabel()"
+                (input)="actionLabel.set($any($event.target).value)"
+              />
+            </div>
+          }
+
+          @if (subtype() === 'flow') {
+            <div class="sheet__fields">
+              <div class="form-group">
+                <label for="it-flow-id">Flow id</label>
+                <input
+                  id="it-flow-id"
+                  class="form-control"
+                  type="text"
+                  placeholder="appointment_booking"
+                  [value]="flowId()"
+                  (input)="flowId.set($any($event.target).value)"
+                />
+              </div>
+              <div class="form-group">
+                <label for="it-flow-cta">Button label</label>
+                <input
+                  id="it-flow-cta"
+                  class="form-control"
+                  type="text"
+                  [attr.maxlength]="limits.buttonTitleChars"
+                  [value]="flowCta()"
+                  (input)="flowCta.set($any($event.target).value)"
+                />
+              </div>
+            </div>
+          }
+
+          @if (usesButtons()) {
+            <h3 class="sheet__section">
+              Buttons
+              <span class="sheet__count">{{ buttons().length }}/{{ maxButtons() }}</span>
+            </h3>
+
+            <ul class="row-editor">
+              @for (button of buttons(); track button.key) {
+                <li class="row-editor__item">
+                  <input
+                    class="form-control"
+                    type="text"
+                    [attr.maxlength]="limits.buttonTitleChars"
+                    [placeholder]="subtype() === 'cta_url' ? 'Button label' : 'Reply label'"
+                    [value]="button.title"
+                    (input)="updateButton(button.key, 'title', $event)"
+                  />
+                  @if (subtype() === 'cta_url') {
+                    <input
+                      class="form-control"
+                      type="url"
+                      placeholder="https://example.com/order"
+                      [value]="button.url"
+                      (input)="updateButton(button.key, 'url', $event)"
+                    />
+                  }
+                  <button
+                    type="button"
+                    class="row-editor__remove"
+                    aria-label="Remove button"
+                    (click)="removeButton(button.key)"
+                  >
+                    ✕
+                  </button>
+                </li>
+              }
+            </ul>
+
+            <button
+              type="button"
+              class="button button-secondary button-sm"
+              [disabled]="buttons().length >= maxButtons()"
+              (click)="addButton()"
+            >
+              + Add button
+            </button>
+          }
+
+          @if (errors().length) {
+            <ul class="sheet__errors">
+              @for (error of errors(); track error) {
+                <li>{{ error }}</li>
+              }
+            </ul>
+          }
+        </div>
+
+        <!-- Preview -->
+        <div class="sheet__pane sheet__pane--preview">
+          <h3 class="sheet__section">Preview</h3>
+          <div class="it-preview">
+            @if (header()) {
+              <p class="it-preview__header">{{ header() }}</p>
+            }
+            <p class="it-preview__body">{{ body() || 'Body text appears here…' }}</p>
+            @if (footer()) {
+              <p class="it-preview__footer">{{ footer() }}</p>
+            }
+
+            @if (subtype() === 'list') {
+              <div class="it-preview__list">
+                @if (sectionTitle()) {
+                  <p class="it-preview__list-title">{{ sectionTitle() }}</p>
+                }
+                @for (row of rows(); track row.key) {
+                  @if (row.title) {
+                    <div class="it-preview__row">
+                      <strong>{{ row.title }}</strong>
+                      @if (row.description) {
+                        <small>{{ row.description }}</small>
+                      }
+                    </div>
+                  }
+                }
+                <div class="it-preview__action">{{ actionLabel() || 'View options' }}</div>
+              </div>
+            } @else {
+              <div class="it-preview__buttons">
+                @for (button of previewButtons(); track $index) {
+                  <span class="it-preview__button"
+                    >@if (button.prefix) {<span aria-hidden="true">{{ button.prefix }}</span>}{{
+                      button.title
+                    }}</span
+                  >
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <footer class="sheet__foot">
+        <p class="sheet__foot-note">
+          Interactive messages are free-form replies and are not billed as templates.
+        </p>
+        <div class="sheet__foot-actions">
+          <button type="button" class="button button-secondary" (click)="close()">Cancel</button>
+          <button
+            type="button"
+            class="button button-primary"
+            [disabled]="!canSend()"
+            (click)="send()"
+          >
+            Send interactive
+          </button>
+        </div>
+      </footer>
+    </div>
+  </div>
+}

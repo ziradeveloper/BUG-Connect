@@ -44,6 +44,45 @@ BUGConnect relies on subdomains to resolve tenant workspaces. Add the following 
 
 ---
 
+## 💬 Team Inbox
+
+The Team Inbox (`/inbox`) is a **fixed-height chat workspace**, not a scrolling page: the
+shell owns exactly one viewport, the queue and the thread scroll independently, and the
+composer is pinned to the bottom — the same contract WhatsApp Web uses.
+
+| Pane | Behaviour |
+| :--- | :--- |
+| Queue (`Unassigned` / `Mine` / `Open` / `Resolved`) | Header and tabs pinned; only the conversation list scrolls |
+| Thread | The only vertical scroller on the right; day separators, quote-replies, reactions, jump-to-latest |
+| Composer | Fixed above the fold; grows to six rows, then scrolls |
+| Customer panel | Optional third pane; overlays the thread below 1180px |
+
+Below 900px the queue and the thread **swap** instead of stacking, so a phone shows one
+surface at a time with a back button in the conversation header.
+
+### Supported outbound message objects
+
+Everything the agent can send maps 1:1 to a Meta WhatsApp Cloud API message object, and
+every type flows through the single write path `MockDataService.sendOutbound()`:
+
+| Object | Composer entry point | Meta limits enforced |
+| :--- | :--- | :--- |
+| `text` | Type and press Enter | 4096 chars |
+| `template` | 📋 Template picker — approved templates only, `{{n}}` variables resolved live | Approved status, all variables filled |
+| `interactive` | 🔘 Builder — quick replies, call-to-action, list picker, WhatsApp Flow | 3 buttons, 10 list rows, 20-char titles |
+| `image` · `video` · `audio` · `voice` | Attach menu or drag-and-drop | 5 MB / 16 MB / 16 MB / 16 MB |
+| `document` | Attach menu — any file type | 100 MB |
+| `sticker` (static + **animated**) | Sticker panel, three packs | 100 KB static, 500 KB animated WebP |
+| `location` | Location picker with saved branches | Coordinate range validation |
+| `contacts` | Contact card builder | Digit-only phone validation |
+| `reaction` | Hover any bubble → pick an emoji | Six-emoji quick set |
+| Internal note | 🔒 Internal note mode | Never leaves the workspace |
+
+Files are staged locally with live previews (`AttachmentService`), validated against
+Meta's published limits, and rejected with a readable reason before anything is sent.
+
+---
+
 ## 🔑 Demo Credentials
 
 All demo accounts use the standard demo password: **`admin@123`**
@@ -64,7 +103,8 @@ Execute the Vitest unit test suite:
 ```bash
 npx ng test --watch=false
 ```
-All **75 unit tests across 29 test suites** must pass cleanly.
+All unit tests must pass cleanly (currently **127 tests across 35 suites**; the single
+`permission.service.spec.ts` failure predates this branch and is tracked in TODO.md).
 
 ### Production Build & Budget Check
 Compile the production bundle and validate Angular build budgets:
@@ -82,6 +122,8 @@ npx ng build
 4. **RBAC Authorization (`src/app/core/authorization/`)**: `PermissionService` maps roles → menus → capability levels (`none`, `view`, `edit`, `full`).
 5. **Reusable Data Table (`src/app/shared/data-table/`)**: `<app-data-table>` handles sorting, filtering, pagination, selection, CSV export, and custom template cells via `*appCell="key"`.
 6. **Mock Data Service (`src/app/core/data/`)**: Deterministic seeded RNG (`Rng`) provides mock tenants, users, contacts, conversations, flows, templates, and telemetry.
+7. **WhatsApp message contract (`src/app/core/data/whatsapp.ts`)**: One discriminated `MessagePayload` per Cloud API object, plus Meta's published limits (`META_LIMITS`) and the `payloadPreview()` the queue renders.
+8. **Fixed-pane inbox**: the shell is one viewport tall; `app-inbox-shell` / `app-conversation-detail-page` hosts join the flex chain so the thread is the only scroller.
 
 ---
 
@@ -93,11 +135,11 @@ d:\Projects\BUGConnect\BUGConnect\
 ├── src/
 │   ├── app/
 │   │   ├── admin/           # Platform Admin Console pages (clients, staff, dashboard)
-│   │   ├── client/          # Client Workspace pages (dashboard, users, roles, profile)
+│   │   ├── client/          # Client Workspace pages (dashboard, users, roles, profile, inbox)
 │   │   ├── core/
 │   │   │   ├── auth/        # SessionService, scope enforcement, auth guards
 │   │   │   ├── authorization/# PermissionService, role-capability matrix
-│   │   │   ├── data/        # Entity models, deterministic RNG mock data service
+│   │   │   ├── data/        # Entities, WhatsApp payload contract, RNG mock data, attachment staging
 │   │   │   ├── navigation/  # Menu catalog definitions
 │   │   │   └── workspace/   # Subdomain resolver & WorkspaceContext signal store
 │   │   ├── layout/          # AdminShell, ClientShell, ShellFrame frame

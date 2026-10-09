@@ -19,6 +19,7 @@
 @import './styles/components/workspace.css';
 @import './styles/components/data-table.css';
 @import './styles/components/site-header.css';
+@import './styles/components/sheet.css';
 
 /* 3. Pages */
 @import './styles/pages/landing.css';
@@ -26,4 +27,8 @@
 @import './styles/pages/dashboard.css';
 @import './styles/pages/profile.css';
 @import './styles/pages/users-roles.css';
+
+/* 4. Team Inbox — layout, bubbles and composer are separate concerns. */
 @import './styles/pages/inbox.css';
+@import './styles/pages/inbox-bubbles.css';
+@import './styles/pages/inbox-composer.css';

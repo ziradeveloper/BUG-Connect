@@ -1,0 +1,90 @@
+<aside class="ctx" aria-label="Customer details">
+  <header class="ctx__head">
+    <h2 class="ctx__title">Customer</h2>
+    <button type="button" class="ctx__close" aria-label="Close customer details" (click)="close.emit()">
+      ✕
+    </button>
+  </header>
+
+  <div class="ctx__body">
+    @if (contact(); as person) {
+      <div class="ctx__identity">
+        <div class="ctx__avatar" aria-hidden="true">{{ initials() }}</div>
+        <p class="ctx__name">{{ person.displayName }}</p>
+        <p class="ctx__wa">{{ person.waId }}</p>
+
+        <div class="ctx__badges">
+          <span class="badge" [class.badge-success]="optedIn()" [class.badge-danger]="!optedIn()">
+            {{ optedIn() ? 'WhatsApp opt-in' : 'Opted out' }}
+          </span>
+          @for (tag of person.tags; track tag) {
+            <span class="badge badge-neutral">{{ tag }}</span>
+          }
+        </div>
+      </div>
+
+      <dl class="ctx__facts">
+        <div class="ctx__fact">
+          <dt>Conversations</dt>
+          <dd>{{ person.conversationCount }}</dd>
+        </div>
+        <div class="ctx__fact">
+          <dt>Last seen</dt>
+          <dd>{{ lastSeen() }}</dd>
+        </div>
+        <div class="ctx__fact">
+          <dt>Customer since</dt>
+          <dd>{{ memberSince() }}</dd>
+        </div>
+        <div class="ctx__fact">
+          <dt>Assigned agent</dt>
+          <dd>{{ agentName() ?? 'Unassigned' }}</dd>
+        </div>
+      </dl>
+
+      @if (attributes().length) {
+        <section class="ctx__section">
+          <h3 class="ctx__section-title">Attributes</h3>
+          <dl class="ctx__attrs">
+            @for (attribute of attributes(); track attribute.key) {
+              <div class="ctx__attr">
+                <dt>{{ attribute.key }}</dt>
+                <dd>{{ attribute.value }}</dd>
+              </div>
+            }
+          </dl>
+        </section>
+      }
+
+      @if (conversation(); as conv) {
+        <section class="ctx__section">
+          <h3 class="ctx__section-title">This conversation</h3>
+          <dl class="ctx__attrs">
+            <div class="ctx__attr">
+              <dt>Subject</dt>
+              <dd>{{ conv.subject }}</dd>
+            </div>
+            <div class="ctx__attr">
+              <dt>Status</dt>
+              <dd>{{ conv.status }}</dd>
+            </div>
+            <div class="ctx__attr">
+              <dt>Priority</dt>
+              <dd>{{ conv.priority }}</dd>
+            </div>
+            <div class="ctx__attr">
+              <dt>Last activity</dt>
+              <dd>{{ lastActivity() }}</dd>
+            </div>
+            <div class="ctx__attr">
+              <dt>Channel</dt>
+              <dd>{{ conv.channel }}</dd>
+            </div>
+          </dl>
+        </section>
+      }
+    } @else {
+      <p class="ctx__empty">Contact record unavailable.</p>
+    }
+  </div>
+</aside>

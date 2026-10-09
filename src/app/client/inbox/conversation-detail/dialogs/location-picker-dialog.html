@@ -1,0 +1,112 @@
+@if (visible()) {
+  <div class="sheet-backdrop" role="presentation" (click)="close()">
+    <div
+      class="sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="location-picker-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="sheet__head">
+        <div>
+          <p class="eyebrow">Location object</p>
+          <h2 id="location-picker-title" class="sheet__title">Share a location</h2>
+          <p class="sheet__sub">
+            Pick a saved branch or enter exact coordinates. The contact sees a tappable map pin.
+          </p>
+        </div>
+        <button type="button" class="sheet__close" aria-label="Close" (click)="close()">✕</button>
+      </header>
+
+      <div class="sheet__body">
+        <ul class="preset-list">
+          @for (preset of presets; track preset.id) {
+            <li>
+              <button type="button" class="preset" (click)="applyPreset(preset)">
+                <span class="preset__icon" aria-hidden="true">📍</span>
+                <span class="preset__copy">
+                  <strong>{{ preset.name }}</strong>
+                  <small>{{ preset.address }}</small>
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+
+        <div class="sheet__fields">
+          <div class="form-group">
+            <label for="loc-name">Place name</label>
+            <input
+              id="loc-name"
+              class="form-control"
+              type="text"
+              placeholder="Store name"
+              [value]="name()"
+              (input)="name.set($any($event.target).value)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="loc-address">Address</label>
+            <input
+              id="loc-address"
+              class="form-control"
+              type="text"
+              placeholder="Street, city, PIN"
+              [value]="address()"
+              (input)="address.set($any($event.target).value)"
+            />
+          </div>
+
+          <div class="sheet__row">
+            <div class="form-group">
+              <label for="loc-lat">Latitude</label>
+              <input
+                id="loc-lat"
+                class="form-control"
+                type="number"
+                step="any"
+                [value]="latitude()"
+                (input)="latitude.set($any($event.target).value)"
+              />
+            </div>
+            <div class="form-group">
+              <label for="loc-lng">Longitude</label>
+              <input
+                id="loc-lng"
+                class="form-control"
+                type="number"
+                step="any"
+                [value]="longitude()"
+                (input)="longitude.set($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          @if (errors().length) {
+            <ul class="sheet__errors">
+              @for (error of errors(); track error) {
+                <li>{{ error }}</li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+
+      <footer class="sheet__foot">
+        <p class="sheet__foot-note">Coordinates are sent as the Cloud API location object.</p>
+        <div class="sheet__foot-actions">
+          <button type="button" class="button button-secondary" (click)="close()">Cancel</button>
+          <button
+            type="button"
+            class="button button-primary"
+            [disabled]="!canSend()"
+            (click)="send()"
+          >
+            Send location
+          </button>
+        </div>
+      </footer>
+    </div>
+  </div>
+}

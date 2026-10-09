@@ -1,0 +1,327 @@
+<footer
+  class="composer"
+  [class.composer--note]="whisper()"
+  [class.composer--drag]="dragOver()"
+  (dragenter)="onDragEnter()"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave()"
+  (drop)="onDrop($event)"
+>
+  <!-- ══ Popovers ═══════════════════════════════════════════════ -->
+
+  @if (panel() === 'attach') {
+    <div class="composer__popover composer__popover--attach" role="menu">
+      <p class="composer__popover-title">Media</p>
+      <button type="button" class="composer__menu-item" (click)="pickFile('image')">
+        <span class="composer__menu-icon composer__menu-icon--photo">🖼</span>
+        <span>Photo</span><small>JPG, PNG · 5 MB</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="pickFile('video')">
+        <span class="composer__menu-icon composer__menu-icon--video">🎬</span>
+        <span>Video</span><small>MP4, 3GPP · 16 MB</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="pickFile('document')">
+        <span class="composer__menu-icon composer__menu-icon--doc">📄</span>
+        <span>Document</span><small>Any file · 100 MB</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="pickFile('audio')">
+        <span class="composer__menu-icon composer__menu-icon--audio">🎵</span>
+        <span>Audio</span><small>MP3, AAC, OGG · 16 MB</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="pickFile('voice')">
+        <span class="composer__menu-icon composer__menu-icon--voice">🎤</span>
+        <span>Voice note</span><small>Recorded audio · 16 MB</small>
+      </button>
+
+      <p class="composer__popover-title">WhatsApp objects</p>
+      <button type="button" class="composer__menu-item" (click)="togglePanel('sticker')">
+        <span class="composer__menu-icon composer__menu-icon--sticker">😀</span>
+        <span>Stickers</span><small>Static &amp; animated WebP</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="locationPicker.open()">
+        <span class="composer__menu-icon composer__menu-icon--location">📍</span>
+        <span>Location</span><small>Share a pinned place</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="contactPicker.open()">
+        <span class="composer__menu-icon composer__menu-icon--contact">👤</span>
+        <span>Contact</span><small>Send a contact card</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="templatePicker.open()">
+        <span class="composer__menu-icon composer__menu-icon--template">📋</span>
+        <span>Template</span><small>Meta-approved only</small>
+      </button>
+      <button type="button" class="composer__menu-item" (click)="interactiveBuilder.open()">
+        <span class="composer__menu-icon composer__menu-icon--interactive">🔘</span>
+        <span>Interactive</span><small>Buttons, list, CTA, flow</small>
+      </button>
+    </div>
+  }
+
+  @if (panel() === 'emoji') {
+    <div class="composer__popover composer__popover--emoji">
+      <div class="composer__emoji-tabs">
+        @for (group of emojiGroups; track group.id) {
+          <button
+            type="button"
+            class="composer__emoji-tab"
+            [class.composer__emoji-tab--active]="activeEmojiGroup() === group.id"
+            (click)="activeEmojiGroup.set(group.id)"
+          >
+            {{ group.label }}
+          </button>
+        }
+      </div>
+      <div class="composer__emoji-grid">
+        @for (group of emojiGroups; track group.id) {
+          @if (activeEmojiGroup() === group.id) {
+            @for (emoji of group.emoji; track emoji) {
+              <button type="button" class="composer__emoji" (click)="insertEmoji(emoji)">
+                {{ emoji }}
+              </button>
+            }
+          }
+        }
+      </div>
+    </div>
+  }
+
+  @if (panel() === 'sticker') {
+    <div class="composer__popover composer__popover--sticker">
+      <div class="composer__emoji-tabs">
+        @for (pack of stickerPacks; track pack.id) {
+          <button
+            type="button"
+            class="composer__emoji-tab"
+            [class.composer__emoji-tab--active]="activePack() === pack.id"
+            (click)="activePack.set(pack.id)"
+          >
+            {{ pack.name }} @if (pack.animated) {<span class="composer__tag-live">GIF</span>}
+          </button>
+        }
+      </div>
+      <div class="composer__sticker-grid">
+        @for (pack of stickerPacks; track pack.id) {
+          @if (activePack() === pack.id) {
+            @for (sticker of pack.stickers; track sticker.id) {
+              <button
+                type="button"
+                class="composer__sticker"
+                [title]="sticker.label"
+                (click)="sendSticker({ glyph: sticker.glyph, label: sticker.label, animated: pack.animated })"
+              >
+                <span
+                  class="composer__sticker-glyph"
+                  [class.composer__sticker-glyph--animated]="pack.animated"
+                  [ngClass]="'sticker-anim-' + (sticker.animation ?? 'pulse')"
+                  >{{ sticker.glyph }}</span
+                >
+              </button>
+            }
+          }
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ══ Context: reply, staged files, shortcuts ═════════════════ -->
+
+  @if (replyPreview(); as quote) {
+    <div class="composer__reply">
+      <span class="composer__reply-bar" aria-hidden="true"></span>
+      <span class="composer__reply-copy">
+        <strong>Replying to {{ quote.author }}</strong>
+        <small>{{ quote.text }}</small>
+      </span>
+      <button type="button" class="composer__reply-close" aria-label="Cancel reply" (click)="cancelReply.emit()">
+        ✕
+      </button>
+    </div>
+  }
+
+  @if (hasStaged()) {
+    <ul class="composer__staged">
+      @for (item of staged(); track item.id) {
+        <li class="composer__staged-item" [class.composer__staged-item--error]="item.error">
+          <div class="composer__staged-preview">
+            @if (item.previewUrl && item.kind === 'image') {
+              <img [src]="item.previewUrl" [alt]="item.fileName" />
+            } @else if (item.previewUrl && item.kind === 'video') {
+              <video [src]="item.previewUrl"></video>
+            } @else if (item.kind === 'sticker') {
+              <span class="composer__staged-glyph">{{ item.meta.glyph ?? '😊' }}</span>
+            } @else {
+              <span class="composer__staged-glyph">📄</span>
+            }
+          </div>
+
+          <div class="composer__staged-body">
+            <p class="composer__staged-name">{{ item.fileName }}</p>
+            <p class="composer__staged-meta">{{ sizeLabel(item) }}</p>
+            @if (item.error) {
+              <p class="composer__staged-error">{{ item.error }}</p>
+            } @else {
+              <input
+                class="composer__staged-caption"
+                type="text"
+                placeholder="Add a caption…"
+                [value]="captionFor(item)"
+                (input)="setCaption(item, $event)"
+              />
+            }
+          </div>
+
+          <button
+            type="button"
+            class="composer__staged-remove"
+            aria-label="Remove attachment"
+            (click)="removeStaged(item)"
+          >
+            ✕
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (slashMatches().length) {
+    <div class="composer__shortcuts">
+      @for (reply of slashMatches(); track reply.shortcut) {
+        <button type="button" class="composer__shortcut" (click)="applyQuickReply(reply.body)">
+          <code>{{ reply.shortcut }}</code> {{ reply.label }}
+        </button>
+      }
+    </div>
+  }
+
+  <!-- ══ Input bar ══════════════════════════════════════════════ -->
+
+  <div class="composer__bar">
+    <button
+      type="button"
+      class="composer__icon composer__icon--attach"
+      [class.composer__icon--active]="panel() === 'attach'"
+      [disabled]="whisper()"
+      aria-label="Attach a file, template or interactive message"
+      title="Attach"
+      (click)="togglePanel('attach')"
+    >
+      +
+    </button>
+
+    <button
+      type="button"
+      class="composer__icon"
+      [class.composer__icon--active]="panel() === 'emoji'"
+      aria-label="Insert an emoji"
+      title="Emoji"
+      (click)="togglePanel('emoji')"
+    >
+      ☺
+    </button>
+
+    <div class="composer__field">
+      <textarea
+        #textInput
+        id="conv-composer-textarea"
+        class="composer__textarea"
+        rows="1"
+        [attr.maxlength]="charLimit()"
+        [placeholder]="placeholder()"
+        [value]="text()"
+        (input)="onInput($event)"
+        (keydown)="onKeydown($event)"
+      ></textarea>
+    </div>
+
+    @if (!whisper()) {
+      <button
+        type="button"
+        class="composer__icon composer__icon--wide"
+        aria-label="Send an approved template"
+        title="Template"
+        (click)="templatePicker.open()"
+      >
+        📋
+      </button>
+      <button
+        type="button"
+        class="composer__icon composer__icon--wide"
+        aria-label="Send an interactive message"
+        title="Interactive"
+        (click)="interactiveBuilder.open()"
+      >
+        🔘
+      </button>
+    }
+
+    <button
+      type="button"
+      id="conv-send-btn"
+      class="composer__send"
+      [class.composer__send--note]="whisper()"
+      [disabled]="!canSend()"
+      [attr.aria-label]="whisper() ? 'Add internal note' : 'Send message'"
+      (click)="sendText()"
+    >
+      @if (sending()) {
+        <span class="composer__send-spinner" aria-hidden="true"></span>
+      } @else if (whisper()) {
+        🔒
+      } @else {
+        ➤
+      }
+    </button>
+  </div>
+
+  <!-- ══ Status row ═════════════════════════════════════════════ -->
+
+  <div class="composer__status">
+    <div class="composer__modes" role="group" aria-label="Composer mode">
+      <button
+        type="button"
+        class="composer__mode"
+        [class.composer__mode--active]="!whisper()"
+        (click)="setWhisper(false)"
+      >
+        💬 Reply
+      </button>
+      <button
+        type="button"
+        class="composer__mode composer__mode--note"
+        [class.composer__mode--active]="whisper()"
+        (click)="setWhisper(true)"
+      >
+        🔒 Internal note
+      </button>
+    </div>
+
+    <p class="composer__hint">
+      @if (showCounter()) {
+        <span class="composer__counter" [class.composer__counter--over]="overLimit()">
+          {{ charCount() }}/{{ charLimit() }}
+        </span>
+      }
+      <span class="composer__keys">Enter to send · Shift + Enter for a new line</span>
+    </p>
+  </div>
+
+  @if (dragOver()) {
+    <div class="composer__dropzone"><span>Drop files to attach</span></div>
+  }
+
+  <!-- ══ Dialogs ════════════════════════════════════════════════ -->
+
+  <app-template-picker-dialog #templatePicker (confirm)="sendTemplate($event)" />
+  <app-interactive-builder-dialog #interactiveBuilder (confirm)="sendInteractive($event)" />
+  <app-location-picker-dialog #locationPicker (confirm)="sendLocation($event)" />
+  <app-contact-picker-dialog #contactPicker (confirm)="sendContacts($event)" />
+
+  <input
+    #fileInput
+    class="composer__file-input"
+    type="file"
+    multiple
+    [attr.accept]="accept()"
+    (change)="onFiles($event)"
+  />
+</footer>

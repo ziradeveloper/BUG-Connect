@@ -1,3 +1,10 @@
+import type {
+  MessagePayload,
+  MessageReaction,
+  TemplateButtonPayload,
+  WhatsAppMessageType,
+} from './whatsapp';
+
 export type TenantStatus =
   | 'active'
   | 'onboarding'
@@ -83,17 +90,31 @@ export interface Conversation {
   tags: string[];
 }
 
+/**
+ * A message row. `type` is the Cloud API message object; `payload` is that
+ * object's body. `content` stays a plain-text mirror so existing search,
+ * queue previews and CSV exports keep working unchanged.
+ */
 export interface Message {
   id: string;
   conversationId: string;
   direction: 'inbound' | 'outbound';
-  type: 'text' | 'media' | 'interactive';
+  /** Which Cloud API object this row represents. */
+  type: WhatsAppMessageType;
+  payload: MessagePayload;
+  /** Plain-text mirror of `payload` — searchable, and the fallback renderer. */
   content: string;
   mediaUrl: string | null;
   deliveryStatus: 'sent' | 'delivered' | 'read' | 'failed';
   isInternalWhisper: boolean;
   createdByUserId: string | null;
   sentAt: string;
+  /** Id of the message being quoted, when the agent replies in context. */
+  replyToMessageId?: string | null;
+  /** Reactions left on this message by the contact or the team. */
+  reactions?: MessageReaction[];
+  /** Meta's own message id, stamped once the Cloud API accepts the send. */
+  waMessageId?: string | null;
 }
 
 export interface ChatFlow {
@@ -108,6 +129,11 @@ export interface ChatFlow {
   updatedAt: string;
 }
 
+/**
+ * A Meta message template. `body` is the approved text with `{{n}}`
+ * placeholders; `variables` counts them; `components` carries the approved
+ * header/footer/buttons the composer can send with it.
+ */
 export interface MessageTemplate {
   id: string;
   tenantId: string;
@@ -117,6 +143,12 @@ export interface MessageTemplate {
   status: 'draft' | 'pending' | 'approved' | 'rejected' | 'paused';
   body: string;
   variables: number;
+  /** Approved header, rendered above the body when the agent sends it. */
+  header?: { type: 'text' | 'image' | 'video' | 'document'; text?: string } | null;
+  footer?: string | null;
+  buttons?: TemplateButtonPayload[];
+  /** Per-variable sample values, shown as placeholders in the composer. */
+  variableLabels?: string[];
   updatedAt: string;
   submittedAt: string | null;
 }

@@ -1,0 +1,160 @@
+@if (visible()) {
+  <div class="sheet-backdrop" role="presentation" (click)="close()">
+    <div
+      class="sheet sheet--wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="template-picker-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="sheet__head">
+        <div>
+          <p class="eyebrow">WhatsApp Cloud API</p>
+          <h2 id="template-picker-title" class="sheet__title">Send a template</h2>
+          <p class="sheet__sub">
+            Only Meta-approved templates can be sent. Fill every variable — unfilled
+            placeholders are rejected by the API.
+          </p>
+        </div>
+        <button type="button" class="sheet__close" aria-label="Close" (click)="close()">✕</button>
+      </header>
+
+      <div class="sheet__body sheet__body--split">
+        <!-- Template list -->
+        <div class="sheet__pane">
+          <input
+            class="form-control sheet__search"
+            type="search"
+            placeholder="Search approved templates…"
+            [value]="search()"
+            (input)="search.set($any($event.target).value)"
+          />
+
+          <ul class="tpl-list">
+            @for (template of templates(); track template.id) {
+              <li>
+                <button
+                  type="button"
+                  class="tpl-card"
+                  [class.tpl-card--active]="selectedId() === template.id"
+                  (click)="select(template)"
+                >
+                  <span class="tpl-card__top">
+                    <code class="tpl-card__name">{{ template.name }}</code>
+                    <span class="badge badge-neutral">{{ template.category }}</span>
+                  </span>
+                  <span class="tpl-card__body">{{ template.body }}</span>
+                  <span class="tpl-card__meta">
+                    {{ template.language }} · {{ template.variables }} variable{{
+                      template.variables === 1 ? '' : 's'
+                    }}
+                    @if (template.buttons; as buttons) {
+                      · {{ buttons.length }} button{{ buttons.length === 1 ? '' : 's' }}
+                    }
+                  </span>
+                </button>
+              </li>
+            } @empty {
+              <li class="sheet__empty">
+                No approved templates match. Templates become sendable once Meta reviews them.
+              </li>
+            }
+          </ul>
+        </div>
+
+        <!-- Variables + preview -->
+        <div class="sheet__pane sheet__pane--preview">
+          @if (selected(); as template) {
+            <h3 class="sheet__section">Variables</h3>
+
+            @if (variables().length === 0) {
+              <p class="sheet__note">This template has no variables. Send it as-is.</p>
+            }
+
+            <div class="sheet__fields">
+              @for (variable of variables(); track variable.index) {
+                <div class="form-group">
+                  <label [for]="'tpl-var-' + variable.index">{{ variable.label }}</label>
+                  <input
+                    class="form-control"
+                    [id]="'tpl-var-' + variable.index"
+                    type="text"
+                    [value]="variable.value"
+                    [placeholder]="'{{' + (variable.index + 1) + '}}'"
+                    (input)="updateValue(variable.index, $event)"
+                  />
+                </div>
+              }
+
+              @if (template.header?.type === 'image') {
+                <label class="sheet__check">
+                  <input
+                    type="checkbox"
+                    [checked]="headerImage()"
+                    (change)="headerImage.set($any($event.target).checked)"
+                  />
+                  Include the approved header image
+                </label>
+              }
+            </div>
+
+            @if (missingValues().length) {
+              <p class="sheet__warn">
+                {{ missingValues().length }} variable{{ missingValues().length === 1 ? '' : 's' }}
+                still empty.
+              </p>
+            }
+
+            <h3 class="sheet__section">Preview</h3>
+            <div class="tpl-preview">
+              @if (template.header; as header) {
+                @if (header.type === 'text' && header.text) {
+                  <p class="tpl-preview__header">{{ header.text }}</p>
+                }
+                @if (header.type === 'image' && headerImage()) {
+                  <div class="tpl-preview__media">
+                    <span aria-hidden="true">🖼</span> Header image
+                  </div>
+                }
+              }
+              <p class="tpl-preview__body">{{ previewBody() }}</p>
+              @if (template.footer) {
+                <p class="tpl-preview__footer">{{ template.footer }}</p>
+              }
+              @if (template.buttons; as buttons) {
+                <div class="tpl-preview__buttons">
+                  @for (button of buttons; track button.text) {
+                    <span class="tpl-preview__button">
+                      @if (button.type === 'URL') {<span aria-hidden="true">🔗</span>}
+                      @if (button.type === 'PHONE_NUMBER') {<span aria-hidden="true">📞</span>}
+                      {{ button.text }}
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="sheet__empty">Pick a template to fill its variables.</p>
+          }
+        </div>
+      </div>
+
+      <footer class="sheet__foot">
+        <p class="sheet__foot-note">
+          Templates are billed as business-initiated conversations.
+        </p>
+        <div class="sheet__foot-actions">
+          <button type="button" class="button button-secondary" (click)="close()">Cancel</button>
+          <button
+            type="button"
+            class="button button-primary"
+            [disabled]="!canSend()"
+            (click)="send()"
+          >
+            Send template
+          </button>
+        </div>
+      </footer>
+    </div>
+  </div>
+}

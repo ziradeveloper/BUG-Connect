@@ -14,8 +14,28 @@ import type {
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
+import {
+  payloadPreview,
+  type MessagePayload,
+  type MessageReaction,
+  type WhatsAppMessageType,
+} from './whatsapp';
 
 export type Page<T> = { items: T[]; total: number };
+
+/**
+ * Everything the composer can stage. Mirrors one Cloud API request body: a
+ * message object type plus that object's payload, so sending a sticker and
+ * sending a template take the same code path.
+ */
+export interface OutboundDraft {
+  type: WhatsAppMessageType;
+  payload: MessagePayload;
+  /** Internal notes are ours, never delivered to the contact. */
+  whisper?: boolean;
+  /** Id of the message being quoted, for contextual replies. */
+  replyToMessageId?: string | null;
+}
 
 /**
  * In-memory stand-in for the .NET API. Everything goes through this service so
@@ -212,35 +232,136 @@ export class MockDataService {
     };
   });
 
+  /** Convenience wrapper for plain text and internal notes. */
   async sendMessage(
     conversationId: string,
     content: string,
     isInternalWhisper = false,
     createdByUserId?: string,
   ): Promise<Message> {
+    return this.sendOutbound(
+      conversationId,
+      { type: 'text', payload: { text: content }, whisper: isInternalWhisper },
+      createdByUserId,
+    );
+  }
+
+  /**
+   * Sends any Cloud API message object. This is the only write path the
+   * composer uses, so every type inherits the same optimistic delivery
+   * lifecycle (sent → delivered → read) and conversation bump.
+   */
+  async sendOutbound(
+    conversationId: string,
+    draft: OutboundDraft,
+    createdByUserId?: string,
+  ): Promise<Message> {
     const dataset = this.dataset();
     const now = new Date().toISOString();
+    const whisper = draft.whisper ?? false;
+
     const newMessage: Message = {
       id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       conversationId,
       direction: 'outbound',
-      type: 'text',
-      content,
-      mediaUrl: null,
-      deliveryStatus: 'sent',
-      isInternalWhisper,
+      type: whisper ? 'text' : draft.type,
+      payload: draft.payload,
+      content: whisper
+        ? (draft.payload.text ?? '')
+        : payloadPreview(draft.type, draft.payload, draft.payload.text ?? ''),
+      mediaUrl: draft.payload.media?.url ?? draft.payload.media?.thumbnailUrl ?? null,
+      deliveryStatus: whisper ? 'read' : 'sent',
+      isInternalWhisper: whisper,
       createdByUserId: createdByUserId ?? null,
       sentAt: now,
+      replyToMessageId: draft.replyToMessageId ?? null,
+      reactions: [],
+      waMessageId: whisper ? null : `wamid.outbound-${Date.now().toString(36)}`,
     };
 
     const messages = [...dataset.messages, newMessage];
     const conversations = dataset.conversations.map((conv) =>
-      conv.id === conversationId ? { ...conv, lastMessageAt: now } : conv,
+      conv.id === conversationId
+        ? {
+            ...conv,
+            lastMessageAt: now,
+            // Replying to a customer clears the unread badge, like WhatsApp.
+            unreadCount: 0,
+            status: conv.status === 'resolved' ? ('resolved' as const) : ('open' as const),
+          }
+        : conv,
     );
 
     this.dataset.set({ ...dataset, messages, conversations });
     await this.sleep(120);
+
+    if (!whisper) {
+      this.advanceDelivery(newMessage.id);
+    }
+
     return newMessage;
+  }
+
+  /** Adds or removes the agent's reaction on a message. */
+  async toggleReaction(
+    messageId: string,
+    emoji: string,
+    actor: { userId: string | null; displayName: string },
+  ): Promise<void> {
+    const dataset = this.dataset();
+    const messages = dataset.messages.map((message) => {
+      if (message.id !== messageId) {
+        return message;
+      }
+
+      const reactions: MessageReaction[] = [...(message.reactions ?? [])];
+      const existing = reactions.findIndex(
+        (reaction) => reaction.emoji === emoji && reaction.userId === actor.userId,
+      );
+
+      if (existing >= 0) {
+        reactions.splice(existing, 1);
+      } else {
+        reactions.push({ emoji, userId: actor.userId, displayName: actor.displayName });
+      }
+
+      return { ...message, reactions };
+    });
+
+    this.dataset.set({ ...dataset, messages });
+  }
+
+  /** Templates Meta has approved — the only ones the composer may send. */
+  readonly sendableTemplates = computed(() =>
+    this.templates().filter((template) => template.status === 'approved'),
+  );
+
+  /**
+   * Simulates the Cloud API status webhook: `sent` → `delivered` → `read`.
+   * Fire-and-forget so the send itself resolves immediately.
+   */
+  private advanceDelivery(messageId: string): void {
+    const steps: { after: number; status: Message['deliveryStatus'] }[] = [
+      { after: 900, status: 'delivered' },
+      { after: 2400, status: 'read' },
+    ];
+
+    for (const step of steps) {
+      setTimeout(() => {
+        const dataset = this.dataset();
+        const target = dataset.messages.find((message) => message.id === messageId);
+        if (!target || target.deliveryStatus === 'failed') {
+          return;
+        }
+
+        this.dataset.set({
+          ...dataset,
+          messages: dataset.messages.map((message) =>
+            message.id === messageId ? { ...message, deliveryStatus: step.status } : message,
+          ),
+        });
+      }, step.after);
+    }
   }
 
   async updateConversationStatus(
@@ -271,6 +392,23 @@ export class MockDataService {
 
     this.dataset.set({ ...dataset, conversations, workspaceUsers });
     await this.sleep(140);
+  }
+
+  /** Opening a conversation in the thread clears its unread badge. */
+  async markRead(conversationId: string): Promise<void> {
+    const dataset = this.dataset();
+    const target = dataset.conversations.find((conv) => conv.id === conversationId);
+
+    if (!target || target.unreadCount === 0) {
+      return;
+    }
+
+    this.dataset.set({
+      ...dataset,
+      conversations: dataset.conversations.map((conv) =>
+        conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv,
+      ),
+    });
   }
 
   async updateConversationPriority(
@@ -354,17 +492,22 @@ export class MockDataService {
       tags: ['Inbound', 'WhatsApp'],
     };
 
+    const inboundText = summary ?? 'Hello! I need assistance with my WhatsApp order.';
     const newMsg: Message = {
       id: `msg-sim-${Date.now().toString(36)}`,
       conversationId: convId,
       direction: 'inbound',
       type: 'text',
-      content: summary ?? 'Hello! I need assistance with my WhatsApp order.',
+      payload: { text: inboundText },
+      content: inboundText,
       mediaUrl: null,
       deliveryStatus: 'read',
       isInternalWhisper: false,
       createdByUserId: null,
       sentAt: now,
+      replyToMessageId: null,
+      reactions: [],
+      waMessageId: `wamid.inbound-${Date.now().toString(36)}`,
     };
 
     const conversations = [newConv, ...dataset.conversations];

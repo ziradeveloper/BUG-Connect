@@ -1,0 +1,967 @@
+/*
+ * Message bubbles — one branch per WhatsApp Cloud API message object.
+ *
+ * Shape: incoming bubbles sit left with a soft surface, outgoing bubbles sit
+ * right on the brand gradient, internal notes are amber and dashed. Media
+ * bubbles drop their padding so the asset fills the bubble.
+ */
+
+.msg {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.msg--outbound {
+  flex-direction: row-reverse;
+}
+
+.msg--inbound {
+  justify-content: flex-start;
+}
+
+.msg--stacked {
+  margin-top: -0.25rem;
+}
+
+.msg__avatar {
+  display: grid;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: linear-gradient(140deg, var(--theme-warning), color-mix(in srgb, var(--theme-warning) 65%, var(--theme-danger)));
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  align-self: flex-end;
+}
+
+.msg__avatar--agent {
+  background: linear-gradient(135deg, var(--theme-brand), var(--theme-brand-hover));
+  color: var(--theme-brand-contrast);
+}
+
+.msg__avatar--spacer {
+  background: transparent;
+}
+
+.msg__stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: min(100%, 32rem);
+}
+
+.msg--outbound .msg__stack {
+  align-items: flex-end;
+}
+
+/* ── Bubble shell ────────────────────────────────────────────── */
+.bubble {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-radius: var(--radius-lg);
+  background-color: var(--theme-surface);
+  padding: 0.5rem 0.7rem 0.4rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  box-shadow: var(--theme-shadow-xs);
+}
+
+.bubble--inbound {
+  border: 1px solid var(--theme-border);
+  border-bottom-left-radius: 6px;
+  background-color: var(--theme-surface);
+  color: var(--theme-text-primary);
+}
+
+.bubble--outbound {
+  border-bottom-right-radius: 6px;
+  background: linear-gradient(150deg, var(--theme-brand), var(--theme-brand-hover));
+  color: var(--theme-brand-contrast);
+  box-shadow: 0 6px 16px -10px rgb(13 122 113 / 0.75);
+}
+
+.bubble--whisper {
+  border: 1.5px dashed var(--theme-warning);
+  border-radius: var(--radius-md);
+  background-color: var(--theme-warning-surface);
+  color: var(--theme-text-primary);
+  box-shadow: none;
+}
+
+.bubble--failed {
+  border-color: var(--theme-danger);
+}
+
+/* Sticker bubbles have no chrome at all */
+.bubble--bare {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.bubble__whisper-tag {
+  color: var(--theme-warning);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bubble__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bubble__text--caption {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.bubble--outbound .bubble__text--caption {
+  opacity: 0.95;
+}
+
+/* ── Meta row (time + ticks) ─────────────────────────────────── */
+.bubble__meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: -0.15rem;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.bubble--inbound .bubble__meta {
+  color: var(--theme-text-secondary);
+}
+
+.bubble--outbound .bubble__meta {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 78%, transparent);
+}
+
+.bubble--whisper .bubble__meta {
+  color: var(--theme-warning);
+}
+
+.bubble__ticks {
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.bubble__ticks--read {
+  color: #7ef0e2;
+}
+
+.bubble__ticks--failed {
+  color: var(--theme-danger);
+}
+
+/* ── Quoted context ──────────────────────────────────────────── */
+.bubble__quote {
+  display: grid;
+  gap: 0.1rem;
+  border-inline-start: 3px solid var(--theme-brand);
+  border-radius: var(--radius-sm);
+  background-color: var(--theme-surface-sunken);
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.bubble--outbound .bubble__quote {
+  border-inline-start-color: color-mix(in srgb, var(--theme-brand-contrast) 70%, transparent);
+  background-color: rgb(0 0 0 / 0.16);
+}
+
+.bubble__quote-author {
+  color: var(--theme-brand);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.bubble--outbound .bubble__quote-author {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 90%, transparent);
+}
+
+.bubble__quote-text {
+  overflow: hidden;
+  color: var(--theme-text-secondary);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bubble--outbound .bubble__quote-text {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 85%, transparent);
+}
+
+/* ── Image ───────────────────────────────────────────────────── */
+.bubble__media {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 0;
+  width: min(20rem, 60vw);
+  background-color: var(--theme-surface-sunken);
+  cursor: zoom-in;
+  line-height: 0;
+}
+
+.bubble__media img {
+  width: 100%;
+  height: auto;
+  max-height: 24rem;
+  object-fit: cover;
+}
+
+.bubble__media--tall img {
+  max-height: 28rem;
+}
+
+.bubble__media-zoom {
+  position: absolute;
+  inset-block-end: 0.4rem;
+  inset-inline-end: 0.4rem;
+  display: grid;
+  width: 1.6rem;
+  height: 1.6rem;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background-color: rgb(4 12 11 / 0.55);
+  color: #ffffff;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.bubble__media:hover .bubble__media-zoom {
+  opacity: 1;
+}
+
+/* ── Video ───────────────────────────────────────────────────── */
+.bubble__video {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  width: min(20rem, 60vw);
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface-sunken);
+}
+
+.bubble__video-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bubble__video-fallback {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  background: linear-gradient(140deg, var(--theme-surface-hover), var(--theme-surface-sunken));
+  font-size: 2rem;
+}
+
+.bubble__video-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 1.4rem;
+  text-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+}
+
+.bubble__video-play::before {
+  content: '';
+  position: absolute;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-full);
+  background-color: rgb(4 12 11 / 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.bubble__video-time {
+  position: absolute;
+  inset-block-end: 0.4rem;
+  inset-inline-end: 0.5rem;
+  border-radius: var(--radius-sm);
+  background-color: rgb(4 12 11 / 0.62);
+  padding: 0.05rem 0.35rem;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Audio & voice notes ─────────────────────────────────────── */
+.bubble__audio {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 12rem;
+}
+
+.bubble__audio-icon {
+  display: grid;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background-color: color-mix(in srgb, var(--theme-brand-contrast) 18%, transparent);
+  font-size: 0.8rem;
+}
+
+.bubble--inbound .bubble__audio-icon {
+  background-color: var(--theme-brand-soft);
+}
+
+.bubble__wave {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 2px;
+  height: 1.75rem;
+}
+
+.bubble__wave i {
+  flex: 1 1 auto;
+  min-width: 2px;
+  border-radius: var(--radius-full);
+  background-color: currentColor;
+  opacity: 0.45;
+}
+
+.bubble--outbound .bubble__wave i {
+  opacity: 0.6;
+}
+
+.bubble__audio-time {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* ── Document ────────────────────────────────────────────────── */
+.bubble__doc {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 14rem;
+}
+
+.bubble__doc-icon {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface-sunken);
+  font-size: 1.15rem;
+}
+
+.bubble--outbound .bubble__doc-icon {
+  background-color: rgb(0 0 0 / 0.18);
+}
+
+.bubble__doc-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bubble__doc-name {
+  overflow: hidden;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bubble__doc-meta {
+  color: var(--theme-text-secondary);
+  font-size: 0.7rem;
+}
+
+.bubble--outbound .bubble__doc-meta {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 78%, transparent);
+}
+
+.bubble__doc-ext {
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  background-color: var(--theme-surface-sunken);
+  padding: 0.1rem 0.35rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.bubble--outbound .bubble__doc-ext {
+  background-color: rgb(0 0 0 / 0.18);
+  color: color-mix(in srgb, var(--theme-brand-contrast) 85%, transparent);
+}
+
+/* ── Stickers (static + animated) ────────────────────────────── */
+.bubble__sticker {
+  position: relative;
+  display: grid;
+  width: 7.5rem;
+  height: 7.5rem;
+  place-items: center;
+}
+
+.bubble__sticker-glyph {
+  font-size: 5rem;
+  line-height: 1;
+  filter: drop-shadow(0 6px 12px rgb(12 27 25 / 0.18));
+}
+
+.bubble__sticker-glyph--animated {
+  animation-duration: 1.6s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.bubble__sticker-badge {
+  position: absolute;
+  inset-block-end: 0.15rem;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  border-radius: var(--radius-full);
+  background-color: rgb(4 12 11 / 0.6);
+  padding: 0.05rem 0.4rem;
+  color: #ffffff;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+/* Named loops shared by the composer grid and the rendered bubble. */
+.sticker-anim-pulse {
+  animation-name: sticker-pulse;
+}
+
+.sticker-anim-bounce {
+  animation-name: sticker-bounce;
+}
+
+.sticker-anim-wiggle {
+  animation-name: sticker-wiggle;
+}
+
+.sticker-anim-spin {
+  animation-name: sticker-spin;
+}
+
+.sticker-anim-heartbeat {
+  animation-name: sticker-heartbeat;
+}
+
+.sticker-anim-shake {
+  animation-name: sticker-shake;
+}
+
+@keyframes sticker-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes sticker-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-14%) scale(1.06);
+  }
+  60% {
+    transform: translateY(4%) scale(0.97);
+  }
+}
+
+@keyframes sticker-wiggle {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes sticker-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sticker-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.22);
+  }
+  40% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(1.16);
+  }
+}
+
+@keyframes sticker-shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-8%) rotate(-6deg);
+  }
+  75% {
+    transform: translateX(8%) rotate(6deg);
+  }
+}
+
+/* ── Location ────────────────────────────────────────────────── */
+.bubble__location {
+  display: block;
+  overflow: hidden;
+  width: min(20rem, 60vw);
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface);
+  color: inherit;
+}
+
+.bubble__map {
+  position: relative;
+  display: grid;
+  height: 8rem;
+  place-items: center;
+  background-color: color-mix(in srgb, var(--theme-info) 12%, var(--theme-surface-sunken));
+  background-image:
+    linear-gradient(var(--theme-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--theme-border) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.bubble__pin {
+  font-size: 1.75rem;
+  font-style: normal;
+  filter: drop-shadow(0 4px 8px rgb(12 27 25 / 0.25));
+  animation: sticker-bounce 2.4s ease-in-out infinite;
+}
+
+.bubble__location-copy {
+  display: grid;
+  gap: 0.1rem;
+  border-block-start: 1px solid var(--theme-border);
+  padding: 0.45rem 0.6rem 0.5rem;
+}
+
+.bubble__location-copy strong {
+  font-size: 0.85rem;
+}
+
+.bubble__location-copy small {
+  color: var(--theme-text-secondary);
+  font-size: 0.72rem;
+}
+
+.bubble__location-link {
+  color: var(--theme-brand) !important;
+  font-weight: 600;
+}
+
+/* ── Contact cards ───────────────────────────────────────────── */
+.bubble__contacts {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 13rem;
+}
+
+.bubble__contact {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.bubble__contact:not(:last-child) {
+  border-block-end: 1px solid var(--theme-border);
+  padding-block-end: 0.4rem;
+}
+
+.bubble__contact-avatar {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background-color: var(--theme-brand-soft);
+  color: var(--theme-brand);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.bubble--outbound .bubble__contact-avatar {
+  background-color: rgb(0 0 0 / 0.2);
+  color: var(--theme-brand-contrast);
+}
+
+.bubble__contact-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.bubble__contact-copy strong {
+  font-size: 0.85rem;
+}
+
+.bubble__contact-copy small {
+  color: var(--theme-text-secondary);
+  font-size: 0.72rem;
+}
+
+.bubble--outbound .bubble__contact-copy small {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 78%, transparent);
+}
+
+/* ── Template & interactive chrome ───────────────────────────── */
+.bubble__template,
+.bubble__interactive,
+.bubble__flow {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.bubble__template-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--theme-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bubble--outbound .bubble__template-tag {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 82%, transparent);
+}
+
+.bubble__template-lang {
+  border-radius: var(--radius-full);
+  background-color: var(--theme-surface-sunken);
+  padding: 0.02rem 0.35rem;
+  color: var(--theme-text-secondary);
+}
+
+.bubble--outbound .bubble__template-lang {
+  background-color: rgb(0 0 0 / 0.2);
+  color: color-mix(in srgb, var(--theme-brand-contrast) 85%, transparent);
+}
+
+.bubble__template-header {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.bubble__template-media {
+  width: 100%;
+  max-height: 9rem;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.bubble__template-footer,
+.it-preview__footer {
+  margin: 0;
+  color: var(--theme-text-secondary);
+  font-size: 0.7rem;
+}
+
+.bubble--outbound .bubble__template-footer {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 72%, transparent);
+}
+
+.bubble__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.bubble__button {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border-block-start: 1px solid var(--theme-border);
+  background-color: var(--theme-surface);
+  padding: 0.35rem 0.6rem;
+  color: var(--theme-info);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.bubble__button:last-child {
+  border-block-end: 0;
+}
+
+.bubble--outbound .bubble__button {
+  border-block-start-color: rgb(0 0 0 / 0.14);
+  background-color: rgb(255 255 255 / 0.14);
+  color: var(--theme-brand-contrast);
+}
+
+.bubble__button--block {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--theme-border);
+  margin-top: 0.25rem;
+}
+
+/* List picker */
+.bubble__list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.bubble__list-group {
+  display: grid;
+}
+
+.bubble__list-title {
+  margin: 0.15rem 0;
+  color: var(--theme-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bubble__list-row {
+  display: grid;
+  border-block-start: 1px solid var(--theme-border);
+  padding: 0.35rem 0.1rem;
+}
+
+.bubble__list-row strong {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.bubble__list-row small {
+  color: var(--theme-text-secondary);
+  font-size: 0.7rem;
+}
+
+.bubble--outbound .bubble__list-row {
+  border-block-start-color: rgb(0 0 0 / 0.14);
+}
+
+.bubble--outbound .bubble__list-row small,
+.bubble--outbound .bubble__list-title {
+  color: color-mix(in srgb, var(--theme-brand-contrast) 75%, transparent);
+}
+
+/* WhatsApp Flow response */
+.bubble__flow-name {
+  font-size: 0.875rem;
+}
+
+.bubble__flow-rows {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.bubble__flow-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-block-start: 1px dashed var(--theme-border);
+  padding-block: 0.2rem;
+}
+
+.bubble__flow-row dt {
+  color: var(--theme-text-secondary);
+  font-size: 0.75rem;
+}
+
+.bubble__flow-row dd {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Reaction line (a reaction delivered as its own message) */
+.bubble__reaction-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.bubble__reaction-emoji {
+  font-size: 1.1rem;
+}
+
+/* ── Reactions under a bubble ────────────────────────────────── */
+.msg__reactions {
+  display: flex;
+  gap: 0.15rem;
+  margin-top: -0.35rem;
+  margin-inline-start: 0.35rem;
+  z-index: 2;
+}
+
+.msg--outbound .msg__reactions {
+  margin-inline-start: 0;
+  margin-inline-end: 0.35rem;
+}
+
+.msg__reaction {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-full);
+  background-color: var(--theme-surface);
+  padding: 0;
+  font-size: 0.75rem;
+  box-shadow: var(--theme-shadow-xs);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.msg__reaction:hover {
+  transform: scale(1.12);
+}
+
+.msg__reaction--mine {
+  border-color: var(--theme-brand);
+  background-color: var(--theme-brand-soft);
+}
+
+/* ── Hover tools (react / reply) ─────────────────────────────── */
+.msg__tools {
+  position: relative;
+  display: flex;
+  flex: 0 0 0;
+  align-items: center;
+  gap: 0.25rem;
+  width: 0;
+  /* Collapsed to zero width so it never shifts the bubble, but still paints
+     its buttons outside that box when the row is hovered. */
+  min-width: 0;
+  opacity: 0;
+  overflow: visible;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.msg:hover .msg__tools,
+.msg:focus-within .msg__tools {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.msg__tool {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-full);
+  background-color: var(--theme-surface);
+  padding: 0;
+  color: var(--theme-text-secondary);
+  font-size: 0.8rem;
+  box-shadow: var(--theme-shadow-sm);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) ease;
+}
+
+.msg__tool:hover {
+  transform: scale(1.1);
+  color: var(--theme-text-primary);
+}
+
+.msg__tool-group {
+  display: flex;
+  gap: 0.1rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-full);
+  background-color: var(--theme-surface);
+  padding: 0.15rem;
+  box-shadow: var(--theme-shadow-sm);
+}
+
+.msg__tool--emoji {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.85rem;
+}
+
+.msg--outbound .msg__tools {
+  flex-direction: row-reverse;
+}
+
+@media (max-width: 900px) {
+  .msg__stack {
+    max-width: 82%;
+  }
+
+  .bubble__media,
+  .bubble__video,
+  .bubble__location {
+    width: min(17rem, 74vw);
+  }
+
+  .msg__tools {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble__sticker-glyph--animated,
+  .bubble__pin {
+    animation: none !important;
+  }
+}
