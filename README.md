@@ -103,7 +103,7 @@ Execute the Vitest unit test suite:
 ```bash
 npx ng test --watch=false
 ```
-All unit tests must pass cleanly (currently **122 tests across 34 suites**; the single
+All unit tests must pass cleanly (currently **127 tests across 35 suites**; the single
 `permission.service.spec.ts` failure predates this branch and is tracked in TODO.md).
 
 ### Production Build & Budget Check

@@ -140,7 +140,7 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - Seeded data now emits real Cloud API objects — photos, videos, voice notes, documents, stickers, locations, contact cards, templates with resolved variables, interactive lists and Flow responses — and threads span several days so day separators are exercised.
 - Fixed the layout: the shell is one viewport tall, page scroll moved inside `.shell__main`, and the inbox opts out via `:has(.inbox-layout)`. Styles split into `inbox.css` (layout), `inbox-bubbles.css` (message objects) and `inbox-composer.css` (send bar), plus a shared `sheet.css` for the composer dialogs.
 - `angular.json`: replaced the ineffective `"all"` entry with `".e2b.app"` so the Arena preview host is accepted by the Vite dev server.
-- Tests: added `whatsapp.spec.ts`, `mock-data.inbox.spec.ts`, `message-bubble.spec.ts`, `message-composer.spec.ts`. Suite is 121 passing / 1 pre-existing failure (`permission.service.spec.ts` — fails on the base commit too).
+- Tests: added `whatsapp.spec.ts`, `mock-data.inbox.spec.ts`, `message-bubble.spec.ts`, `message-composer.spec.ts` and `conversation-detail-page.spec.ts` (renders the whole thread against seeded data). Suite is 126 passing / 1 pre-existing failure (`permission.service.spec.ts` — fails on the base commit too).
 
 ### 2026-10-09 — Wave 2 Team Inbox Shipped
 - Built full Team Inbox module: `InboxShellComponent` (queue pane) + `ConversationDetailPageComponent` (thread + composer) + `InboxEmptyComponent`.

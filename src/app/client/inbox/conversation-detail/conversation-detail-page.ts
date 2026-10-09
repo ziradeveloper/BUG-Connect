@@ -294,7 +294,12 @@ export class ConversationDetailPageComponent implements OnDestroy {
     const element = this.threadEl()?.nativeElement;
     if (!element) return;
 
-    element.scrollTo({ top: element.scrollHeight, behavior });
+    // `scrollTo` is missing in jsdom and in some embedded webviews.
+    if (typeof element.scrollTo === 'function') {
+      element.scrollTo({ top: element.scrollHeight, behavior });
+    } else {
+      element.scrollTop = element.scrollHeight;
+    }
   }
 
   private findMessage(messageId: string): Message | null {
