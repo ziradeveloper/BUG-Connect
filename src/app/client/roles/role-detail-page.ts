@@ -18,7 +18,6 @@ import { PageHeader, StatusPill } from '../../shared/ui/ui';
   selector: 'app-role-detail-page',
   imports: [FormsModule, RouterLink, PageHeader],
   templateUrl: './role-detail-page.html',
-  styleUrl: './role-detail-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoleDetailPage {

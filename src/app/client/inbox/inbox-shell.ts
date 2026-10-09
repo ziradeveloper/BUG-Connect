@@ -31,7 +31,6 @@ export interface ConvListItem {
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './inbox-shell.html',
-  styleUrl: './inbox-shell.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InboxShellComponent {

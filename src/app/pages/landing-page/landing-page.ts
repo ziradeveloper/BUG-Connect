@@ -79,7 +79,6 @@ type LandingFaq = {
   selector: 'app-landing-page',
   imports: [RouterLink, SiteHeader],
   templateUrl: './landing-page.html',
-  styleUrl: './landing-page.css',
 })
 export class LandingPage {
   /** Named so the existing hero preview markup keeps working. */

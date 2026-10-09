@@ -7,7 +7,6 @@ import { PlannedState } from '../../../shared/ui/planned-state/planned-state';
   selector: 'app-not-found-page',
   imports: [PageHeader, PlannedState],
   templateUrl: './not-found-page.html',
-  styleUrl: './not-found-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NotFoundPage {

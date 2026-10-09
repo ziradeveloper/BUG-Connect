@@ -23,7 +23,6 @@ import { PageHeader } from '../../../shared/ui/ui';
   selector: 'app-user-form-page',
   imports: [FormsModule, RouterLink, PageHeader],
   templateUrl: './user-form-page.html',
-  styleUrl: './user-form-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserFormPage {

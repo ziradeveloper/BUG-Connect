@@ -23,7 +23,6 @@ const DEMO_ACCOUNTS = [
   selector: 'app-login-page',
   imports: [FormsModule, RouterLink, SiteHeader],
   templateUrl: './login-page.html',
-  styleUrl: './login-page.css',
 })
 export class LoginPage {
   private readonly session = inject(SessionService);

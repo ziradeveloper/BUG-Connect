@@ -1,0 +1,518 @@
+/*
+ * Workspace shell — the frame shared by the tenant console and the platform console.
+ * Rail (navigation) on the left, glass top bar and scrolling main area on the right.
+ * Breakpoints: ≥1120 full rail · 861–1119 icon rail · ≤860 off-canvas drawer.
+ */
+
+.shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: var(--shell-rail-width) minmax(0, 1fr);
+}
+
+.shell--orphan {
+  display: grid;
+  place-items: center;
+  padding: clamp(2rem, 6vw, 5rem);
+}
+
+/* ── Rail ──────────────────────────────────────────────────── */
+
+.shell__rail {
+  position: sticky;
+  inset-block-start: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  block-size: 100vh;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--theme-border);
+  background-color: var(--theme-surface);
+  padding: 1.1rem 0.9rem 1rem;
+  scrollbar-width: thin;
+}
+
+.shell__rail-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-inline: 0.35rem;
+}
+
+.shell__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: var(--radius-md);
+  color: var(--theme-text-primary);
+}
+
+.shell__brand .site-brand__mark {
+  width: 2.25rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  box-shadow: 0 6px 16px -6px rgb(13 122 113 / 0.55);
+}
+
+.shell__brand-name {
+  font-size: 1rem;
+  font-weight: 760;
+  letter-spacing: -0.03em;
+}
+
+.shell__rail-close {
+  display: none;
+  inline-size: 2.1rem;
+  block-size: 2.1rem;
+  place-items: center;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--theme-surface);
+  color: var(--theme-text-secondary);
+}
+
+.shell__rail-close:hover {
+  color: var(--theme-text-primary);
+  background-color: var(--theme-surface-hover);
+}
+
+.shell__rail-close svg {
+  inline-size: 1rem;
+}
+
+.shell__context {
+  margin: 0;
+  padding-inline: 0.35rem;
+}
+
+.shell__group {
+  margin: 1rem 0 0.35rem;
+  padding-inline: 0.65rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.shell__nav {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.shell__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.7rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 550;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.shell__link:hover {
+  background-color: var(--theme-surface-hover);
+  color: var(--theme-text-primary);
+}
+
+/* Active item: tinted pill with an accent bar on the leading edge. */
+.shell__link.active,
+.shell__link[aria-current='page'] {
+  background-color: var(--theme-brand-soft);
+  color: var(--theme-brand);
+  font-weight: 650;
+}
+
+.shell__link.active::before,
+.shell__link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.5rem;
+  inset-inline-start: -0.9rem;
+  inline-size: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: var(--theme-brand);
+}
+
+.shell__link-icon {
+  flex: 0 0 auto;
+  inline-size: 1.25rem;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.shell__link-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell__soon {
+  margin-inline-start: auto;
+  border-radius: var(--radius-full);
+  background-color: var(--theme-surface-sunken);
+  padding: 0.12rem 0.45rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shell__locked {
+  margin-block-start: auto;
+  border-block-start: 1px dashed var(--theme-border-strong);
+  padding-block-start: 0.5rem;
+}
+
+.shell__locked-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.2rem 0;
+  padding-inline: 0.65rem;
+  color: var(--theme-text-secondary);
+  cursor: not-allowed;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+/* ── Body & top bar ────────────────────────────────────────── */
+
+.shell__body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  background-color: var(--theme-page);
+}
+
+.shell__topbar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-block-size: var(--shell-header-height);
+  border-block-end: 1px solid var(--theme-border);
+  background-color: var(--theme-glass);
+  padding-inline: clamp(1rem, 2.5vw, 2rem);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+}
+
+.shell__crumbs {
+  display: grid;
+  min-width: 0;
+  gap: 0.05rem;
+}
+
+.shell__crumbs-title {
+  color: var(--theme-text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.shell__crumbs-host {
+  overflow: hidden;
+  color: var(--theme-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell__crumbs-host--override {
+  color: var(--theme-warning);
+  font-weight: 600;
+}
+
+.shell__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-inline-start: auto;
+}
+
+.shell__menu-toggle {
+  display: none;
+  inline-size: 2.5rem;
+  min-block-size: 2.5rem;
+  padding: 0;
+}
+
+.shell__menu-toggle svg {
+  inline-size: 1.1rem;
+}
+
+.shell__theme {
+  min-width: 4.5rem;
+}
+
+/* Dev-only workspace switcher, kept visually quiet so it never reads as product UI. */
+.shell__switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px dashed var(--theme-border-strong);
+  border-radius: var(--radius-md);
+  padding: 0.2rem 0.3rem;
+}
+
+.shell__switcher-label {
+  padding-inline: 0.35rem;
+  color: var(--theme-warning);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.shell__switch {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0.3rem 0.5rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.shell__switch:hover {
+  background-color: var(--theme-surface-hover);
+  color: var(--theme-text-primary);
+}
+
+.shell__switch--active {
+  background-color: var(--theme-brand-soft);
+  color: var(--theme-brand);
+}
+
+.shell__presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+/* ── User menu ─────────────────────────────────────────────── */
+
+.shell__user {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 1px solid var(--theme-border);
+}
+
+.shell__profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: var(--radius-full);
+  padding: 0.2rem 0.5rem 0.2rem 0.2rem;
+  transition: background-color var(--duration-fast) ease;
+}
+
+.shell__profile:hover {
+  background-color: var(--theme-surface-hover);
+}
+
+.shell__avatar {
+  display: inline-grid;
+  inline-size: 2.1rem;
+  block-size: 2.1rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--theme-brand), var(--theme-brand-hover));
+  color: var(--theme-brand-contrast);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 0 2px var(--theme-surface);
+}
+
+.shell__user-copy {
+  display: grid;
+  line-height: 1.25;
+}
+
+.shell__user-copy strong {
+  color: var(--theme-text-primary);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.shell__user-copy small {
+  font-size: 0.7rem;
+}
+
+.shell__signout {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0.35rem 0.55rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.shell__signout:hover {
+  background-color: var(--theme-danger-surface);
+  color: var(--theme-danger);
+}
+
+.shell__signin {
+  min-height: 2.25rem;
+}
+
+.shell__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background-color: var(--theme-scrim);
+  backdrop-filter: blur(2px);
+}
+
+/* ── Main content ──────────────────────────────────────────── */
+
+.shell__main {
+  min-width: 0;
+  padding: clamp(1.25rem, 2.6vw, 2.25rem);
+}
+
+/* Every workspace page stacks its header, toolbar and content on this rhythm. */
+.workspace-page {
+  display: grid;
+  gap: 1.5rem;
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+
+@media (max-width: 1120px) {
+  .shell {
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+  }
+
+  .shell__rail {
+    align-items: center;
+    padding-inline: 0.5rem;
+  }
+
+  .shell__rail-brand {
+    flex-direction: column;
+    padding-inline: 0;
+  }
+
+  .shell__brand-name,
+  .shell__link-label,
+  .shell__group,
+  .shell__context,
+  .shell__locked,
+  .shell__soon {
+    display: none;
+  }
+
+  .shell__link {
+    justify-content: center;
+    inline-size: 3rem;
+    padding: 0.6rem;
+  }
+
+  .shell__link.active::before,
+  .shell__link[aria-current='page']::before {
+    inset-inline-start: -0.5rem;
+  }
+
+  .shell__presence,
+  .shell__crumbs {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shell__menu-toggle {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .shell__rail {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 40;
+    inline-size: min(18rem, 84vw);
+    block-size: 100vh;
+    align-items: stretch;
+    padding: 1.1rem 0.9rem;
+    transform: translateX(-102%);
+    transition: transform 260ms var(--ease-out);
+    box-shadow: var(--theme-shadow-lg);
+  }
+
+  .shell__rail--open {
+    transform: translateX(0);
+  }
+
+  .shell__rail .shell__brand-name,
+  .shell__rail .shell__link-label,
+  .shell__rail .shell__group,
+  .shell__rail .shell__context,
+  .shell__rail .shell__locked,
+  .shell__rail .shell__soon {
+    display: revert;
+  }
+
+  .shell__rail .shell__rail-brand {
+    flex-direction: row;
+  }
+
+  .shell__rail .shell__link {
+    justify-content: flex-start;
+    inline-size: auto;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .shell__rail .shell__link.active::before,
+  .shell__rail .shell__link[aria-current='page']::before {
+    inset-inline-start: -0.9rem;
+  }
+
+  .shell__rail-close {
+    display: grid;
+  }
+
+  .shell__switcher {
+    display: none;
+  }
+
+  .shell__user-copy {
+    display: none;
+  }
+
+  .shell__user {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+
+  .shell__main {
+    padding: 1.1rem;
+  }
+}

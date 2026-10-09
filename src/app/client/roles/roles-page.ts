@@ -24,7 +24,6 @@ import { ConfirmDialog, PageHeader, StatusPill } from '../../shared/ui/ui';
     ConfirmDialog,
   ],
   templateUrl: './roles-page.html',
-  styleUrl: './roles-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RolesPage {

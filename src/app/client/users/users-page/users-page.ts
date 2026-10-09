@@ -28,7 +28,6 @@ import { formatRelative } from '../../../shared/format';
     ConfirmDialog,
   ],
   templateUrl: './users-page.html',
-  styleUrl: './users-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsersPage {

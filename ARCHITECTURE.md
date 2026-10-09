@@ -251,5 +251,6 @@ Full-featured data table component with zero third-party UI dependencies:
 1. **Strict Signal Usage**: All new state MUST use Angular Signals (`signal()`, `computed()`, `effect()`).
 2. **OnPush Strategy**: Set `changeDetection: ChangeDetectionStrategy.OnPush` on all components.
 3. **No Direct DOM Mutations**: Always manipulate UI state via Angular template bindings.
-4. **Preserve CSS Tokens**: Use color variables defined in `src/styles.css` (`var(--theme-brand)`, `var(--theme-surface)`, etc.).
+4. **Preserve CSS Tokens**: Use the variables defined in `src/styles/tokens.css` (`var(--theme-brand)`, `var(--theme-surface)`, `var(--radius-md)`, `var(--theme-shadow-sm)`, etc.). Never hard-code colours, radii or shadows in a stylesheet.
+5. **Global Styling Only**: Components have no `styleUrl` or inline `styles`. Every rule lives under `src/styles/` (`tokens.css` → `base.css` → `components/` → `pages/`), imported in cascade order from `src/styles.css`. `src/app/styles-convention.spec.ts` enforces this.
 5. **Verification**: Always run `npx ng test --watch=false` after writing code. Ensure all unit tests pass before considering a task finished.

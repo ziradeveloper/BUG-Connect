@@ -1,0 +1,309 @@
+/*
+ * Login page — split layout: a calm story panel on the left, the sign-in card on the right.
+ * Collapses to a single column below 900px with the card first.
+ */
+
+.login-page {
+  display: grid;
+  min-height: calc(100svh - 5rem);
+  grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+  align-items: center;
+  gap: clamp(2.5rem, 6vw, 6rem);
+  padding-block: clamp(2.5rem, 6vw, 5rem);
+}
+
+/* ── Story panel ───────────────────────────────────────────── */
+
+.login-intro {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 36rem;
+}
+
+.login-intro h1 {
+  color: var(--theme-text-primary);
+  font-size: clamp(2rem, 3.6vw, 2.9rem);
+  font-weight: 760;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+}
+
+.login-intro__description {
+  color: var(--theme-text-secondary);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.login-flow-list {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.login-flow-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.login-flow-list__icon {
+  display: grid;
+  flex: 0 0 auto;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background-color: var(--theme-brand-soft);
+  color: var(--theme-brand);
+}
+
+.login-flow-list li > span:last-child {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.login-flow-list strong {
+  color: var(--theme-text-primary);
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.login-flow-list small {
+  color: var(--theme-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.login-intro__quote {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+  padding: 1rem 1.2rem;
+  box-shadow: var(--theme-shadow-xs);
+}
+
+.login-intro__quote > span {
+  color: var(--theme-brand);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 0.8;
+}
+
+.login-intro__quote p {
+  color: var(--theme-text-primary);
+  font-size: 0.95rem;
+  font-weight: 550;
+  line-height: 1.55;
+}
+
+/* ── Sign-in card ──────────────────────────────────────────── */
+
+.login-card {
+  display: grid;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 28rem;
+  justify-self: center;
+  padding: clamp(1.5rem, 3.4vw, 2.25rem);
+  box-shadow: var(--theme-shadow-lg);
+}
+
+.login-card__header {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.login-card__header h2 {
+  color: var(--theme-text-primary);
+  font-size: 1.5rem;
+  font-weight: 740;
+  letter-spacing: -0.03em;
+}
+
+.login-card__header > p:not(.eyebrow):not(.login-target) {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* ── Form ──────────────────────────────────────────────────── */
+
+.login-card form {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.form-field > label,
+.form-field__heading label {
+  color: var(--theme-text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.form-field__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.form-link {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--theme-brand);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: start;
+}
+
+.form-link:hover {
+  color: var(--theme-brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.password-control {
+  position: relative;
+}
+
+.password-control .form-control {
+  padding-inline-end: 4.25rem;
+}
+
+.password-control__toggle {
+  position: absolute;
+  inset-block: 50% auto;
+  inset-inline-end: 0.5rem;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0.3rem 0.55rem;
+  color: var(--theme-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.password-control__toggle:hover {
+  background-color: var(--theme-surface-hover);
+  color: var(--theme-text-primary);
+}
+
+.field-error {
+  color: var(--theme-danger);
+  font-size: 0.78rem;
+  font-weight: 550;
+}
+
+.login-submit {
+  inline-size: 100%;
+  min-height: 2.75rem;
+  margin-block-start: 0.25rem;
+}
+
+/* ── Feedback ──────────────────────────────────────────────── */
+
+.login-status {
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.login-status--success {
+  border-color: color-mix(in srgb, var(--theme-success) 30%, transparent);
+  background-color: var(--theme-success-surface);
+  color: var(--theme-success);
+}
+
+.login-status--error {
+  border-color: color-mix(in srgb, var(--theme-danger) 30%, transparent);
+  background-color: var(--theme-danger-surface);
+  color: var(--theme-danger);
+}
+
+/* ── Footer of the card ────────────────────────────────────── */
+
+.login-card__signup {
+  margin: 0;
+  color: var(--theme-text-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.login-card__signup a {
+  color: var(--theme-brand);
+  font-weight: 600;
+}
+
+.login-card__signup a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.login-card__setup-note {
+  display: grid;
+  gap: 0.6rem;
+  border-block-start: 1px dashed var(--theme-border-strong);
+  padding-block-start: 1.1rem;
+}
+
+.login-card__setup-note > p:first-child {
+  color: var(--theme-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.demo-password-note {
+  color: var(--theme-text-secondary);
+  font-size: 0.78rem;
+}
+
+.demo-password-note code {
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-xs);
+  background-color: var(--theme-surface-sunken);
+  color: var(--theme-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    min-height: 0;
+  }
+
+  .login-card {
+    order: -1;
+    justify-self: stretch;
+    max-width: none;
+  }
+
+  .login-intro {
+    max-width: none;
+  }
+
+  .login-intro h1 {
+    font-size: clamp(1.75rem, 6vw, 2.25rem);
+  }
+
+  .login-flow-list {
+    display: none;
+  }
+}

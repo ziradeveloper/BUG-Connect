@@ -5,7 +5,6 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   selector: 'app-inbox-empty',
   standalone: true,
   templateUrl: './inbox-empty.html',
-  styleUrl: './inbox-empty.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InboxEmptyComponent {}
