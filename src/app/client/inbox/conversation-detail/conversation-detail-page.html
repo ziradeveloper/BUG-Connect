@@ -1,0 +1,189 @@
+@if (conv(); as c) {
+
+  <div class="conv-detail">
+
+    <!-- ── Header bar ──────────────────────────────────────── -->
+    <header class="conv-header">
+
+      <div class="conv-header__left">
+        <div class="conv-header__avatar">{{ contactInitials() }}</div>
+        <div class="conv-header__info">
+          <h2 class="conv-header__name">{{ contactName() }}</h2>
+          <div class="conv-header__meta">
+            <span class="conv-status-pill conv-status-pill--{{ c.status }}">{{ c.status }}</span>
+            <span class="conv-header__channel">◻ WhatsApp</span>
+            <span class="conv-header__time">Last activity {{ lastAt() }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="conv-header__actions">
+
+        <!-- Assign agent -->
+        <select
+          id="conv-assign-select"
+          class="conv-header__select"
+          [value]="c.assignedUserId ?? ''"
+          (change)="reassign($any($event.target).value)"
+          title="Assign to agent"
+        >
+          <option value="">Unassigned</option>
+          @for (agent of agentList(); track agent.id) {
+            <option [value]="agent.id">{{ agent.fullName }}</option>
+          }
+        </select>
+
+        <!-- Priority -->
+        <select
+          id="conv-priority-select"
+          class="conv-header__select"
+          [value]="c.priority"
+          (change)="changePriority($any($event.target).value)"
+          title="Set priority"
+        >
+          <option value="low">↓ Low</option>
+          <option value="normal">– Normal</option>
+          <option value="high">↑ High</option>
+        </select>
+
+        @if (c.status !== 'resolved') {
+          <button
+            id="conv-resolve-btn"
+            class="conv-btn conv-btn--resolve"
+            [disabled]="saving()"
+            (click)="resolve()"
+          >
+            ✓ Resolve
+          </button>
+        } @else {
+          <button
+            id="conv-reopen-btn"
+            class="conv-btn conv-btn--reopen"
+            [disabled]="saving()"
+            (click)="reopen()"
+          >
+            ↺ Re-open
+          </button>
+        }
+
+      </div>
+    </header>
+
+    <!-- ── Message thread ─────────────────────────────────────── -->
+    <div class="conv-thread" #threadEl>
+
+      @if (messages().length === 0) {
+        <div class="conv-thread__empty">No messages yet.</div>
+      }
+
+      @for (msg of messages(); track msg.id) {
+        <div
+          class="conv-bubble-row"
+          [class.conv-bubble-row--outbound]="msg.direction === 'outbound'"
+          [class.conv-bubble-row--whisper]="msg.isWhisper"
+        >
+          @if (msg.direction === 'inbound') {
+            <div class="conv-avatar conv-avatar--contact">{{ contactInitials() }}</div>
+          }
+
+          <div class="conv-bubble-col">
+            <div
+              class="conv-bubble"
+              [class.conv-bubble--inbound]="msg.direction === 'inbound'"
+              [class.conv-bubble--outbound]="msg.direction === 'outbound' && !msg.isWhisper"
+              [class.conv-bubble--whisper]="msg.isWhisper"
+            >
+              @if (msg.isWhisper) {
+                <span class="conv-bubble__whisper-label">🔒 Internal note</span>
+              }
+              {{ msg.content }}
+            </div>
+
+            <div class="conv-bubble__meta" [class.conv-bubble__meta--right]="msg.direction === 'outbound'">
+              <span>{{ formatTime(msg.sentAt) }}</span>
+              @if (msg.direction === 'outbound') {
+                <span class="conv-delivery conv-delivery--{{ msg.deliveryStatus }}">
+                  {{ deliveryIcon(msg.deliveryStatus) }}
+                </span>
+              }
+              @if (msg.createdByUserId) {
+                <span>· {{ agentFirstName(msg.createdByUserId) }}</span>
+              }
+            </div>
+          </div>
+
+          @if (msg.direction === 'outbound' && !msg.isWhisper) {
+            <div class="conv-avatar conv-avatar--agent">{{ myInitials() }}</div>
+          }
+        </div>
+      }
+
+    </div>
+
+    <!-- ── Composer ───────────────────────────────────────────── -->
+    @if (c.status !== 'resolved') {
+
+      <footer class="conv-composer">
+
+        <!-- Mode toggle + char count -->
+        <div class="conv-composer__toolbar">
+          <button
+            class="conv-composer__mode-toggle"
+            [class.conv-composer__mode-toggle--whisper]="isWhisper()"
+            title="{{ isWhisper() ? 'Switch to reply mode' : 'Switch to internal note mode' }}"
+            (click)="isWhisper.set(!isWhisper())"
+          >
+            {{ isWhisper() ? '🔒 Internal note' : '💬 Reply to customer' }}
+          </button>
+          <span
+            class="conv-composer__chars"
+            [class.conv-composer__chars--warn]="charCount() > 900"
+          >
+            {{ charCount() }}/1000
+          </span>
+        </div>
+
+        <!-- Textarea -->
+        <textarea
+          id="conv-composer-textarea"
+          class="conv-composer__textarea"
+          [class.conv-composer__textarea--whisper]="isWhisper()"
+          [placeholder]="isWhisper() ? 'Write an internal note — only agents can see this…' : 'Type your reply…'"
+          maxlength="1000"
+          rows="3"
+          [value]="composerText()"
+          (input)="composerText.set($any($event.target).value)"
+          (keydown.control.enter)="send()"
+          (keydown.meta.enter)="send()"
+        ></textarea>
+
+        <!-- Send row -->
+        <div class="conv-composer__actions">
+          <span class="conv-composer__hint">Ctrl + Enter to send</span>
+          <button
+            id="conv-send-btn"
+            class="conv-btn conv-btn--send"
+            [class.conv-btn--send-whisper]="isWhisper()"
+            [disabled]="!composerText().trim() || saving()"
+            (click)="send()"
+          >
+            {{ saving() ? 'Sending…' : isWhisper() ? '🔒 Add note' : '➤ Send' }}
+          </button>
+        </div>
+
+      </footer>
+
+    } @else {
+
+      <div class="conv-resolved-banner">
+        <span>✓ This conversation is resolved.</span>
+        <button class="conv-btn conv-btn--reopen" (click)="reopen()">Re-open to reply</button>
+      </div>
+
+    }
+
+  </div>
+
+} @else {
+  <div class="conv-not-found">Conversation not found.</div>
+}

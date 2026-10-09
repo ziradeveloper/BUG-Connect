@@ -1,0 +1,32 @@
+.inbox-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.inbox-empty__icon {
+  font-size: 3.5rem;
+  opacity: 0.25;
+  line-height: 1;
+}
+
+.inbox-empty__heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.inbox-empty__sub {
+  font-size: 0.875rem;
+  max-width: 320px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}

@@ -1,0 +1,116 @@
+<div class="inbox-layout">
+
+  <!-- ── Left Queue Pane ─────────────────────────────────────── -->
+  <aside class="inbox-queue">
+
+    <div class="inbox-queue__header">
+      <!-- Title + Simulate button -->
+      <div class="inbox-queue__title-row">
+        <h2 class="inbox-queue__title">Team Inbox</h2>
+        <button
+          id="inbox-simulate-btn"
+          class="inbox-queue__sim-btn"
+          title="Simulate an inbound WhatsApp message"
+          [disabled]="simulating()"
+          (click)="simulateInbound()"
+        >
+          {{ simulating() ? '…' : '+' }}
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="inbox-queue__search-wrap">
+        <input
+          id="inbox-search"
+          class="inbox-queue__search"
+          type="search"
+          placeholder="Search conversations…"
+          autocomplete="off"
+          [value]="search()"
+          (input)="search.set($any($event.target).value)"
+        />
+      </div>
+
+      <!-- Tabs -->
+      <nav class="inbox-tabs" role="tablist" aria-label="Inbox queues">
+        @for (tab of tabs; track tab.id) {
+          <button
+            class="inbox-tabs__tab"
+            role="tab"
+            [attr.aria-selected]="activeTab() === tab.id"
+            [class.inbox-tabs__tab--active]="activeTab() === tab.id"
+            (click)="activeTab.set(tab.id)"
+          >
+            {{ tab.label }}
+            <span class="inbox-tabs__count">{{ tabCount(tab.id) }}</span>
+          </button>
+        }
+      </nav>
+    </div>
+
+    <!-- Conversation list -->
+    <ul class="inbox-list" role="list">
+      @if (filteredList().length === 0) {
+        <li class="inbox-list__empty">
+          <span class="inbox-list__empty-icon">◫</span>
+          <p>Nothing in this queue.</p>
+        </li>
+      }
+
+      @for (item of filteredList(); track item.convId) {
+        <li
+          class="inbox-list__item"
+          [class.inbox-list__item--unread]="item.unreadCount > 0"
+        >
+          <a
+            class="inbox-list__link"
+            [routerLink]="['/inbox', item.convId]"
+            routerLinkActive="inbox-list__link--active"
+          >
+            <!-- Avatar -->
+            <div
+              class="inbox-list__avatar"
+              [class.inbox-list__avatar--unassigned]="!item.assignedUserId"
+            >
+              {{ item.avatarText }}
+            </div>
+
+            <!-- Content -->
+            <div class="inbox-list__content">
+              <div class="inbox-list__top-row">
+                <span class="inbox-list__name">{{ item.contactName }}</span>
+                <span class="inbox-list__time">{{ item.lastAt }}</span>
+              </div>
+
+              <div class="inbox-list__bottom-row">
+                <span class="inbox-list__subject">{{ item.subject }}</span>
+                @if (item.unreadCount > 0) {
+                  <span class="inbox-list__badge">{{ item.unreadCount }}</span>
+                }
+              </div>
+
+              <div class="inbox-list__meta-row">
+                <span class="inbox-status-pill inbox-status-pill--{{ item.status }}">
+                  {{ item.status }}
+                </span>
+                @if (item.priority === 'high') {
+                  <span class="inbox-priority-high">↑ High</span>
+                }
+                @if (item.assignedAgentFirstName) {
+                  <span class="inbox-list__agent">{{ item.assignedAgentFirstName }}</span>
+                }
+              </div>
+            </div>
+          </a>
+        </li>
+      }
+    </ul>
+
+  </aside>
+
+  <!-- ── Right Content Pane ──────────────────────────────────── -->
+  <main class="inbox-main">
+    <router-outlet />
+  </main>
+
+</div>

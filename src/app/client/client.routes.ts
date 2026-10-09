@@ -57,8 +57,8 @@ export const CLIENT_ROUTES: Routes = [
       {
         path: 'inbox',
         title: 'Team Inbox',
-        // Wave 2 replaces this with ./inbox/inbox.routes
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.INBOX_ROUTES),
+        // Wave 2 — Team Inbox split-pane with conversation thread
+        loadChildren: () => import('./inbox/inbox.routes').then((m) => m.INBOX_ROUTES),
       },
       {
         path: 'contacts',

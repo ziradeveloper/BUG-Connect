@@ -212,6 +212,176 @@ export class MockDataService {
     };
   });
 
+  async sendMessage(
+    conversationId: string,
+    content: string,
+    isInternalWhisper = false,
+    createdByUserId?: string,
+  ): Promise<Message> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const newMessage: Message = {
+      id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      conversationId,
+      direction: 'outbound',
+      type: 'text',
+      content,
+      mediaUrl: null,
+      deliveryStatus: 'sent',
+      isInternalWhisper,
+      createdByUserId: createdByUserId ?? null,
+      sentAt: now,
+    };
+
+    const messages = [...dataset.messages, newMessage];
+    const conversations = dataset.conversations.map((conv) =>
+      conv.id === conversationId ? { ...conv, lastMessageAt: now } : conv,
+    );
+
+    this.dataset.set({ ...dataset, messages, conversations });
+    await this.sleep(120);
+    return newMessage;
+  }
+
+  async updateConversationStatus(
+    conversationId: string,
+    status: Conversation['status'],
+  ): Promise<void> {
+    const dataset = this.dataset();
+    const target = dataset.conversations.find((c) => c.id === conversationId);
+    if (!target) return;
+
+    const oldStatus = target.status;
+    const conversations = dataset.conversations.map((conv) =>
+      conv.id === conversationId ? { ...conv, status } : conv,
+    );
+
+    let workspaceUsers = dataset.workspaceUsers;
+    if (target.assignedUserId && oldStatus !== 'resolved' && status === 'resolved') {
+      workspaceUsers = workspaceUsers.map((user) =>
+        user.id === target.assignedUserId
+          ? { ...user, activeChats: Math.max(0, user.activeChats - 1) }
+          : user,
+      );
+    } else if (target.assignedUserId && oldStatus === 'resolved' && status !== 'resolved') {
+      workspaceUsers = workspaceUsers.map((user) =>
+        user.id === target.assignedUserId ? { ...user, activeChats: user.activeChats + 1 } : user,
+      );
+    }
+
+    this.dataset.set({ ...dataset, conversations, workspaceUsers });
+    await this.sleep(140);
+  }
+
+  async updateConversationPriority(
+    conversationId: string,
+    priority: Conversation['priority'],
+  ): Promise<void> {
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      conversations: dataset.conversations.map((conv) =>
+        conv.id === conversationId ? { ...conv, priority } : conv,
+      ),
+    });
+    await this.sleep(80);
+  }
+
+  async reassignConversation(
+    conversationId: string,
+    assignedUserId: string | null,
+  ): Promise<void> {
+    const dataset = this.dataset();
+    const target = dataset.conversations.find((c) => c.id === conversationId);
+    if (!target) return;
+
+    const prevUserId = target.assignedUserId;
+    const conversations = dataset.conversations.map((conv) =>
+      conv.id === conversationId
+        ? {
+            ...conv,
+            assignedUserId,
+            status: assignedUserId ? (conv.status === 'resolved' ? 'open' : conv.status) : 'open',
+          }
+        : conv,
+    );
+
+    let workspaceUsers = dataset.workspaceUsers;
+    if (prevUserId) {
+      workspaceUsers = workspaceUsers.map((user) =>
+        user.id === prevUserId
+          ? { ...user, activeChats: Math.max(0, user.activeChats - 1) }
+          : user,
+      );
+    }
+    if (assignedUserId) {
+      workspaceUsers = workspaceUsers.map((user) =>
+        user.id === assignedUserId ? { ...user, activeChats: user.activeChats + 1 } : user,
+      );
+    }
+
+    this.dataset.set({ ...dataset, conversations, workspaceUsers });
+    await this.sleep(150);
+  }
+
+  async simulateInboundMessage(summary?: string): Promise<{ conversation: Conversation; message: Message }> {
+    const dataset = this.dataset();
+    const tenantId = this.tenantId();
+    const now = new Date().toISOString();
+
+    // Weighted Agent Router: find online agents under capacity with lowest current active load
+    const onlineAgents = dataset.workspaceUsers
+      .filter((user) => user.tenantId === tenantId && user.isOnline && user.activeChats < user.maxActiveChatCapacity)
+      .sort((a, b) => a.activeChats - b.activeChats);
+
+    const assignedUser = onlineAgents[0] ?? null;
+    const contact = dataset.contacts.find((c) => c.tenantId === tenantId) ?? dataset.contacts[0]!;
+
+    const convId = `conv-sim-${Date.now().toString(36)}`;
+    const newConv: Conversation = {
+      id: convId,
+      tenantId,
+      contactId: contact.id,
+      channel: 'whatsapp',
+      status: 'open',
+      currentActiveFlowId: null,
+      currentActiveNodeId: null,
+      assignedUserId: assignedUser?.id ?? null,
+      lastMessageAt: now,
+      unreadCount: 1,
+      subject: summary ?? 'Inbound customer inquiry via WhatsApp',
+      priority: 'normal',
+      tags: ['Inbound', 'WhatsApp'],
+    };
+
+    const newMsg: Message = {
+      id: `msg-sim-${Date.now().toString(36)}`,
+      conversationId: convId,
+      direction: 'inbound',
+      type: 'text',
+      content: summary ?? 'Hello! I need assistance with my WhatsApp order.',
+      mediaUrl: null,
+      deliveryStatus: 'read',
+      isInternalWhisper: false,
+      createdByUserId: null,
+      sentAt: now,
+    };
+
+    const conversations = [newConv, ...dataset.conversations];
+    const messages = [...dataset.messages, newMsg];
+    let workspaceUsers = dataset.workspaceUsers;
+
+    if (assignedUser) {
+      workspaceUsers = workspaceUsers.map((user) =>
+        user.id === assignedUser.id ? { ...user, activeChats: user.activeChats + 1 } : user,
+      );
+    }
+
+    this.dataset.set({ ...dataset, conversations, messages, workspaceUsers });
+    await this.sleep(180);
+    return { conversation: newConv, message: newMsg };
+  }
+
   private async latency<T>(items: T[]): Promise<T[]> {
     await this.sleep(140);
     return [...items];

@@ -1,5 +1,5 @@
-import { DOCUMENT } from '@angular/common';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { computed, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { MockDataService } from '../data/mock-data.service';
@@ -20,10 +20,16 @@ export type SessionUser = {
 };
 
 const DEMO_PASSWORD = 'admin@123';
+/** localStorage key — scoped to avoid collisions with other apps on localhost. */
+const SESSION_KEY = 'bugconnect-session-v2';
 
 /**
  * Dummy session only. It proves role, menu and guard behaviour; it is not a
  * security boundary and the UI says so wherever a session is created.
+ *
+ * Storage strategy: localStorage (not sessionStorage) so the session survives
+ * a browser refresh. The restore() call is guarded by isPlatformBrowser so it
+ * never tries to read localStorage during SSR where window does not exist.
  */
 @Injectable({ providedIn: 'root' })
 export class SessionService {
@@ -31,12 +37,17 @@ export class SessionService {
   private readonly workspace = inject(WorkspaceContext);
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
+  private readonly platformId = inject(PLATFORM_ID);
 
   readonly user = signal<SessionUser | null>(null);
   readonly isAuthenticated = computed(() => this.user() !== null);
 
   constructor() {
-    this.restore();
+    // Only restore from storage in the browser — localStorage does not exist on
+    // the SSR server, and calling it there would throw or silently return null.
+    if (isPlatformBrowser(this.platformId)) {
+      this.restore();
+    }
   }
 
   /** Demo IDs: `systemadmin` (platform owner), `admin` (workspace admin), `supervisor`, `agent`. */
@@ -74,7 +85,7 @@ export class SessionService {
     this.user.set(null);
 
     try {
-      this.window?.sessionStorage.removeItem('bugconnect-session');
+      this.window?.localStorage.removeItem(SESSION_KEY);
     } catch {
       // Ignored: the in-memory session is already cleared.
     }
@@ -190,19 +201,22 @@ export class SessionService {
 
   private persist(user: SessionUser): void {
     try {
-      this.window?.sessionStorage.setItem('bugconnect-session', JSON.stringify(user));
+      this.window?.localStorage.setItem(SESSION_KEY, JSON.stringify(user));
     } catch {
-      // Storage blocked: session stays in memory for this visit.
+      // Storage blocked (e.g. private mode with storage disabled): session lives
+      // in memory only for this visit — the user will need to log in again after
+      // a refresh, but the app will not crash.
     }
   }
 
   private restore(): void {
     try {
-      const raw = this.window?.sessionStorage.getItem('bugconnect-session');
+      const raw = this.window?.localStorage.getItem(SESSION_KEY);
       if (raw) {
         this.user.set(JSON.parse(raw) as SessionUser);
       }
     } catch {
+      // Corrupted / blocked storage — start with no session.
       this.user.set(null);
     }
   }

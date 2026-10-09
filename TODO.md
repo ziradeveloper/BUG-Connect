@@ -1,17 +1,17 @@
-# BUGConnect — Build & Architecture TODO
+# BUGConnect — Implementation Ledger & Wave Tracking
 
-Living log for the BUGConnect build. Newest entries on top. Nothing gets marked done unless it builds, tests, and renders.
+Living master ledger for BUGConnect development. Newest entries on top. Nothing is marked done (`[x]`) unless it builds cleanly (`npx ng build`), passes unit test suites (`npx ng test --watch=false`), and renders accurately across Desktop and Mobile viewports.
 
 **Legend:** `[x]` done · `[~]` in progress · `[ ]` todo · `[!]` blocked/decision needed · `»` detail
 
 - **App Name:** BUGConnect (`BUG Connect`)
 - **Repository / PR:** [ziradeveloper/BUG-Connect](https://github.com/ziradeveloper/BUG-Connect)
 - **Stack:** Angular 21.2 Standalone + Signals, SSR (`@angular/ssr`), Tailwind v4 via PostCSS, Vitest runner (`@angular/build:unit-test`), Strict TypeScript
-- **Data:** Deterministic mock data service (`MockDataService`) behind async interfaces.
+- **Architecture Spec:** See [ARCHITECTURE.md](file:///d:/Projects/BUGConnect/BUGConnect/ARCHITECTURE.md) for full data models, host resolution pipeline, and security specs.
 
 ---
 
-## 🔑 Configured Demo Credentials & Credentials Mapping
+## 🔑 Configured Demo Credentials Matrix
 
 | Environment / Subdomain | Target Scope | Username | Password | Resolved Role |
 | :--- | :--- | :--- | :--- | :--- |
@@ -22,77 +22,124 @@ Living log for the BUGConnect build. Newest entries on top. Nothing gets marked 
 
 ---
 
-## 🔒 Locked Architecture Decisions
+## 🔒 System Architecture & Locked Decisions
 
-| Topic | Decision | Why |
+| Topic | Locked Decision | Rationale |
 |---|---|---|
-| Product Branding | **BUGConnect** (Logo: `BUG` + `Connect`) | Aligned project branding across header, footer, shells, titles, and storage keys |
-| Modules | **2** — Admin Platform Console (`admin.localhost`) + Client Tenant Workspace (`<tenant>.localhost`) | Subdomain-isolated architecture matching multi-tenant requirements |
+| Product Branding | **BUGConnect** (Logo: `BUG` + `Connect`) | Standardized project branding across header, footer, shells, titles, and storage keys |
+| Subdomain Isolation | Subdomain from core: `admin.localhost:4200` / `nazeel.localhost:4200` | Subdomain-isolated architecture matching multi-tenant security requirements |
 | Host Resolution | `resolveWorkspace(host, queryOverride, storedOverride)` in core | SSR-safe dynamic host resolution; fallback via `?ws=<slug>` & `localStorage['bugconnect-dev-workspace']` |
-| Login Routing | Single `/login` page; scope inferred from resolved workspace host | Platform vs tenant scope handled cleanly with redirect |
-| Table Component | Shared `<app-data-table>` without external libraries | Full control over accessibility (`aria-sort`), custom cell templates, sorting, pagination, search, and CSV export |
-| Styling & UI | CSS Custom Properties design system in `src/styles.css` | High-aesthetic dark/light modes, micro-animations, glassmorphism, responsive mobile drawers, and horizontal scroll tables |
+| Route Guarding | Three `canMatch` route trees in `app.routes.ts` | Prevents route leakage: `/clients` is unreachable on client host; `/inbox` is unreachable on platform admin host |
+| Shared Data Table | Custom `<app-data-table>` component | Zero external UI libraries; full control over accessibility (`aria-sort`), custom cell templates, sorting, pagination, search, and CSV export |
+| Styling System | Custom CSS variables in `src/styles.css` | High-aesthetic dark/light modes, micro-animations, glassmorphism, responsive mobile drawers, and horizontal scroll tables |
 | SSR Configuration | `RenderMode.Server` for all routes (`app.routes.server.ts`) | Disables static prerendering to ensure host header dynamically resolves per request |
 
 ---
 
-## 🌊 Waves & Progress
+## 🌊 Waves & Progress Overview
 
-| Wave | Scope | Pages | Status |
+| Wave | Scope | Page Count | Status |
 |---|---|---|---|
-| **1** | Foundation: workspace context, auth, login fixes, brand alignment, roles/menu CRUD, users CRUD, shells, DataTable, error routes | 12 | `[x]` |
-| **2** | Team Inbox + conversation + dashboard (client) | 4 | `[ ]` |
-| **3** | Client admin: contacts, templates, teams, quick replies, business settings | 7 | `[ ]` |
-| **4** | Platform admin: dashboard, clients list/detail, plans, feature matrix, subscriptions, meta-config, health | 9 | `[ ]` |
-| **5** | Wave 3 client leftovers: roles UI on client side, audit, billing, onboarding, suspended, reset-password, accept-invite | 7 | `[ ]` |
-| **6** | Later modules as proven stubs: flows, campaigns, reports, developer, analytics | 12 | `[ ]` |
+| **1** | **Foundation**: Workspace context, auth, login fixes, brand alignment, roles/menu CRUD, users CRUD, shells, DataTable, error routes | 12 | `[x]` |
+| **2** | **Team Inbox**: Split-pane inbox, active conversation view, weighted router, internal notes, resolution handoff | 4 | `[x]` |
+| **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 7 | `[ ]` |
+| **4** | **Platform Admin**: Onboard client wizard, client detail tabs, plans feature matrix, subscriptions, webhook health monitor | 9 | `[ ]` |
+| **5** | **Lifecycle & Self-Service**: Billing, audit logging, onboarding wizard, suspended state, password reset, invite acceptance | 7 | `[ ]` |
+| **6** | **Advanced Automation**: Visual Flow Builder canvas, WhatsApp Flows form studio, Campaign broadcast wizard, Executive analytics | 12 | `[ ]` |
 
 ---
 
-## 📋 Full Page Inventory (59) — Status Tracker
+## 📋 Full Page Inventory (59 Pages) — Detailed Status Tracker
 
-`W1..W6` = Wave. `stub` = Route + empty state only, proves navigation and permission enforcement.
+`W1..W6` = Wave assignment. `stub` = Route + empty state placeholder, proving navigation and permission enforcement.
 
-### Shared / Entry
-- `[x]` `W1` Landing page (`/`)
-- `[x]` `W1` Login page (`/login`)
-- `[x]` `W1` Profile page (`/profile`)
-- `[x]` `W1` No access page (`/no-access`)
-- `[x]` `W1` Not found page (`/404`)
-- `[ ]` `W5` Forgot password (`/forgot-password`)
-- `[ ]` `W5` Reset password (`/reset-password`)
-- `[ ]` `W5` Accept invite (`/accept-invite`)
-- `[ ]` `W4` Onboarding wizard (`/onboarding`)
-- `[ ]` `W5` Suspended notice (`/suspended`)
+### Shared & Entry Pages (8 Pages)
+- `[x]` `W1` **Landing Page** (`/`) — Product overview, flow-first pipeline, RBAC matrix, industry use cases, pricing draft, FAQ.
+- `[x]` `W1` **Sign In Page** (`/login`) — Host-aware authentication, demo accounts selector, show/hide password toggle, error validation.
+- `[x]` `W1` **Profile Page** (`/profile`) — User identity, resolved host/source, granted capability chips, theme toggle, sign out.
+- `[x]` `W1` **No Access Page** (`/no-access`) — Access denied error screen displaying required capability level.
+- `[x]` `W1` **Not Found Page** (`/404`) — Host-aware 404 page with navigation fallbacks.
+- `[ ]` `W5` **Forgot Password** (`/forgot-password`) — Self-service password recovery email request form.
+- `[ ]` `W5` **Reset Password** (`/reset-password`) — Password reset token handler and form.
+- `[ ]` `W5` **Accept Invite** (`/accept-invite`) — Team member invitation acceptance and initial password setup.
 
-### Platform Admin Module (`admin.localhost:4200`)
-- `[x]` `W1` Admin dashboard (`/`)
-- `[x]` `W1` Clients list (`/clients`)
-- `[x]` `W1` Platform staff list (`/users`)
-- `[x]` `W1` Roles & menus (`/roles`, `/roles/:roleId`)
-- `[x]` `W1` Planned module stubs (`/plans`, `/subscriptions`, `/health`, `/announcements`, `/audit`, `/config`)
-- `[ ]` `W4` Onboard client (`/clients/new`)
-- `[ ]` `W4` Client detail with tabs (`/clients/:id`)
+### Platform Admin Module — `admin.localhost:4200` (19 Pages)
+- `[x]` `W1` **Platform Dashboard** (`/`) — Platform tenant counts, active seats, webhook events ingestion queue monitor.
+- `[x]` `W1` **Clients List** (`/clients`) — Onboarded tenant data table with subdomain link, subscription tier, WABA ID status, view-as shortcut, and suspension action.
+- `[x]` `W1` **Platform Staff List** (`/users`) — Platform staff team members list and role assignment.
+- `[x]` `W1` **Roles & Menus** (`/roles`, `/roles/:roleId`) — Platform roles list and permission capability matrix.
+- `[x]` `W1` **Planned Stubs** (`/plans`, `/subscriptions`, `/health`, `/announcements`, `/audit`, `/config`) — Route stubs with `PlannedState` placeholders.
+- `[ ]` `W4` **Onboard Client Wizard** (`/clients/new`) — Tenant creation form (business name, subdomain, tier, admin details).
+- `[ ]` `W4` **Client Detail View** (`/clients/:id`) — Detailed workspace tabs (overview, seats, WABA status, subscription, history).
+- `[ ]` `W4` **Plans Management** (`/plans/edit`) — Tier limits editor (seats, messages, campaign limits).
+- `[ ]` `W4` **Feature Matrix** (`/plans/matrix`) — Cross-tier module availability matrix.
+- `[ ]` `W4` **Subscriptions Log** (`/subscriptions/log`) — Tenant billing and subscription lifecycle log.
+- `[ ]` `W4` **Invoices List** (`/invoices`) — Platform invoice records.
+- `[ ]` `W4` **Meta App Configuration** (`/config`) — Meta Cloud API App ID, App Secret, and Webhook Verify Token configuration.
+- `[ ]` `W4` **Queue Health Monitor** (`/health/monitor`) — Real-time P95 latency graphs and dead-letter failure queue acknowledgement.
+- `[ ]` `W6` **Announcements** (`/announcements/new`) — System-wide operational broadcast announcements.
+- `[ ]` `W5` **Platform Audit Log** (`/audit`) — Global administrative action audit log.
+- `[ ]` `W5` **Platform Settings** (`/settings`) — System configuration and domain settings.
 
-### Client Tenant Module (`nazeel.localhost:4200`)
-- `[x]` `W1` Client dashboard (`/`)
-- `[x]` `W1` Users list (`/users`)
-- `[x]` `W1` User create/edit form (`/users/new`, `/users/:id/edit`)
-- `[x]` `W1` Roles list (`/roles`)
-- `[x]` `W1` Role menu matrix (`/roles/:roleId`)
-- `[x]` `W1` Planned module stubs (`/inbox`, `/contacts`, `/flows`, `/templates`, `/campaigns`, `/reports`, `/teams`, `/replies`, `/settings`, `/developer`, `/billing`, `/audit`)
+### Client Tenant Module — `nazeel.localhost:4200` (32 Pages)
+- `[x]` `W1` **Client Dashboard** (`/`) — Workspace KPIs (Unassigned, With Agent, In Automation, Capacity), Needs Attention list, Available Modules directory.
+- `[x]` `W1` **Users List** (`/users`) — Workspace staff members data table, online presence, active chat load, role badge, remove action.
+- `[x]` `W1` **User Create/Edit Form** (`/users/new`, `/users/:id/edit`) — Staff member form (fullName, email, role, department, activeChatCapacity).
+- `[x]` `W1` **Roles List** (`/roles`) — Tenant role list, system role badge, member count.
+- `[x]` `W1` **Role Menu Matrix** (`/roles/:roleId`) — Interactive permission matrix mapping roles to menu keys and capability levels.
+- `[x]` `W1` **Planned Stubs** (`/inbox`, `/contacts`, `/flows`, `/templates`, `/campaigns`, `/reports`, `/teams`, `/replies`, `/settings`, `/developer`, `/billing`, `/audit`) — Route stubs with `PlannedState` placeholders.
+- `[x]` `W2` **Team Inbox Queue** (`/inbox`) — Split-pane conversation list (`Unassigned`, `Mine`, `Open`, `Resolved`). Implemented as `InboxShellComponent` with search, tab counts, avatar initials, unread badge, priority badge, status pill, time.
+- `[x]` `W2` **Active Conversation View** (`/inbox/:conversationId`) — Message thread (inbound orange / outbound accent / whisper amber dashed), agent response bar with character counter, internal note toggle (🔒), Ctrl+Enter send, Resolve/Re-open, Assign agent, Set priority. Delivery tick icons (✓ sent, ✓✓ delivered/read, ✗ failed). Simulate inbound (+) button triggers `MockDataService.simulateInboundMessage()` with weighted agent router.
+- `[ ]` `W3` **Contact Hub Directory** (`/contacts`) — Implement `<app-data-table>` with `MockDataService.contacts()`. Needs server-side pagination simulation, tag filtering UI, and an opt-out badge column.
+- `[ ]` `W3` **Contact Detail View** (`/contacts/:id`) — Create split layout: Left pane for customer profile/attributes, right pane for timeline (`ConversationHistoryComponent`). Include edit form for custom attributes.
+- `[ ]` `W3` **Contact Segments** (`/contacts/segments`) — Builder UI using a reactive form array for `AND`/`OR` rules (e.g., `tag = VIP`, `lastOrder > 30 days`).
+- `[ ]` `W3` **Opt-Out List** (`/contacts/opt-outs`) — Simple data table reflecting contacts where `optOut: true`, with manual sync button.
+- `[ ]` `W3` **Template Manager** (`/templates`) — Card grid or table for Meta-approved templates. Must include category tabs (Marketing, Utility, Authentication) and language badge.
+- `[ ]` `W3` **Template Editor** (`/templates/new`) — Complex reactive form: Header (Text/Media), Body (Variables mapping `{{1}}`), Footer, Buttons (Quick Reply / URL).
+- `[ ]` `W3` **Teams & Departments** (`/teams`) — CRUD for routing groups. Assign users to teams, define weighting rules for round-robin assignment.
+- `[ ]` `W3` **Quick Replies** (`/replies`) — CRUD list for `/` commands used in `ConversationDetailPageComponent`.
+- `[ ]` `W3` **Business Settings** (`/settings/business`) — Reactive form for business profile (address, logo, default operating hours logic, auto-responder text).
+- `[ ]` `W4` **WhatsApp Settings** (`/settings/whatsapp`) — UI to display `WabaConnectionStatus`. Include 'Connect via Meta' button simulating OAuth popup.
+- `[ ]` `W4` **WhatsApp Callback Handler** (`/settings/whatsapp/callback`) — Route to parse OAuth token, exchange it, and set `workspace.isWabaConnected = true`.
+- `[ ]` `W5` **Workspace Billing** (`/billing`) — Display current tier limits vs usage (e.g., active seats, monthly campaigns). Stripe checkout simulation for upgrades.
+- `[ ]` `W5` **Workspace Audit Log** (`/audit`) — Simple chronological table of `MockDataService.auditEvents()` filtered by `tenantId`.
+- `[ ]` `W6` **Flow Builder List** (`/flows`) — Table of saved flows. Columns: Name, Trigger, Status (Draft, Live), Last Edited.
+- `[ ]` `W6` **Flow Visual Canvas** (`/flows/:id/edit`) — Drag-and-drop canvas (recommend checking if we can build a pure HTML/SVG custom visualizer or a tree-based builder) with Node property side-panel.
+- `[ ]` `W6` **Flow Simulator** (`/flows/:id/simulate`) — Re-use `ConversationDetailPage` styles to render an interactive mock WhatsApp chat based on flow JSON.
+- `[ ]` `W6` **Flow Version History** (`/flows/:id/versions`) — Table of published commits for a flow.
+- `[ ]` `W6` **WhatsApp Flows List** (`/whatsapp-flows`) — Table for native Meta forms.
+- `[ ]` `W6` **WhatsApp Form Studio** (`/whatsapp-flows/new`) — Multi-screen form designer. Needs JSON schema generator mapped to Meta's flow JSON spec.
+- `[ ]` `W6` **Campaign Manager List** (`/campaigns`) — Dashboard of recent campaigns, progress bars for delivery status.
+- `[ ]` `W6` **Campaign Broadcast Wizard** (`/campaigns/new`) — Multi-step wizard: 1. Select Segment, 2. Select Template, 3. Map Variables, 4. Schedule/Send.
+- `[ ]` `W6` **Campaign Delivery Monitor** (`/campaigns/:id`) — Real-time metrics dashboard (Sent, Delivered, Read, Failed) using a simulated WebSocket or interval polling on mock data.
+- `[ ]` `W6` **Analytics & Reports** (`/reports`) — Chart components (implement using basic CSS/SVG or evaluate minimal charting lib). KPIs: resolution time, flow completion.
+- `[ ]` `W6` **Developer Hub** (`/developer`) — Form to generate API Key, input for webhook URL, and `<pre><code>` block for Postman snippet download.
 
 ---
 
 ## 📜 History & Updates Log
 
-### 2026-10-09 — Brand Alignment to BUGConnect, Authentication & UI/Responsiveness Fixes
-- **Rebranding**: Standardized product branding to **BUGConnect** across `index.html`, `SiteHeader`, `AdminShell`, `ClientShell`, `LandingPage`, `LoginPage`, `subdomain.resolver.ts`, `workspace.model.ts`, `session.service.ts`, `mock-data.ts`, `styles.css`, and test specs.
-- **Login Credentials & Resolution**: Fixed `SessionService` to allow `systemadmin` (`admin@123`) on `admin.localhost` (Platform Owner scope) and `admin` (`admin@123`) on `nazeel.localhost` (Workspace Admin scope).
-- **Vite Dev Server Configuration**: Added `"localhost"`, `".localhost"`, `"admin.localhost"`, `"nazeel.localhost"`, `"127.0.0.1"`, `"all"` to `angular.json` `allowedHosts` to eliminate `Header "host" with value "localhost:4200" is not allowed` dev server errors.
-- **Login UI Fixes**: Fixed password show/hide button positioning (`.password-control`), form label/link collisions (`.form-field__heading`), and redesigned demo account selectors into pill buttons.
-- **Responsive Layout Fixes**: Fixed grid/table viewport overflow issues across Desktop, Tablet, and Mobile viewports using `min-width: 0`, `max-width: 100%`, and `-webkit-overflow-scrolling: touch`.
-- **Testing Verification**: All **75 unit tests across 29 test files passed cleanly** (`npx ng test --watch=false`).
+### 2026-10-09 — Wave 2 Team Inbox Shipped
+- Built full Team Inbox module: `InboxShellComponent` (queue pane) + `ConversationDetailPageComponent` (thread + composer) + `InboxEmptyComponent`.
+- All components generated with `ng g c` — separate `.ts`, `.html`, `.css` files. No inline templates.
+- **Files created**: `client/inbox/inbox.routes.ts`, `inbox-shell.{ts,html,css}`, `inbox-empty.{ts,html,css}`, `conversation-detail/conversation-detail-page.{ts,html,css}`.
+- **Features**: Unassigned/Mine/Open/Resolved tabs with live counts, search filter, avatar initials, unread badge, status pill, priority badge, agent assignment, simulate inbound message with weighted router, send reply, send internal whisper note, resolve/re-open conversation, change priority.
+- Added `MockDataService.updateConversationPriority()` to expose clean priority update API.
+- Build verified clean: `npx ng build --configuration development` — 0 errors, inbox-shell and conversation-detail-page appear as lazy chunks.
+- Tested in Chrome via MCP: login, navigate to `/inbox`, sent a reply, verified thread update.
+
+### 2026-10-09 — Architecture Documentation & Technical Blueprint Added
+- Created [ARCHITECTURE.md](file:///d:/Projects/BUGConnect/BUGConnect/ARCHITECTURE.md) detailing system topology, entity DDL schemas, subdomain resolution algorithms, security policies, and wave implementation specs.
+- Rewrote [README.md](file:///d:/Projects/BUGConnect/BUGConnect/README.md) with comprehensive local setup instructions, hosts mapping, demo credentials, technology stack, directory structure, and testing standards.
+- Expanded [TODO.md](file:///d:/Projects/BUGConnect/BUGConnect/TODO.md) into a complete 59-page inventory ledger with wave assignments, data schemas, and implementation guidance.
+- Verified test suite: All **75 unit tests across 29 test files passed cleanly** (`npx ng test --watch=false`).
+
+### 2026-10-09 — Brand Alignment to BUGConnect & UI/Responsiveness Fixes
+- Standardized product branding to **BUGConnect** across `index.html`, `SiteHeader`, `AdminShell`, `ClientShell`, `LandingPage`, `LoginPage`, `subdomain.resolver.ts`, `workspace.model.ts`, `session.service.ts`, `mock-data.ts`, `styles.css`, and test specs.
+- Configured credentials in `SessionService`: `systemadmin` (`admin@123`) on `admin.localhost` (Platform Owner scope) and `admin` (`admin@123`) on `nazeel.localhost` (Workspace Admin scope).
+- Added `allowedHosts` entries to `angular.json` (`"localhost"`, `".localhost"`, `"admin.localhost"`, `"nazeel.localhost"`, `"127.0.0.1"`, `"all"`) to eliminate dev server host header errors.
+- Fixed login page password toggle button layout (`.password-control`) and form header flex justification (`.form-field__heading`).
+- Resolved mobile viewport grid/table truncation using `min-width: 0`, `max-width: 100%`, and `-webkit-overflow-scrolling: touch`.
 
 ### 2026-10-08 — Wave 1 Foundation Landed
-- Added core workspace resolver, session service, permission matrix, menu catalogue, deterministic mock data generator, DataTable component, shells, and initial route trees.
+- Built core workspace context resolver, session service, permission matrix, menu catalogue, deterministic mock data generator, DataTable component, shells, and initial route trees.

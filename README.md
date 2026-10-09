@@ -1,19 +1,28 @@
-# BUGConnect — Multi-tenant WhatsApp Business Workspace
+# BUGConnect — Multi-Tenant WhatsApp Business Workspace
 
-**BUGConnect** is a state-of-the-art multi-tenant WhatsApp Business SaaS platform. It turns a single official WhatsApp Business number into a shared sales, support, and marketing workspace for modern teams with flow-first automation, team inbox management, role-based access control (RBAC), and multi-tenant administration.
+**BUGConnect** is an enterprise-grade multi-tenant WhatsApp Business SaaS platform built with Angular 21 Standalone components, Signals, and Server-Side Rendering (SSR). It enables businesses to operate one official WhatsApp Business Account (WABA) across multiple team members, featuring flow-first automation, a real-time Team Inbox, visual form builders, template lifecycle management, outbound campaigns, and platform tenant administration.
+
+> 📖 **Deep-Dive Technical Architecture**: For full entity schemas, subdomain resolution algorithms, security policies, and wave implementation specs, refer to [ARCHITECTURE.md](file:///d:/Projects/BUGConnect/BUGConnect/ARCHITECTURE.md).
 
 ---
 
-## 🚀 Quick Start & Running Locally
+## 🛠️ Quick Start & Developer Setup
 
-### Development Server
+### 1. Installation & Dependencies
+Ensure Node.js (v20+ recommended) is installed. Install npm packages:
+```bash
+npm install
+```
+
+### 2. Development Server
+Start the local Angular development server:
 ```bash
 npx ng serve
 ```
-By default, the server listens on `http://0.0.0.0:4200` / `http://localhost:4200`.
+The application will listen on `http://0.0.0.0:4200` / `http://localhost:4200`.
 
-### Hostnames & Subdomain Setup
-BUGConnect uses subdomain-based multi-tenancy. For local testing, map subdomains in your `hosts` file (`C:\Windows\System32\drivers\etc\hosts` on Windows or `/etc/hosts` on Linux/Mac):
+### 3. Local Subdomain Configuration
+BUGConnect relies on subdomains to resolve tenant workspaces. Add the following entries to your operating system's `hosts` file (`C:\Windows\System32\drivers\etc\hosts` on Windows or `/etc/hosts` on Linux/macOS):
 
 ```text
 127.0.0.1 admin.localhost
@@ -23,90 +32,80 @@ BUGConnect uses subdomain-based multi-tenancy. For local testing, map subdomains
 127.0.0.1 venkateswara.localhost
 ```
 
-| Host / Domain | Module / Scope | Description |
-| :--- | :--- | :--- |
-| `admin.localhost:4200` | **Platform Console** | Platform owner management, tenant onboarding, subscriptions, global health |
-| `nazeel.localhost:4200` | **Tenant Workspace** | Client workspace (Nazeel Silks & Bridal): Team Inbox, Users, Roles, Settings |
-| `localhost:4200` | **Marketing & Login** | Landing page, pricing plans, and public sign-in page |
+#### Routing Matrix:
 
-*Note: For single-port environments where subdomains are unavailable, appending `?ws=nazeel` or `?ws=admin` enables a dev workspace override stored in `localStorage['bugconnect-dev-workspace']`.*
+| Browser URL | Resolved Environment | Scope & Description |
+| :--- | :--- | :--- |
+| `http://admin.localhost:4200/` | **Platform Console** | Platform administration, client tenant list, global health, staff management |
+| `http://nazeel.localhost:4200/` | **Client Workspace** | Nazeel Silks & Bridal tenant workspace (Team Inbox, Users, Roles, Settings) |
+| `http://localhost:4200/` | **Marketing & Landing** | Public marketing site, feature breakdown, pricing plans, public sign-in |
+
+*💡 **Dev Workspace Override**: If testing in a single-port environment where subdomains are restricted, pass `?ws=nazeel` or `?ws=admin` in the URL. This sets `localStorage['bugconnect-dev-workspace']` to force a specific workspace context.*
 
 ---
 
 ## 🔑 Demo Credentials
 
-All demo accounts use the password: `admin@123`
+All demo accounts use the standard demo password: **`admin@123`**
 
-| Target Host | Username | Password | Role / Scope | Access Level |
+| Access Point | Username | Password | Role Scope | Capabilities |
 | :--- | :--- | :--- | :--- | :--- |
-| `admin.localhost:4200` | `systemadmin` | `admin@123` | **Platform Owner** | Full Platform Administration |
-| `nazeel.localhost:4200` | `admin` | `admin@123` | **Workspace Admin** | Full Tenant Workspace Management |
-| `nazeel.localhost:4200` | `supervisor` | `admin@123` | **Supervisor** | Team Inbox & Operations (No Billing) |
-| `nazeel.localhost:4200` | `agent` | `admin@123` | **Support Agent** | Assigned Conversations & Contacts |
-
----
-
-## 📐 Architecture & Technology Stack
-
-- **Framework**: Angular 21 Standalone + Signals (`ChangeDetectionStrategy.OnPush`).
-- **Rendering**: Angular Universal SSR (`RenderMode.Server` on all routes to preserve host context).
-- **Styling**: Custom CSS tokens in `src/styles.css` with responsive grid layouts, glassmorphic accents, dark/light theme switching, and zero external heavy UI widget dependencies.
-- **Testing**: Vitest runner via `@angular/build:unit-test`.
-- **State & Data**: `MockDataService` powered by a seeded, deterministic pseudo-random generator (`Rng`) simulating asynchronous latency (`140-180ms`).
-
----
-
-## 🛡️ Key System Concepts for Developers & AI Agents
-
-### 1. Subdomain Routing (`src/app/core/workspace/`)
-- `resolveWorkspace(host, queryOverride, storedOverride)` determines whether the incoming request is `platform`, `client`, or `marketing`.
-- `WorkspaceContext` is an SSR-safe injectably-scoped signal store. In SSR mode, it inspects `@angular/core` `REQUEST` headers; in browser mode, it reads `window.location`.
-- `app.routes.ts` uses three isolated `canMatch` route trees (`adminGuard`, `clientGuard`, `marketingGuard`). A client route (e.g. `/users`) never resolves on the admin host, and vice-versa.
-
-### 2. Authentication & Session Management (`src/app/core/auth/`)
-- `SessionService` handles user authentication, session persistence (`bugconnect-session`), and scope enforcement.
-- `enforceScope()` ensures a user logged into a tenant workspace cannot cross into the platform admin host without platform credentials.
-
-### 3. Permission Matrix & RBAC (`src/app/core/authorization/`)
-- Roles map directly to permitted menus (`MenuKey`) and capability levels (`Capability`).
-- `PermissionService` dynamically computes `visibleMenu()` and `hiddenByRole()` for sidebar rendering and route guards (`permissionGuard`).
-
-### 4. Data Table Component (`src/app/shared/data-table/`)
-- Enterprise reusable `<app-data-table>` supporting column sorting, global search filtering, paginated slicing, selection checkboxes, CSV exports, loading skeletons, and custom template cell directives (`*appCell="columnKey"`).
+| `admin.localhost:4200/login` | `systemadmin` | `admin@123` | **Platform Owner** | Full Platform Administration |
+| `nazeel.localhost:4200/login` | `admin` | `admin@123` | **Workspace Admin** | Full Tenant Workspace Control |
+| `nazeel.localhost:4200/login` | `supervisor` | `admin@123` | **Supervisor** | Team Inbox & Operations (No Billing) |
+| `nazeel.localhost:4200/login` | `agent` | `admin@123` | **Support Agent** | Assigned Conversations & Contacts |
 
 ---
 
 ## 🧪 Testing & Quality Assurance
 
 ### Run Unit Tests
+Execute the Vitest unit test suite:
 ```bash
 npx ng test --watch=false
 ```
-All **75 unit tests across 29 test suites** must pass cleanly before any code is committed.
+All **75 unit tests across 29 test suites** must pass cleanly.
 
-### Build Production Bundle
+### Production Build & Budget Check
+Compile the production bundle and validate Angular build budgets:
 ```bash
 npx ng build
 ```
-Validates Angular compiler budget constraints, SSR bundle generation, and lazy-chunk splitting.
 
 ---
 
-## 📁 Core Directory Structure
+## 🏗️ Architecture & Key Concepts Summary
+
+1. **Subdomain Resolution (`src/app/core/workspace/`)**: Pure function `resolveWorkspace(host)` inspects the request host header in SSR context or `window.location` in browser context.
+2. **Isolated Route Trees (`src/app/app.routes.ts`)**: Three `canMatch` guarded route branches (`adminGuard`, `clientGuard`, `marketingGuard`) isolate platform routes from tenant routes.
+3. **Session & Auth (`src/app/core/auth/`)**: `SessionService` manages authentication, role attachment, scope enforcement, and `sessionStorage['bugconnect-session']` persistence.
+4. **RBAC Authorization (`src/app/core/authorization/`)**: `PermissionService` maps roles → menus → capability levels (`none`, `view`, `edit`, `full`).
+5. **Reusable Data Table (`src/app/shared/data-table/`)**: `<app-data-table>` handles sorting, filtering, pagination, selection, CSV export, and custom template cells via `*appCell="key"`.
+6. **Mock Data Service (`src/app/core/data/`)**: Deterministic seeded RNG (`Rng`) provides mock tenants, users, contacts, conversations, flows, templates, and telemetry.
+
+---
+
+## 📂 Project Directory Structure
 
 ```text
-src/
-├── app/
-│   ├── admin/               # Platform Admin Console pages (clients, staff, dashboard)
-│   ├── client/              # Client Workspace pages (dashboard, users, roles, profile)
-│   ├── core/
-│   │   ├── auth/            # SessionService, auth guards
-│   │   ├── authorization/   # PermissionService, RBAC matrix
-│   │   ├── data/            # Entities, mock data generator, MockDataService
-│   │   ├── navigation/      # Menu catalogue definitions
-│   │   └── workspace/       # Subdomain resolver & WorkspaceContext
-│   ├── layout/              # AdminShell, ClientShell, ShellFrame frame
-│   ├── pages/               # LandingPage, LoginPage, ErrorPages (NoAccess, NotFound)
-│   └── shared/              # DataTable component, SiteHeader, UI primitives
-└── styles.css               # Design tokens, theme variables, and global utility classes
+d:\Projects\BUGConnect\BUGConnect\
+├── Documents/               # Product Requirements Documents (PRDs)
+├── src/
+│   ├── app/
+│   │   ├── admin/           # Platform Admin Console pages (clients, staff, dashboard)
+│   │   ├── client/          # Client Workspace pages (dashboard, users, roles, profile)
+│   │   ├── core/
+│   │   │   ├── auth/        # SessionService, scope enforcement, auth guards
+│   │   │   ├── authorization/# PermissionService, role-capability matrix
+│   │   │   ├── data/        # Entity models, deterministic RNG mock data service
+│   │   │   ├── navigation/  # Menu catalog definitions
+│   │   │   └── workspace/   # Subdomain resolver & WorkspaceContext signal store
+│   │   ├── layout/          # AdminShell, ClientShell, ShellFrame frame
+│   │   ├── pages/           # LandingPage, LoginPage, ErrorPages (NoAccess, NotFound)
+│   │   └── shared/          # DataTable component, SiteHeader, UI primitives
+│   ├── styles.css           # Design tokens, global utilities, component styles
+│   └── index.html           # Main HTML document
+├── ARCHITECTURE.md          # Complete technical blueprint & wave specification
+├── TODO.md                  # Detailed page-by-page progress & wave tracker
+└── angular.json             # Angular CLI & Vite dev-server configuration
 ```

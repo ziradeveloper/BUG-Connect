@@ -2,106 +2,108 @@
 
 <main>
      <section class="landing-hero" aria-labelledby="hero-heading">
-          <div class="landing-hero__copy">
-               <p class="eyebrow landing-hero__eyebrow">
-                    <span class="hero-pulse" aria-hidden="true"></span>
-                    BUILT ON THE OFFICIAL WHATSAPP BUSINESS PLATFORM
-               </p>
-               <h1 id="hero-heading">
-                    One WhatsApp number.
-                    <span class="text-brand">Run by your whole team.</span>
-               </h1>
-               <p class="landing-hero__lead">
-                    BUGConnect turns a single official business number into a shared sales, support and
-                    marketing workspace. Every business gets its own isolated console where conversations,
-                    no-code automation, approved templates and campaigns stay together.
-               </p>
-               <div class="landing-hero__actions">
-                    <a class="button button-primary landing-hero__primary" [routerLink]="['/login']">
-                         Log in to your workspace
-                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                              <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-linecap="round"
-                                   stroke-linejoin="round" stroke-width="1.8" />
-                         </svg>
-                    </a>
-                    <a class="button button-secondary landing-hero__secondary" href="#flow-first">
-                         See the flow-first model
-                    </a>
-               </div>
-               <ul class="hero-stats">
-                    @for (stat of heroStats; track stat.label) {
-                    <li class="hero-stat">
-                         <span class="hero-stat__value">{{ stat.value }}</span>
-                         <span class="hero-stat__label">{{ stat.label }}</span>
-                    </li>
-                    }
-               </ul>
-          </div>
-
-          <section class="product-preview surface" aria-labelledby="preview-heading">
-               <div class="product-preview__topbar" aria-hidden="true">
-                    <div class="product-preview__window-dots">
-                         <span></span><span></span><span></span>
+          <div class="app-container landing-hero__inner">
+               <div class="landing-hero__copy">
+                    <p class="eyebrow landing-hero__eyebrow">
+                         <span class="hero-pulse" aria-hidden="true"></span>
+                         BUILT ON THE OFFICIAL WHATSAPP BUSINESS PLATFORM
+                    </p>
+                    <h1 id="hero-heading">
+                         One WhatsApp number.
+                         <span class="text-brand">Run by your whole team.</span>
+                    </h1>
+                    <p class="landing-hero__lead">
+                         BUGConnect turns a single official business number into a shared sales, support and
+                         marketing workspace. Every business gets its own isolated console where conversations,
+                         no-code automation, approved templates and campaigns stay together.
+                    </p>
+                    <div class="landing-hero__actions">
+                         <a class="button button-primary landing-hero__primary" [routerLink]="['/login']">
+                              Log in to your workspace
+                              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                                   <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-linecap="round"
+                                        stroke-linejoin="round" stroke-width="1.8" />
+                              </svg>
+                         </a>
+                         <a class="button button-secondary landing-hero__secondary" href="#flow-first">
+                              See the flow-first model
+                         </a>
                     </div>
-                    <span class="product-preview__address">nellai-sweets.platform.com / team-inbox</span>
-                    <span class="product-preview__topbar-spacer"></span>
+                    <ul class="hero-stats">
+                         @for (stat of heroStats; track stat.label) {
+                         <li class="hero-stat">
+                              <span class="hero-stat__value">{{ stat.value }}</span>
+                              <span class="hero-stat__label">{{ stat.label }}</span>
+                         </li>
+                         }
+                    </ul>
                </div>
-               <div class="product-preview__layout">
-                    <aside class="product-preview__sidebar" aria-label="Workspace module navigation">
-                         <span class="product-preview__workspace">WORKSPACE</span>
-                         <span class="product-preview__side-item product-preview__side-item--active">
-                              <span aria-hidden="true">◫</span> Team Inbox
-                         </span>
-                         <span class="product-preview__side-item"><span aria-hidden="true">⇄</span> Flow Builder</span>
-                         <span class="product-preview__side-item"><span aria-hidden="true">▤</span> Flows Studio</span>
-                         <span class="product-preview__side-item"><span aria-hidden="true">◨</span> Templates</span>
-                         <span class="product-preview__side-item"><span aria-hidden="true">◉</span> Campaigns</span>
-                         <span class="product-preview__sidebar-divider"></span>
-                         <span class="product-preview__workspace">TIRUNELVELI PILOT</span>
-                         <span class="product-preview__project"><span></span> Counter desk</span>
-                         <span class="product-preview__project"><span></span> Home delivery</span>
-                    </aside>
 
-                    <div class="product-preview__main">
-                         <div class="product-preview__heading">
-                              <div>
-                                   <p class="eyebrow product-preview__eyebrow">NELLAI SWEETS · LIVE QUEUE</p>
-                                   <h2 id="preview-heading">Team Inbox</h2>
+               <section class="product-preview surface" aria-labelledby="preview-heading">
+                    <div class="product-preview__topbar" aria-hidden="true">
+                         <div class="product-preview__window-dots">
+                              <span></span><span></span><span></span>
+                         </div>
+                         <span class="product-preview__address">nellai-sweets.platform.com / team-inbox</span>
+                         <span class="product-preview__topbar-spacer"></span>
+                    </div>
+                    <div class="product-preview__layout">
+                         <aside class="product-preview__sidebar" aria-label="Workspace module navigation">
+                              <span class="product-preview__workspace">WORKSPACE</span>
+                              <span class="product-preview__side-item product-preview__side-item--active">
+                                   <span aria-hidden="true">◫</span> Team Inbox
+                              </span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">⇄</span> Flow Builder</span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">▤</span> Flows Studio</span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">◨</span> Templates</span>
+                              <span class="product-preview__side-item"><span aria-hidden="true">◉</span> Campaigns</span>
+                              <span class="product-preview__sidebar-divider"></span>
+                              <span class="product-preview__workspace">TIRUNELVELI PILOT</span>
+                              <span class="product-preview__project"><span></span> Counter desk</span>
+                              <span class="product-preview__project"><span></span> Home delivery</span>
+                         </aside>
+
+                         <div class="product-preview__main">
+                              <div class="product-preview__heading">
+                                   <div>
+                                        <p class="eyebrow product-preview__eyebrow">NELLAI SWEETS · LIVE QUEUE</p>
+                                        <h2 id="preview-heading">Team Inbox</h2>
+                                   </div>
+                                   <span class="product-preview__new-issue">2 agents online</span>
                               </div>
-                              <span class="product-preview__new-issue">2 agents online</span>
-                         </div>
 
-                         <div class="product-preview__filters" aria-label="Example conversation queues">
-                              @for (queue of inboxQueues; track queue; let first = $first) {
-                              <span class="product-preview__filter" [class.product-preview__filter--active]="first">{{
-                                   queue
-                                   }}</span>
-                              }
-                         </div>
-
-                         <ul class="preview-issue-list">
-                              @for (chat of previewConversations; track chat.summary) {
-                              <li>
-                                   <span class="preview-issue-list__key">{{ chat.owner }}</span>
-                                   <span class="preview-issue-list__title">{{ chat.summary }}</span>
-                                   <span class="badge" [class]="'badge badge-' + chat.tone">{{ chat.status
+                              <div class="product-preview__filters" aria-label="Example conversation queues">
+                                   @for (queue of inboxQueues; track queue; let first = $first) {
+                                   <span class="product-preview__filter" [class.product-preview__filter--active]="first">{{
+                                        queue
                                         }}</span>
-                              </li>
-                              }
-                         </ul>
+                                   }
+                              </div>
 
-                         <div class="product-preview__workflow" aria-label="Flow-first handoff">
-                              <span>Inbound</span>
-                              <span aria-hidden="true">›</span>
-                              <span>Menu</span>
-                              <span aria-hidden="true">›</span>
-                              <span>Qualified</span>
-                              <span aria-hidden="true">›</span>
-                              <span>Routed to Ravi</span>
+                              <ul class="preview-issue-list">
+                                   @for (chat of previewConversations; track chat.summary) {
+                                   <li>
+                                        <span class="preview-issue-list__key">{{ chat.owner }}</span>
+                                        <span class="preview-issue-list__title">{{ chat.summary }}</span>
+                                        <span class="badge" [class]="'badge badge-' + chat.tone">{{ chat.status
+                                             }}</span>
+                                   </li>
+                                   }
+                              </ul>
+
+                              <div class="product-preview__workflow" aria-label="Flow-first handoff">
+                                   <span>Inbound</span>
+                                   <span aria-hidden="true">›</span>
+                                   <span>Menu</span>
+                                   <span aria-hidden="true">›</span>
+                                   <span>Qualified</span>
+                                   <span aria-hidden="true">›</span>
+                                   <span>Routed to Ravi</span>
+                              </div>
                          </div>
                     </div>
-               </div>
-          </section>
+               </section>
+          </div>
      </section>
 
      <section class="workflow-ribbon" aria-label="Flow-first message pipeline">

@@ -124,6 +124,8 @@ export class PermissionService {
   can(capability: Capability, required: AccessLevel = 'view'): boolean {
     const role = this.activeRole();
 
+    console.log('[PermissionService.can]', capability, { role, menus: role?.menus, cap: role?.capabilities[capability], required });
+
     if (!role) {
       // Unauthenticated or unknown role: allow nothing beyond what the catalogue
       // leaves open, so the guard sends the user to /no-access.
@@ -135,10 +137,13 @@ export class PermissionService {
     const menus = CAPABILITY_MENUS.get(capability);
 
     if (menus?.length && !menus.some((key) => role.menus.includes(key))) {
+      console.log('[PermissionService.can] Failed menu check', menus);
       return false;
     }
 
-    return atLeast(role.capabilities[capability], required);
+    const level = atLeast(role.capabilities[capability], required);
+    console.log('[PermissionService.can] atLeast:', level);
+    return level;
   }
 
   levelFor(capability: Capability): AccessLevel {
