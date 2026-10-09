@@ -1,0 +1,82 @@
+<div class="workspace-page">
+     <app-page-header eyebrow="WORKSPACE" title="Users"
+          description="Staff who can sign in to this workspace. Roles decide the menus they see and the actions they can take."
+          (click)="dismissNotice()">
+          @if (canManage()) {
+          <a class="button button-primary" pageActions routerLink="/users/new">Add user</a>
+          }
+     </app-page-header>
+
+     <div class="metric-grid">
+          <div class="metric">
+               <span class="metric__label">Members</span>
+               <span class="metric__value">{{ summary().total }}</span>
+               <span class="metric__hint">Seats are unlimited on every plan</span>
+          </div>
+          <div class="metric metric--brand">
+               <span class="metric__label">Online now</span>
+               <span class="metric__value">{{ summary().online }}</span>
+               <span class="metric__hint">Eligible for the weighted agent router</span>
+          </div>
+          <div class="metric">
+               <span class="metric__label">At capacity</span>
+               <span class="metric__value">{{ summary().atCapacity }}</span>
+               <span class="metric__hint">Router skips them until a chat closes</span>
+          </div>
+          <div class="metric">
+               <span class="metric__label">Invites pending</span>
+               <span class="metric__value">{{ summary().invited }}</span>
+               <span class="metric__hint">Added but not yet accepted</span>
+          </div>
+     </div>
+
+     @if (notice(); as message) {
+     <p class="login-status" role="status">
+          {{ message }}
+          <button class="form-link" type="button" (click)="dismissNotice()">Dismiss</button>
+     </p>
+     }
+
+     <app-data-table [columns]="columns()" [rows]="rows()" [loading]="loading()" [error]="error()"
+          caption="Workspace users, their role and current chat load" exportName="bugconnect-users"
+          searchPlaceholder="Search by name, email or team" emptyTitle="No users match this filter"
+          emptyDescription="Invite the staff who will answer WhatsApp conversations here.">
+
+          <ng-template appCell="fullName" let-user>
+               <span class="shell__avatar" aria-hidden="true">{{ user.fullName.slice(0, 1) }}</span>
+               <strong class="data-table__primary">{{ user.fullName }}</strong>
+               @if (user.invited) {
+               <span class="data-table__subdued"> · invited</span>
+               }
+          </ng-template>
+
+          <ng-template appCell="roleId" let-user>
+               {{ roleLabel(user.roleId) }}
+          </ng-template>
+
+          <ng-template appCell="status" let-user>
+               <app-status-pill [label]="presenceLabel(user)" [tone]="toneFor(user)" />
+          </ng-template>
+
+          @if (canManage()) {
+          <ng-template appCell="actions" let-user>
+               <span class="data-table__actions">
+                    <a class="data-table__action" [routerLink]="['/users', user.id, 'edit']">Edit</a>
+                    <button class="data-table__action data-table__action--danger" type="button"
+                         (click)="pendingDelete.set(user); $event.stopPropagation()">
+                         Remove
+                    </button>
+               </span>
+          </ng-template>
+          }
+     </app-data-table>
+
+     <p class="data-table__subdued">
+          Presence and chat load come from the dummy dataset. The weighted router in wave 2 reads the same two
+          fields — online status and remaining capacity — to pick who receives the next conversation.
+     </p>
+
+     <app-confirm-dialog [open]="pendingDelete() !== null" title="Remove this member?"
+          [description]="pendingDelete() ? pendingDelete()?.fullName + ' will lose access to this workspace immediately. Their assigned conversations return to the Unassigned queue.' : ''"
+          confirmLabel="Remove user" (cancel)="pendingDelete.set(null)" (confirm)="confirmDelete()" />
+</div>

@@ -1,0 +1,133 @@
+<div class="shell">
+     <aside class="shell__rail" [class.shell__rail--open]="navOpen()" aria-label="Workspace navigation">
+          <div class="shell__rail-brand">
+               <a class="shell__brand" [routerLink]="homePath()" (click)="closeNav()">
+                    <span class="site-brand__mark" aria-hidden="true">{{ brandMark() }}</span>
+                    <span class="shell__brand-name">{{ brandName() }}<span class="text-brand">{{ brandAccent()
+                              }}</span></span>
+               </a>
+               <button class="shell__rail-close" type="button" aria-label="Close navigation" (click)="closeNav()">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                         <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-linecap="round"
+                              stroke-width="1.8" />
+                    </svg>
+               </button>
+          </div>
+
+          @if (contextLabel()) {
+          <p class="shell__context">
+               <span class="badge" [class]="'badge badge-' + contextTone()">{{ contextLabel() }}</span>
+          </p>
+          }
+
+          <nav class="shell__nav">
+               @for (group of groups; track group.id) {
+               @if (entriesFor(group.id).length) {
+               <p class="shell__group">{{ group.label }}</p>
+               @for (entry of entriesFor(group.id); track entry.key) {
+               <a class="shell__link" [routerLink]="entry.path ? '/' + entry.path : '/'" routerLinkActive
+                    [routerLinkActiveOptions]="{ exact: entry.path === '' }" (click)="closeNav()">
+                    <span class="shell__link-icon" aria-hidden="true">{{ entry.icon }}</span>
+                    <span class="shell__link-label">{{ entry.label }}</span>
+                    @if (entry.planned) {
+                    <span class="shell__soon">soon</span>
+                    }
+               </a>
+               }
+               }
+               }
+          </nav>
+
+          @if (blocked().length) {
+          <div class="shell__locked">
+               <p class="shell__group">Hidden by your role</p>
+               @for (entry of blocked(); track entry.key) {
+               <p class="shell__locked-item" [title]="'Your role does not include ' + entry.label">
+                    <span aria-hidden="true">🔒</span>{{ entry.label }}
+               </p>
+               }
+          </div>
+          }
+     </aside>
+
+     @if (navOpen()) {
+     <div class="shell__scrim" role="presentation" (click)="closeNav()"></div>
+     }
+
+     <div class="shell__body">
+          <header class="shell__topbar">
+               <button class="button button-secondary shell__menu-toggle" type="button" [attr.aria-expanded]="navOpen()"
+                    aria-label="Open navigation" (click)="toggleNav()">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                         <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-linecap="round"
+                              stroke-width="1.8" />
+                    </svg>
+               </button>
+
+               <div class="shell__crumbs">
+                    <span class="shell__crumbs-title">{{ workspace.displayName() }}</span>
+                    <span class="shell__crumbs-host"
+                         [class.shell__crumbs-host--override]="workspace.resolved().source === 'dev-override'">
+                         {{ workspace.resolved().host || 'unknown host' }}
+                    </span>
+               </div>
+
+               <div class="shell__actions">
+                    @if (switchable) {
+                    <div class="shell__switcher" role="group" aria-label="Dev workspace switcher">
+                         <span class="shell__switcher-label">DEV</span>
+                         <button class="shell__switch" type="button"
+                              [class.shell__switch--active]="workspace.kind() === 'marketing'"
+                              (click)="switchTo('marketing')">
+                              Marketing
+                         </button>
+                         <button class="shell__switch" type="button"
+                              [class.shell__switch--active]="workspace.isPlatform()" (click)="switchTo('admin')">
+                              Admin
+                         </button>
+                         @for (tenant of data.tenants(); track tenant.id) {
+                         <button class="shell__switch" type="button"
+                              [class.shell__switch--active]="workspace.slug() === tenant.subdomain"
+                              (click)="switchTo(tenant.subdomain)">
+                              {{ labelForSlug(tenant.subdomain) }}
+                         </button>
+                         }
+                    </div>
+                    }
+
+                    @if (showPresence()) {
+                    <span class="shell__presence" [title]="'Live presence updates arrive with the Team Inbox'">
+                         <span class="status-indicator status-indicator--success"
+                              [class.status-indicator--warning]="!session.user()?.online" aria-hidden="true"></span>
+                         {{ session.user()?.online ? 'Online' : 'Not signed in for chats' }}
+                    </span>
+                    }
+
+                    <button class="button button-secondary shell__theme" type="button"
+                         [attr.aria-label]="theme.isDark() ? 'Switch to light theme' : 'Switch to dark theme'"
+                         [attr.aria-pressed]="theme.isDark()" (click)="theme.toggleTheme()">
+                         {{ theme.isDark() ? 'Light' : 'Dark' }}
+                    </button>
+
+                    @if (session.user(); as user) {
+                    <div class="shell__user">
+                         <a class="shell__profile" routerLink="/profile" [title]="user.roleLabel">
+                              <span class="shell__avatar" aria-hidden="true">{{ user.avatarInitials }}</span>
+                              <span class="shell__user-copy">
+                                   <strong>{{ user.fullName }}</strong>
+                                   <small class="text-muted">{{ user.roleLabel }}</small>
+                              </span>
+                         </a>
+                         <button class="shell__signout" type="button" (click)="session.logout()">Sign out</button>
+                    </div>
+                    } @else {
+                    <a class="button button-primary shell__signin" [routerLink]="['/login']">Log in</a>
+                    }
+               </div>
+          </header>
+
+          <main class="shell__main">
+               <ng-content />
+          </main>
+     </div>
+</div>

@@ -1,0 +1,114 @@
+<div class="workspace-page">
+  <app-page-header
+    [eyebrow]="isEdit() ? 'MEMBER' : 'INVITE'"
+    [title]="isEdit() ? 'Edit member' : 'Add a member'"
+    description="Access comes from the role. Capacity comes from this screen — the weighted agent router assigns chats up to that limit, then skips the member until one closes."
+  >
+    <a class="button button-secondary" pageActions routerLink="/users">All users</a>
+  </app-page-header>
+
+  <form class="surface user-form" #form="ngForm" (ngSubmit)="submit(form)" novalidate>
+    <div class="user-form__grid">
+      <label class="form-field">
+        <span>Full name</span>
+        <input
+          class="form-control"
+          name="fullName"
+          [(ngModel)]="draft.fullName"
+          #nameField="ngModel"
+          required
+          autocomplete="off"
+          [class.form-control--invalid]="
+            nameField.invalid && (nameField.touched || attempted())
+          "
+        />
+        @if (nameField.invalid && (nameField.touched || attempted())) {
+          <span class="field-error">Enter the name your team will see.</span>
+        }
+      </label>
+
+      <label class="form-field">
+        <span>Work email</span>
+        <input
+          class="form-control"
+          name="email"
+          type="email"
+          [(ngModel)]="draft.email"
+          #emailField="ngModel"
+          required
+          email
+          autocomplete="off"
+          [class.form-control--invalid]="
+            emailField.invalid && (emailField.touched || attempted())
+          "
+        />
+        @if (emailField.invalid && (emailField.touched || attempted())) {
+          <span class="field-error">A valid email is required for the workspace invite.</span>
+        }
+      </label>
+
+      <label class="form-field">
+        <span>Role</span>
+        <select class="form-control" name="roleId" [(ngModel)]="draft.roleId" required>
+          @for (role of roles(); track role.id) {
+            <option [value]="role.id">{{ role.name }}</option>
+          }
+        </select>
+        <small class="text-muted">{{ menuSummary() }}</small>
+      </label>
+
+      <label class="form-field">
+        <span>Team</span>
+        <select class="form-control" name="department" [(ngModel)]="draft.department">
+          @for (team of teams; track team) {
+            <option [value]="team">{{ team }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="form-field">
+        <span>Max simultaneous chats</span>
+        <input
+          class="form-control"
+          name="capacity"
+          type="number"
+          min="1"
+          max="25"
+          [(ngModel)]="draft.maxActiveChatCapacity"
+        />
+        <small class="text-muted">Senior agents often carry 8–10; new staff 3–4.</small>
+      </label>
+
+      <label class="form-field">
+        <span>WhatsApp contact number</span>
+        <input
+          class="form-control"
+          name="phone"
+          [(ngModel)]="draft.phone"
+          placeholder="+91 …"
+        />
+      </label>
+    </div>
+
+    @if (selectedRole(); as role) {
+      <div class="user-form__preview">
+        <p class="eyebrow">WHAT {{ role.name.toUpperCase() }} WILL SEE</p>
+        <ul class="dashboard-chips">
+          @for (key of role.menus; track key) {
+            <li>{{ permissions.menuLabel(key) }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <footer class="user-form__actions">
+      @if (notice(); as text) {
+        <p class="login-status" role="status">{{ text }}</p>
+      }
+      <a class="button button-secondary" routerLink="/users">Cancel</a>
+      <button class="button button-primary" type="submit">
+        {{ isEdit() ? 'Save changes' : 'Send invite' }}
+      </button>
+    </footer>
+  </form>
+</div>

@@ -1,0 +1,159 @@
+<section class="data-table" [class.data-table--busy]="loading()">
+     <header class="data-table__toolbar">
+          <div class="data-table__tools">
+               @if (searchable()) {
+               <input class="form-control data-table__search" type="search" [value]="query()"
+                    [placeholder]="searchPlaceholder()" aria-label="Filter records"
+                    (input)="setQuery($any($event.target).value)" />
+               } @if (selectable() && selectedCount() > 0) {
+               <span class="data-table__selection">{{ selectedCount() }} selected</span>
+               <button class="button button-secondary data-table__link" type="button" (click)="clearSelection()">
+                    Clear
+               </button>
+               }
+          </div>
+
+          <div class="data-table__meta">
+               <label class="data-table__size">
+                    <span>Rows</span>
+                    <select class="form-control data-table__size-select" [value]="size()" aria-label="Rows per page"
+                         (change)="setSize($any($event.target).valueAsNumber)">
+                         @for (option of sizeOptions; track option) {
+                         <option [value]="option">{{ option }}</option>
+                         }
+                    </select>
+               </label>
+
+               @if (exportName()) {
+               <button class="button button-secondary data-table__export" type="button" (click)="exportCsv()">
+                    Export CSV
+               </button>
+               }
+          </div>
+     </header>
+
+     <div class="data-table__scroll">
+          <table class="data-table__table">
+               <caption class="sr-only">
+                    {{ caption() || 'Data table' }}
+               </caption>
+
+               <thead>
+                    <tr>
+                         @if (selectable()) {
+                         <th class="data-table__cell-check" scope="col">
+                              <input type="checkbox" aria-label="Select all rows on this page"
+                                   [checked]="allOnPageSelected()" (change)="toggleAllOnPage()" />
+                         </th>
+                         } @for (column of columns(); track column.key) {
+                         <th scope="col"
+                              [class]="'data-table__head' + (column.headerClass ? ' ' + column.headerClass : '')"
+                              [class.data-table__head--end]="column.align === 'end'"
+                              [class.data-table__head--center]="column.align === 'center'" [style.width]="column.width"
+                              [attr.aria-sort]="
+              column.sortable
+                ? sortDirection(column) === 'asc'
+                  ? 'ascending'
+                  : sortDirection(column) === 'desc'
+                    ? 'descending'
+                    : 'none'
+                : null
+            ">
+                              @if (column.sortable) {
+                              <button class="data-table__sort" type="button" (click)="toggleSort(column)">
+                                   <span>{{ column.label }}</span>
+                                   <span class="data-table__sort-mark" aria-hidden="true">
+                                        {{ sortDirection(column) === 'asc' ? '▲' : sortDirection(column) === 'desc' ?
+                                        '▼' : '↕' }}
+                                   </span>
+                              </button>
+                              } @else {
+                              <span>{{ column.label }}</span>
+                              }
+                         </th>
+                         }
+                    </tr>
+               </thead>
+
+               <tbody>
+                    @if (loading()) {
+                    @for (skeleton of [1, 2, 3, 4, 5]; track skeleton) {
+                    <tr class="data-table__row--skeleton">
+                         <td [attr.colspan]="columns().length + (selectable() ? 1 : 0)">
+                              <span class="data-table__skeleton"></span>
+                         </td>
+                    </tr>
+                    }
+                    } @else if (error()) {
+                    <tr class="data-table__row--error">
+                         <td [attr.colspan]="columns().length + (selectable() ? 1 : 0)">
+                              <p class="data-table__state-title">{{ error() }}</p>
+                              <p class="data-table__state-body">The workspace is still reachable — retry to load these
+                                   rows.</p>
+                         </td>
+                    </tr>
+                    } @else if (visible().length === 0) {
+                    <tr class="data-table__row--empty">
+                         <td [attr.colspan]="columns().length + (selectable() ? 1 : 0)">
+                              <p class="data-table__state-title">{{ emptyTitle() }}</p>
+                              <p class="data-table__state-body">
+                                   @if (query()) {
+                                   Nothing matches “{{ query() }}”. Clear the filter to see all {{ rows().length }}
+                                   records.
+                                   } @else {
+                                   {{ emptyDescription() }}
+                                   }
+                              </p>
+                         </td>
+                    </tr>
+                    } @else {
+                    @for (row of visible(); track trackRow($index, row)) {
+                    <tr class="data-table__row" [class.data-table__row--selected]="selectable() && isSelected(row)"
+                         [class.data-table__row--clickable]="activatable()" (click)="onRowClick(row)">
+                         @if (selectable()) {
+                         <td class="data-table__cell-check" (click)="$event.stopPropagation()">
+                              <input type="checkbox" [attr.aria-label]="'Select record'" [checked]="isSelected(row)"
+                                   (change)="toggleRow(row)" />
+                         </td>
+                         } @for (column of columns(); track column.key) {
+                         <td [class]="'data-table__cell' + (column.cellClass ? ' ' + column.cellClass : '')"
+                              [class.data-table__cell--end]="column.align === 'end'"
+                              [class.data-table__cell--center]="column.align === 'center'">
+                              @if (cellTemplate(column); as template) {
+                              <ng-container
+                                   *ngTemplateOutlet="template; context: { $implicit: row, index: $index, column: column }" />
+                              } @else {
+                              {{ text(row, column) }}
+                              }
+                         </td>
+                         }
+                    </tr>
+                    }
+                    }
+               </tbody>
+          </table>
+     </div>
+
+     <footer class="data-table__footer">
+          <span class="data-table__range">{{ rangeLabel() }}</span>
+
+          <nav class="data-table__pager" aria-label="Table pages">
+               <button class="button button-secondary data-table__page" type="button" [disabled]="page() === 1"
+                    (click)="goTo(page() - 1)">
+                    Previous
+               </button>
+
+               @for (number of pageNumbers(); track number) {
+               <button class="data-table__page-number" [class.data-table__page-number--active]="number === page()"
+                    type="button" [attr.aria-current]="number === page() ? 'page' : null" (click)="goTo(number)">
+                    {{ number }}
+               </button>
+               }
+
+               <button class="button button-secondary data-table__page" type="button"
+                    [disabled]="page() === pageCount()" (click)="goTo(page() + 1)">
+                    Next
+               </button>
+          </nav>
+     </footer>
+</section>

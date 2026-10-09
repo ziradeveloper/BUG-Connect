@@ -103,7 +103,7 @@ export class LandingPage {
       legacy: 'Per-seat licensing',
       platform: 'Zero seat fees',
       description:
-        'Legacy tools charge every agent a monthly seat. WABAFlow keeps agent seats unlimited and scales with volume and active contacts instead.',
+        'Legacy tools charge every agent a monthly seat. BUGConnect keeps agent seats unlimited and scales with volume and active contacts instead.',
     },
     {
       legacy: 'An inbox everyone shares',

@@ -1,0 +1,82 @@
+<div class="workspace-page">
+  <app-page-header [eyebrow]="scopeLabel()" [title]="title()" [description]="description()">
+    @if (canManage()) {
+      <button class="button button-primary" pageActions type="button" (click)="createRole()">
+        Create role
+      </button>
+    }
+  </app-page-header>
+
+  @if (notice(); as message) {
+    <p class="login-status" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+
+  <app-data-table
+    [columns]="columns()"
+    [rows]="roles()"
+    [loading]="loading()"
+    caption="Roles, how many members use them, and how many menus each one opens"
+    searchPlaceholder="Search roles"
+    emptyTitle="No roles match this filter"
+    emptyDescription="Roles decide which menus a member sees and which actions they can take."
+    exportName="bugconnect-roles"
+    [activatable]="true"
+    (rowClick)="open($event)"
+  >
+    <ng-template appCell="name" let-role>
+      <strong class="data-table__primary">{{ role.name }}</strong>
+      @if (role.system) {
+        <app-status-pill label="system" tone="neutral" />
+      }
+    </ng-template>
+
+    <ng-template appCell="menus" let-role>
+      <span class="role-menus">{{ role.menus.length }} of {{ catalogueSize() }}</span>
+      <span class="data-table__subdued">menus</span>
+    </ng-template>
+
+    <ng-template appCell="summary" let-role>
+      <span class="data-table__subdued role-summary">{{ menuLabels(role) }}</span>
+    </ng-template>
+
+    <ng-template appCell="memberCount" let-role>
+      {{ role.memberCount }}
+    </ng-template>
+
+    @if (canManage()) {
+      <ng-template appCell="actions" let-role>
+        <span class="data-table__actions">
+          <a class="data-table__action" [routerLink]="['/roles', role.id]">Edit menus</a>
+          <button
+            class="data-table__action data-table__action--danger"
+            type="button"
+            [disabled]="role.system"
+            [title]="
+              role.system ? 'System roles can be edited but not deleted' : 'Delete this role'
+            "
+            (click)="pendingDelete.set(role); $event.stopPropagation()"
+          >
+            Delete
+          </button>
+        </span>
+      </ng-template>
+    }
+  </app-data-table>
+</div>
+
+<app-confirm-dialog
+  [open]="pendingDelete() !== null"
+  title="Delete this role?"
+  [description]="
+    pendingDelete()
+      ? pendingDelete()?.name +
+        ' will be removed. Members on it lose their menu access until you assign another role.'
+      : ''
+  "
+  confirmLabel="Delete role"
+  (cancel)="pendingDelete.set(null)"
+  (confirm)="confirmDelete()"
+/>

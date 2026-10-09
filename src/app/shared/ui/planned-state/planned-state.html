@@ -1,0 +1,18 @@
+<section class="planned-state surface">
+  <span class="planned-state__icon" aria-hidden="true">{{ icon() }}</span>
+  <p class="eyebrow">{{ phase() }}</p>
+  <h2>{{ title() }}</h2>
+  <p class="text-muted">{{ description() }}</p>
+
+  @if (includes().length) {
+    <ul class="planned-state__list">
+      @for (item of includes(); track item) {
+        <li><span aria-hidden="true">✓</span>{{ item }}</li>
+      }
+    </ul>
+  }
+
+  <div class="planned-state__actions">
+    <a class="button button-secondary" [routerLink]="back()">Back to dashboard</a>
+  </div>
+</section>

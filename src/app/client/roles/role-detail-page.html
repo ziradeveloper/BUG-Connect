@@ -1,0 +1,79 @@
+<div class="workspace-page">
+  @if (role(); as currentRole) {
+    <app-page-header
+      eyebrow="ROLE PERMISSIONS"
+      [title]="currentRole.name"
+      description="Configure menu access and permission matrix for this role."
+    >
+      <a class="button button-secondary" pageActions routerLink="/roles">
+        Back to roles
+      </a>
+    </app-page-header>
+
+    @if (savedNotice(); as notice) {
+      <p class="login-status" role="status">{{ notice }}</p>
+    }
+
+    <div class="role-details-card surface">
+      <h3>Role Settings</h3>
+      <div class="form-group">
+        <label for="roleName">Role Name</label>
+        <input
+          id="roleName"
+          type="text"
+          class="form-input"
+          [ngModel]="roleName()"
+          (ngModelChange)="roleName.set($event)"
+          [disabled]="currentRole.system"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="roleDesc">Description</label>
+        <textarea
+          id="roleDesc"
+          class="form-input"
+          rows="2"
+          [ngModel]="roleDescription()"
+          (ngModelChange)="roleDescription.set($event)"
+          [disabled]="currentRole.system"
+        ></textarea>
+      </div>
+
+      @if (!currentRole.system) {
+        <button class="button button-primary" type="button" (click)="saveDetails()">
+          Save Role Details
+        </button>
+      }
+    </div>
+
+    <div class="matrix-card surface">
+      <h3>Menu Access Matrix</h3>
+      <p class="text-muted">Check the menus this role is allowed to open.</p>
+
+      <div class="matrix-grid">
+        @for (item of catalogue(); track item.key) {
+          <label class="matrix-item">
+            <input
+              type="checkbox"
+              [checked]="isMenuChecked(item.key)"
+              (change)="toggleMenu(item.key)"
+            />
+            <span class="matrix-item__label">{{ item.label }}</span>
+            <span class="matrix-item__key">({{ item.key }})</span>
+          </label>
+        }
+      </div>
+    </div>
+  } @else {
+    <app-page-header
+      eyebrow="NOT FOUND"
+      title="Role not found"
+      description="The requested role does not exist."
+    >
+      <a class="button button-secondary" pageActions routerLink="/roles">
+        Back to roles
+      </a>
+    </app-page-header>
+  }
+</div>

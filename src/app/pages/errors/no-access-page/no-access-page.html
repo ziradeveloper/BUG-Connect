@@ -1,0 +1,16 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PERMISSION"
+    title="This module is not part of your role"
+    description="Menus come from the role definition. The same record decides the sidebar and this route, so a hidden menu and a blocked page are always the same problem."
+  />
+
+  <app-planned-state
+    icon="🔒"
+    [phase]="'Blocked by ' + (missing() || 'role settings')"
+    [title]="title()"
+    [description]="description()"
+    [includes]="hints()"
+    back="/"
+  />
+</div>

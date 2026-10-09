@@ -1,0 +1,16 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="404"
+    title="That page is not part of this workspace"
+    description="Routes are scoped to the resolved subdomain, so a tenant page never answers on the platform host and the other way around."
+  />
+
+  <app-planned-state
+    icon="⌀"
+    [phase]="host()"
+    title="Nothing routed here"
+    description="Check the address, or continue to the workspace home."
+    [includes]="[]"
+    back="/"
+  />
+</div>

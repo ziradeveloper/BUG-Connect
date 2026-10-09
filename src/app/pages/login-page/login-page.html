@@ -1,107 +1,122 @@
-<app-site-header [showMarketingLinks]="false" />
+@if (!workspace.isWorkspace()) {
+  <app-site-header [showMarketingLinks]="false" />
+}
 
 <main class="login-page app-container">
-     <section class="login-intro" aria-labelledby="login-intro-heading">
-          <p class="eyebrow">WELCOME BACK</p>
-          <h1 id="login-intro-heading">Pick up the conversation where your team left off.</h1>
-          <p class="login-intro__description">
-               Sign in to your workspace to work the Team Inbox, review automation, and keep every customer
-               conversation with its context.
-          </p>
+  <section class="login-intro" aria-labelledby="login-intro-heading">
+    <p class="eyebrow">WELCOME BACK</p>
+    <h1 id="login-intro-heading">Pick up the conversation where your team left off.</h1>
+    <p class="login-intro__description">
+      Sign in to your workspace to work the Team Inbox, review automation, and keep every customer
+      conversation with its context.
+    </p>
 
-          <ol class="login-flow-list">
-               <li>
-                    <span class="login-flow-list__icon" aria-hidden="true">
-                         <svg viewBox="0 0 24 24" fill="none">
-                              <path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor"
-                                   stroke-linejoin="round" stroke-width="1.7" />
-                              <path d="M14 3v6h5M9 14h6m-6 3h4" stroke="currentColor" stroke-linecap="round"
-                                   stroke-width="1.7" />
-                         </svg>
-                    </span>
-                    <span><strong>Keep the context</strong><small>Messages, notes and history stay together.</small></span>
-               </li>
-               <li>
-                    <span class="login-flow-list__icon" aria-hidden="true">
-                         <svg viewBox="0 0 24 24" fill="none">
-                              <path d="M5 12.5 9.2 17 19 7" stroke="currentColor" stroke-linecap="round"
-                                   stroke-linejoin="round" stroke-width="1.9" />
-                              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" />
-                         </svg>
-                    </span>
-                    <span><strong>Make the queue clear</strong><small>See what is automated, open, or resolved.</small></span>
-               </li>
-          </ol>
+    <ol class="login-flow-list">
+      <li>
+        <span class="login-flow-list__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="1.7" />
+          </svg>
+        </span>
+        <span><strong>Keep the context</strong><small>Messages, notes and history stay together.</small></span>
+      </li>
+      <li>
+        <span class="login-flow-list__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="9" stroke-width="1.6" />
+          </svg>
+        </span>
+        <span><strong>Make the queue clear</strong><small>See what is automated, open, or resolved.</small></span>
+      </li>
+    </ol>
 
-          <div class="login-intro__quote surface-raised">
-               <span aria-hidden="true">“</span>
-               <p>One official WhatsApp number, operated as a shared workspace.</p>
-          </div>
-     </section>
+    <div class="login-intro__quote surface-raised">
+      <span aria-hidden="true">“</span>
+      <p>One official WhatsApp number, operated as a shared workspace.</p>
+    </div>
+  </section>
 
-     <section class="login-card surface" aria-labelledby="login-heading">
-          <div class="login-card__header">
-               <p class="eyebrow">ACCOUNT ACCESS</p>
-               <h2 id="login-heading">Log in to your workspace</h2>
-               <p class="text-muted">Enter your username and password to continue.</p>
-          </div>
+  <section class="login-card surface" aria-labelledby="login-heading">
+    <div class="login-card__header">
+      <p class="eyebrow">ACCOUNT ACCESS</p>
+      <h2 id="login-heading">Log in to your workspace</h2>
+      <p class="text-muted">Enter your username and password to continue.</p>
 
-          <form #loginForm="ngForm" (ngSubmit)="onSubmit(loginForm)" novalidate>
-               <div class="form-field">
-                    <label for="login-username">Username</label>
-                    <input class="form-control"
-                         [class.form-control--invalid]="usernameField.invalid && (usernameField.touched || loginForm.submitted)"
-                         id="login-username" name="username" type="text" placeholder="Enter your username"
-                         autocomplete="username" [(ngModel)]="username" #usernameField="ngModel" required
-                         [attr.aria-invalid]="usernameField.invalid && (usernameField.touched || loginForm.submitted)"
-                         [attr.aria-describedby]="usernameField.invalid && (usernameField.touched || loginForm.submitted) ? 'username-error' : null" />
-                    @if (usernameField.invalid && (usernameField.touched || loginForm.submitted)) {
-                    <span class="field-error" id="username-error">Please enter your username.</span>
-                    }
-               </div>
+      <p class="login-target" [class]="'login-target login-target--' + target().tone">
+        <span class="status-indicator status-indicator--info" aria-hidden="true"></span>
+        <span>
+          <strong>{{ target().label }}</strong>
+          <small>{{ target().detail }}</small>
+        </span>
+      </p>
+    </div>
 
-               <div class="form-field">
-                    <div class="form-field__heading">
-                         <label for="login-password">Password</label>
-                         <button class="form-link" type="button" (click)="requestPasswordReset()">
-                              Forgot password?
-                         </button>
-                    </div>
-                    <div class="password-control">
-                         <input class="form-control"
-                              [class.form-control--invalid]="passwordField.invalid && (passwordField.touched || loginForm.submitted)"
-                              id="login-password" name="password" [type]="passwordVisible ? 'text' : 'password'"
-                              placeholder="Enter your password" autocomplete="current-password" [(ngModel)]="password"
-                              #passwordField="ngModel" required
-                              [attr.aria-invalid]="passwordField.invalid && (passwordField.touched || loginForm.submitted)"
-                              [attr.aria-describedby]="passwordField.invalid && (passwordField.touched || loginForm.submitted) ? 'password-error' : null" />
-                         <button class="password-control__toggle" type="button"
-                              [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
-                              [attr.aria-pressed]="passwordVisible" (click)="togglePasswordVisibility()">
-                              {{ passwordVisible ? 'Hide' : 'Show' }}
-                         </button>
-                    </div>
-                    @if (passwordField.invalid && (passwordField.touched || loginForm.submitted)) {
-                    <span class="field-error" id="password-error">Please enter your password.</span>
-                    }
-               </div>
+    @if (statusMessage) {
+      <div class="login-status" [class]="'login-status login-status--' + statusType" role="status">
+        {{ statusMessage }}
+      </div>
+    }
 
-               @if (statusMessage) {
-               <p class="login-status" [class.login-status--success]="statusType === 'success'"
-                    [class.login-status--error]="statusType === 'error'" role="status" aria-live="polite">
-                    {{ statusMessage }}
-               </p>
-               }
+    <form #loginForm="ngForm" (ngSubmit)="onSubmit(loginForm)" novalidate>
+      <div class="form-field">
+        <label for="login-username">Username or Email</label>
+        <input
+          id="login-username"
+          name="username"
+          type="text"
+          class="form-control"
+          [(ngModel)]="username"
+          #usernameModel="ngModel"
+          required
+          placeholder="admin@bugconnect.example"
+        />
+        @if (loginForm.submitted && usernameModel.invalid) {
+          <div id="username-error" class="field-error">Username is required</div>
+        }
+      </div>
 
-               <button class="button button-primary login-submit" type="submit">Log in</button>
-          </form>
+      <div class="form-field">
+        <div class="form-field__heading">
+          <label for="login-password">Password</label>
+          <button type="button" class="form-link" (click)="requestPasswordReset()">Forgot password?</button>
+        </div>
+        <div class="password-control">
+          <input
+            id="login-password"
+            name="password"
+            [type]="passwordVisible ? 'text' : 'password'"
+            class="form-control"
+            [(ngModel)]="password"
+            #passwordModel="ngModel"
+            required
+            placeholder="••••••••"
+          />
+          <button type="button" class="password-control__toggle" (click)="togglePasswordVisibility()">
+            {{ passwordVisible ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+        @if (loginForm.submitted && passwordModel.invalid) {
+          <div id="password-error" class="field-error">Password is required</div>
+        }
+      </div>
 
-          <p class="login-card__signup">
-               New to WABAFlow? <a [routerLink]="['/']" fragment="plans">Explore plans</a>
-          </p>
-          <p class="login-card__setup-note" role="note">
-               Demo credentials: <code>admin</code> / <code>admin@123</code>. This client-side check is for
-               development only; it does not create a secure session.
-          </p>
-     </section>
+      <button type="submit" class="button button-primary login-submit">Sign in</button>
+    </form>
+
+    <p class="login-card__signup">
+      New to BUGConnect? <a [routerLink]="['/']" fragment="plans">Explore plans</a>
+    </p>
+
+    <div class="login-card__setup-note" role="note">
+      <p>Demo accounts — click to fill form:</p>
+      <div class="login-accounts">
+        @for (account of demoAccounts; track account.id) {
+          <button class="button button-secondary button-sm" type="button" (click)="useAccount(account.id)" [title]="account.note">
+            {{ account.label }}
+          </button>
+        }
+      </div>
+      <p class="demo-password-note">Password: <code>admin@123</code></p>
+    </div>
+  </section>
 </main>

@@ -1,0 +1,31 @@
+.role-details-card,
+.matrix-card {
+  margin-block-end: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-block-start: 1rem;
+}
+
+.matrix-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.matrix-item:hover {
+  background: var(--theme-surface-hover, rgba(255, 255, 255, 0.05));
+}
+
+.matrix-item__key {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
