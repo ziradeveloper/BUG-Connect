@@ -103,7 +103,8 @@ d:\Projects\BUGConnect\BUGConnect\
 │   │   ├── layout/          # AdminShell, ClientShell, ShellFrame frame
 │   │   ├── pages/           # LandingPage, LoginPage, ErrorPages (NoAccess, NotFound)
 │   │   └── shared/          # DataTable component, SiteHeader, UI primitives
-│   ├── styles.css           # Design tokens, global utilities, component styles
+│   ├── styles.css           # Global stylesheet entry (imports src/styles/*)
+│   ├── styles/              # ALL styling: tokens, base, components/, pages/
 │   └── index.html           # Main HTML document
 ├── ARCHITECTURE.md          # Complete technical blueprint & wave specification
 ├── TODO.md                  # Detailed page-by-page progress & wave tracker

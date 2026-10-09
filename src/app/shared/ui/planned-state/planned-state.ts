@@ -8,7 +8,6 @@ import { RouterLink } from '@angular/router';
   selector: 'app-planned-state',
   imports: [RouterLink],
   templateUrl: './planned-state.html',
-  styleUrl: './planned-state.css',
 })
 export class PlannedState {
   readonly title = input.required<string>();

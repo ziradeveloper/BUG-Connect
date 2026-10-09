@@ -47,15 +47,6 @@ export type PlannedConfig = {
       }
     </div>
   `,
-  styles: `
-    .planned-note {
-      margin: 0 auto;
-      max-inline-size: 40rem;
-      font-size: 0.78rem;
-      line-height: 1.65;
-      text-align: center;
-    }
-  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlannedModulePage {

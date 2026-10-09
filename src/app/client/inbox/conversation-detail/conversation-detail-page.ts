@@ -31,7 +31,6 @@ export interface MessageViewModel {
   selector: 'app-conversation-detail-page',
   standalone: true,
   templateUrl: './conversation-detail-page.html',
-  styleUrl: './conversation-detail-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConversationDetailPageComponent implements OnDestroy {

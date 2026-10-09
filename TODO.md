@@ -31,7 +31,7 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 | Host Resolution | `resolveWorkspace(host, queryOverride, storedOverride)` in core | SSR-safe dynamic host resolution; fallback via `?ws=<slug>` & `localStorage['bugconnect-dev-workspace']` |
 | Route Guarding | Three `canMatch` route trees in `app.routes.ts` | Prevents route leakage: `/clients` is unreachable on client host; `/inbox` is unreachable on platform admin host |
 | Shared Data Table | Custom `<app-data-table>` component | Zero external UI libraries; full control over accessibility (`aria-sort`), custom cell templates, sorting, pagination, search, and CSV export |
-| Styling System | Custom CSS variables in `src/styles.css` | High-aesthetic dark/light modes, micro-animations, glassmorphism, responsive mobile drawers, and horizontal scroll tables |
+| Styling System | Global stylesheet tree in `src/styles/` (tokens, base, components, pages), no component-scoped CSS | High-aesthetic dark/light modes, micro-animations, glassmorphism, responsive mobile drawers, and horizontal scroll tables |
 | SSR Configuration | `RenderMode.Server` for all routes (`app.routes.server.ts`) | Disables static prerendering to ensure host header dynamically resolves per request |
 
 ---
@@ -118,6 +118,14 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 ---
 
 ## 📜 History & Updates Log
+
+### 2026-10-09 — Global Styling System & UI Refresh
+- Moved all styling out of components into the global stylesheet tree `src/styles/` (tokens → base → components → pages), imported in order from `src/styles.css`. Removed every `styleUrl`, inline `styles` block and component `.css` file, and the dead `app.css`.
+- Redesigned the token set: calmer teal-tinted surfaces, a shape scale (`--radius-*`), layered elevation (`--theme-shadow-xs` → `-lg`), glass chrome, and a single focus treatment. Light and dark themes keep the same token names.
+- Restyled shared primitives (buttons incl. ghost/danger, form controls, badges incl. neutral), the workspace shell (active-item accent bar, glass top bar, responsive rail), the data table, the login split layout, the site header, the inbox and chat bubbles, and metric cards.
+- Fixed inbox styles that referenced undefined variables (`--surface-0`, `--text-secondary`, …) and hard-coded colours; both now resolve through tokens.
+- Added `src/app/styles-convention.spec.ts` to keep component styles out of `src/app`.
+- Known follow-ups: landing page still has a few duplicated selectors (`.faq-section`, `.faq-intro h2`, `.faq-item__toggle::after`) that need a visual check before merging; `permission.service.spec.ts` fails on the base commit too and is unrelated to styling.
 
 ### 2026-10-09 — Wave 2 Team Inbox Shipped
 - Built full Team Inbox module: `InboxShellComponent` (queue pane) + `ConversationDetailPageComponent` (thread + composer) + `InboxEmptyComponent`.

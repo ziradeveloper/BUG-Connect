@@ -4,7 +4,6 @@ import { Component, input } from '@angular/core';
 @Component({
   selector: 'app-status-pill',
   templateUrl: './status-pill.html',
-  styleUrl: './status-pill.css',
 })
 export class StatusPill {
   readonly label = input.required<string>();

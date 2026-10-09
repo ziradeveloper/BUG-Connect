@@ -1,0 +1,104 @@
+/* Users, roles and permission matrix */
+.user-form {
+  display: grid;
+  gap: 1.35rem;
+  padding: clamp(1.15rem, 2.4vw, 1.75rem);
+}
+
+.user-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.1rem;
+}
+
+.user-form__grid label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--theme-text-primary);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.user-form__grid small {
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.user-form__preview {
+  border-block-start: 1px solid var(--theme-border);
+  padding-block-start: 1.1rem;
+}
+
+.user-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.user-form__actions .login-status {
+  flex: 1;
+  margin: 0;
+}
+
+.role-menus {
+  color: var(--theme-brand);
+  font-size: 0.85rem;
+  font-weight: 720;
+}
+
+.role-summary {
+  display: block;
+  max-inline-size: 26rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-table__primary + app-status-pill {
+  margin-inline-start: 0.45rem;
+}
+
+.role-details-card,
+.matrix-card {
+  margin-block-end: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-block-start: 1rem;
+}
+
+.matrix-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.matrix-item:hover {
+  background: var(--theme-surface-hover);
+}
+
+.matrix-item__key {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.matrix-item__label {
+  color: var(--theme-text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.matrix-item:has(input:checked) {
+  background-color: var(--theme-brand-soft);
+}

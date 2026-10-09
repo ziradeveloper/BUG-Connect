@@ -11,7 +11,6 @@ import { PlannedState } from '../../../shared/ui/planned-state/planned-state';
   selector: 'app-no-access-page',
   imports: [PageHeader, PlannedState],
   templateUrl: './no-access-page.html',
-  styleUrl: './no-access-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NoAccessPage {
