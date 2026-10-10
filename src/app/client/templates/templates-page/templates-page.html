@@ -1,0 +1,100 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="AUTOMATION"
+    title="Template Manager"
+    description="Meta-approved message templates, their languages and the approval status the composer gates on."
+  >
+    @if (canManage()) {
+      <a class="button button-primary" pageActions routerLink="/templates/new">New template</a>
+    }
+  </app-page-header>
+
+  @if (notice()) {
+    <p class="ops-notice" role="status">
+      {{ notice() }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+
+  <div class="metric-grid">
+    <div class="metric">
+      <span class="metric__label">Templates</span>
+      <span class="metric__value">{{ counts().total }}</span>
+      <span class="metric__hint">Across all categories</span>
+    </div>
+    <div class="metric metric--brand">
+      <span class="metric__label">Approved</span>
+      <span class="metric__value">{{ counts().approved }}</span>
+      <span class="metric__hint">Sendable from the composer</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">In review</span>
+      <span class="metric__value">{{ counts().pending }}</span>
+      <span class="metric__hint">Waiting on Meta</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Drafts</span>
+      <span class="metric__value">{{ counts().drafts }}</span>
+      <span class="metric__hint">Not yet submitted</span>
+    </div>
+  </div>
+
+  <div class="contact-filters" role="group" aria-label="Filter templates by category">
+    @for (option of categories; track option) {
+      <button
+        type="button"
+        class="contact-filter"
+        [attr.aria-pressed]="category() === option"
+        (click)="category.set(option)"
+      >
+        {{ categoryLabel(option) }}
+      </button>
+    }
+  </div>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="loading()"
+    [error]="error()"
+    caption="Workspace message templates"
+    exportName="bugconnect-templates"
+    searchPlaceholder="Search by template name"
+    emptyTitle="No templates in this category"
+    emptyDescription="Create a template and submit it to Meta for approval."
+  >
+    <ng-template appCell="category" let-template>
+      {{ categoryLabel(template.category) }}
+    </ng-template>
+
+    <ng-template appCell="language" let-template>
+      <span class="contact-tag">{{ template.language }}</span>
+    </ng-template>
+
+    <ng-template appCell="status" let-template>
+      <app-status-pill [label]="template.status" [tone]="statusTone(template.status)" />
+    </ng-template>
+
+    <ng-template appCell="actions" let-template>
+      @if (canManage() && template.status === 'draft') {
+        <a class="button button-ghost button-sm" [routerLink]="['/templates', template.id]">Edit</a>
+        <button
+          class="button button-secondary button-sm"
+          type="button"
+          [disabled]="submittingId() === template.id"
+          (click)="submit(template)"
+        >
+          {{ submittingId() === template.id ? 'Submitting…' : 'Submit' }}
+        </button>
+      } @else if (template.status !== 'draft') {
+        <span class="data-table__subdued">
+          @if (template.status === 'approved') {
+            Sendable
+          } @else {
+            Locked by review
+          }
+        </span>
+      }
+    </ng-template>
+  </app-data-table>
+</div>

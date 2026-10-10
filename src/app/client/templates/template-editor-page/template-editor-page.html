@@ -1,0 +1,247 @@
+@if (locked()) {
+  <div class="workspace-page">
+    <app-page-header
+      eyebrow="AUTOMATION"
+      [title]="existing()?.name ?? 'Template'"
+      description="This template is locked — Meta has already seen it, so only drafts can be edited."
+    >
+      <a class="button button-secondary" pageActions routerLink="/templates">All templates</a>
+    </app-page-header>
+    <p class="ops-notice" role="status">
+      Status “{{ existing()?.status }}”. Duplicate its content into a new draft to make changes.
+    </p>
+  </div>
+} @else {
+  <div class="workspace-page">
+    <app-page-header
+      eyebrow="AUTOMATION"
+      [title]="templateId() ? 'Edit template' : 'New template'"
+      description="Header, body variables, footer and buttons — exactly the structure Meta reviews."
+    >
+      <a class="button button-secondary" pageActions routerLink="/templates">All templates</a>
+    </app-page-header>
+
+    @if (error()) {
+      <p class="ops-notice ops-notice--error" role="alert">
+        {{ error() }}
+        <button class="form-link" type="button" (click)="error.set(null)">Dismiss</button>
+      </p>
+    }
+
+    <div class="ops-split ops-split--wide">
+      <section class="ops-card" aria-label="Template structure">
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="tpl-name">Name</label>
+            <input
+              id="tpl-name"
+              class="form-control"
+              [class.form-control--invalid]="nameError() !== null && draft().name"
+              type="text"
+              placeholder="order_confirmation"
+              [ngModel]="draft().name"
+              (ngModelChange)="update({ name: $event })"
+            />
+            @if (nameError() && draft().name) {
+              <small class="field-error">{{ nameError() }}</small>
+            }
+          </div>
+          <div class="form-field">
+            <label for="tpl-category">Category</label>
+            <select
+              id="tpl-category"
+              class="form-control"
+              [ngModel]="draft().category"
+              (ngModelChange)="update({ category: $event })"
+            >
+              <option value="UTILITY">Utility</option>
+              <option value="MARKETING">Marketing</option>
+              <option value="AUTHENTICATION">Authentication</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="tpl-language">Language</label>
+            <select
+              id="tpl-language"
+              class="form-control"
+              [ngModel]="draft().language"
+              (ngModelChange)="update({ language: $event })"
+            >
+              @for (language of languages; track language.value) {
+                <option [value]="language.value">{{ language.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="tpl-header-type">Header</label>
+            <select
+              id="tpl-header-type"
+              class="form-control"
+              [ngModel]="draft().headerType"
+              (ngModelChange)="update({ headerType: $event })"
+            >
+              <option value="none">None</option>
+              <option value="text">Text</option>
+              <option value="image">Image</option>
+              <option value="video">Video</option>
+              <option value="document">Document</option>
+            </select>
+          </div>
+        </div>
+
+        @if (draft().headerType === 'text') {
+          <div class="form-field">
+            <label for="tpl-header-text">Header text</label>
+            <input
+              id="tpl-header-text"
+              class="form-control"
+              type="text"
+              maxlength="60"
+              placeholder="Order confirmed"
+              [ngModel]="draft().headerText"
+              (ngModelChange)="update({ headerText: $event })"
+            />
+          </div>
+        }
+
+        <div class="form-field">
+          <label for="tpl-body">Body — use {{ '{{1}}' }}, {{ '{{2}}' }} for variables</label>
+          <textarea
+            id="tpl-body"
+            class="form-control"
+            [class.form-control--invalid]="bodyError() !== null && draft().body"
+            rows="5"
+            placeholder="Hi {{1}}, your order {{2}} is confirmed."
+            [ngModel]="draft().body"
+            (ngModelChange)="update({ body: $event })"
+          ></textarea>
+          @if (bodyError() && draft().body) {
+            <small class="field-error">{{ bodyError() }}</small>
+          }
+        </div>
+
+        @if (detectedVars().length) {
+          <fieldset class="ops-fieldset">
+            <legend>Sample values — shown in the composer, never sent</legend>
+            @for (variable of detectedVars(); track variable) {
+              <div class="form-field">
+                <label [for]="'tpl-sample-' + variable">{{ '{{' + variable + '}}' }}</label>
+                <input
+                  [id]="'tpl-sample-' + variable"
+                  class="form-control"
+                  type="text"
+                  placeholder="e.g. Customer name"
+                  [ngModel]="sampleFor(variable)"
+                  (ngModelChange)="updateSample(variable, $event)"
+                />
+              </div>
+            }
+          </fieldset>
+        }
+
+        <div class="form-field">
+          <label for="tpl-footer">Footer (optional)</label>
+          <input
+            id="tpl-footer"
+            class="form-control"
+            type="text"
+            maxlength="60"
+            placeholder="Reply STOP to opt out"
+            [ngModel]="draft().footer"
+            (ngModelChange)="update({ footer: $event })"
+          />
+        </div>
+
+        <div class="form-field">
+          <span id="tpl-buttons-label">Buttons (up to 3)</span>
+          <div class="ops-buttons" role="group" aria-labelledby="tpl-buttons-label">
+            @for (button of draft().buttons; track $index) {
+              <div class="ops-button-row">
+                <select
+                  class="form-control"
+                  [attr.aria-label]="'Button ' + ($index + 1) + ' type'"
+                  [ngModel]="button.type"
+                  (ngModelChange)="updateButton($index, { type: $event })"
+                >
+                  <option value="QUICK_REPLY">Quick reply</option>
+                  <option value="URL">URL</option>
+                </select>
+                <input
+                  class="form-control"
+                  type="text"
+                  placeholder="Button label"
+                  [attr.aria-label]="'Button ' + ($index + 1) + ' label'"
+                  [ngModel]="button.text"
+                  (ngModelChange)="updateButton($index, { text: $event })"
+                />
+                @if (button.type === 'URL') {
+                  <input
+                    class="form-control"
+                    type="url"
+                    placeholder="https://…"
+                    [attr.aria-label]="'Button ' + ($index + 1) + ' link'"
+                    [ngModel]="button.url"
+                    (ngModelChange)="updateButton($index, { url: $event })"
+                  />
+                }
+                <button
+                  class="button button-ghost button-sm"
+                  type="button"
+                  [attr.aria-label]="'Remove button ' + ($index + 1)"
+                  (click)="removeButton($index)"
+                >
+                  ✕
+                </button>
+              </div>
+            } @empty {
+              <span class="ops-muted">No buttons — body-only templates send fine.</span>
+            }
+          </div>
+          @if (buttonsError()) {
+            <small class="field-error">{{ buttonsError() }}</small>
+          }
+          @if (draft().buttons.length < 3) {
+            <button class="button button-ghost button-sm" type="button" (click)="addButton()">
+              + Add button
+            </button>
+          }
+        </div>
+
+        <div class="ops-actions">
+          <button
+            class="button button-secondary"
+            type="button"
+            [disabled]="saving()"
+            (click)="save()"
+          >
+            {{ saving() ? 'Saving…' : 'Save draft' }}
+          </button>
+          <button class="button button-primary" type="button" [disabled]="saving()" (click)="saveAndSubmit()">
+            {{ saving() ? 'Submitting…' : 'Save & submit for review' }}
+          </button>
+        </div>
+      </section>
+
+      <section class="ops-card" aria-label="Live preview">
+        <h2 class="ops-card__title">Preview</h2>
+        <div class="ops-phone" aria-hidden="true">
+          <div class="ops-phone__bubble">
+            @if (draft().headerType === 'text' && draft().headerText.trim()) {
+              <strong>{{ draft().headerText }}</strong>
+            } @else if (draft().headerType !== 'none' && draft().headerType !== 'text') {
+              <span class="ops-phone__media">[{{ draft().headerType }} header]</span>
+            }
+            <p>{{ previewBody() }}</p>
+            @if (draft().footer.trim()) {
+              <small>{{ draft().footer }}</small>
+            }
+          </div>
+          @for (button of draft().buttons; track $index) {
+            <div class="ops-phone__button">{{ button.text || 'Button ' + ($index + 1) }}</div>
+          }
+        </div>
+        <p class="ops-muted">{{ detectedVars().length }} variables · {{ draft().buttons.length }} buttons</p>
+      </section>
+    </div>
+  </div>
+}

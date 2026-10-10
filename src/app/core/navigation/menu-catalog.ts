@@ -112,7 +112,6 @@ export const CLIENT_MENU: MenuEntry[] = [
     icon: '✎',
     group: 'workspace',
     capability: 'settings.view',
-    planned: true,
   },
   {
     key: 'settings',

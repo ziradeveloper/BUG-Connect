@@ -318,8 +318,14 @@ the .NET API means replacing `MockDataService` only — no component imports the
   - Thread ergonomics: day separators, quote-replies, hover reactions, jump-to-latest,
     lightbox, drag-and-drop attachments, `{{n}}` template variables, slash shortcuts.
 
-### Wave 3: Client Operations & Directory (`[~]` in progress)
-- **Contact Hub** (`/contacts`, `/contacts/:id`): Directory with tags, segments, lead status, opt-out enforcement. SHIPPED 2026-10-10 (first of 9 entries; remaining 8 unstarted — see TODO.md).
+### Wave 3: Client Operations & Directory (`[x]` — shipped 2026-10-10)
+- **Contact Hub** (`/contacts`, `/contacts/:id`): Directory with tags, segments, lead status, opt-out enforcement, plus the detail split (profile/attributes editor + thread timeline).
+- **Segments** (`/contacts/segments`): AND/OR rule builder evaluated live against workspace contacts.
+- **Opt-Out List** (`/contacts/opt-outs`): Marketing exclusion table with resubscribe and Meta sync.
+- **Template Manager** (`/templates`, `/templates/new`, `/templates/:id`): Category tabs, editor with live preview, draft → pending submission.
+- **Teams & Departments** (`/teams`): Routing groups with member picker, round-robin weights, single default.
+- **Quick Replies** (`/quick-replies`): Managed `/` snippets backing the inbox composer's slash matcher.
+- **Business Settings** (`/settings/business`): Identity, operating hours, greeting, out-of-hours auto-responder.
 
 ### Wave 4: Platform Admin Governance (`[x]` — shipped 2026-10-10)
 - **Onboard Client Wizard** (`/clients/new`): 3-step provisioning with subdomain validation, tier preview, and trial onboarding.

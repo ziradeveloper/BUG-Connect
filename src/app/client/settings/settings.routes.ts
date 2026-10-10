@@ -45,4 +45,13 @@ export const SETTINGS_ROUTES: Routes = [
       import('./whatsapp-callback-page').then((page) => page.WhatsappCallbackPage),
     canActivate: [permissionGuard('settings.view')],
   },
+  {
+    path: 'business',
+    title: 'Business profile',
+    loadComponent: () =>
+      import('./business-settings-page/business-settings-page').then(
+        (page) => page.BusinessSettingsPage,
+      ),
+    canActivate: [permissionGuard('settings.view')],
+  },
 ];

@@ -1,0 +1,194 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="WORKSPACE"
+    title="Teams & routing"
+    description="Routing groups for the weighted round-robin — who receives new chats, and in what share."
+  >
+    @if (canManage()) {
+      <button class="button button-primary" pageActions type="button" (click)="newTeam()">
+        New team
+      </button>
+    }
+  </app-page-header>
+
+  @if (notice()) {
+    <p class="ops-notice" role="status">
+      {{ notice() }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+  @if (error()) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ error() }}
+      <button class="form-link" type="button" (click)="error.set(null)">Dismiss</button>
+    </p>
+  }
+
+  @if (loading()) {
+    <p class="ops-muted">Loading teams…</p>
+  } @else {
+    @if (teams().length) {
+      <div class="ops-team-grid">
+        @for (team of teams(); track team.id) {
+          <article class="ops-card">
+            <div class="ops-team__head">
+              <span class="ops-team__icon" aria-hidden="true">{{ team.icon }}</span>
+              <div>
+                <h2 class="ops-card__title">{{ team.name }}</h2>
+                <p class="ops-muted">{{ team.description || 'No description.' }}</p>
+              </div>
+              @if (team.isDefault) {
+                <app-status-pill label="Default" tone="success" />
+              }
+            </div>
+
+            <div class="ops-share">
+              <div class="ops-share__bar">
+                <span [style.width.%]="shareOf(team)"></span>
+              </div>
+              <span class="ops-muted">~{{ shareOf(team) }}% of new chats · weight {{ team.weight }}</span>
+            </div>
+
+            <ul class="ops-members" [attr.aria-label]="'Members of ' + team.name">
+              @for (member of membersOf(team); track member.id) {
+                <li class="ops-members__chip" [title]="member.role">
+                  <span class="shell__avatar" aria-hidden="true">{{ initials(member.fullName) }}</span>
+                  {{ member.fullName }}
+                </li>
+              } @empty {
+                <li class="ops-muted">No members — this team receives nothing.</li>
+              }
+            </ul>
+
+            @if (canManage()) {
+              <div class="ops-actions">
+                <button class="button button-secondary button-sm" type="button" (click)="edit(team)">
+                  Edit
+                </button>
+                <button
+                  class="button button-ghost button-sm"
+                  type="button"
+                  [disabled]="teams().length <= 1"
+                  [title]="teams().length <= 1 ? 'The last team cannot be deleted' : 'Delete team'"
+                  (click)="pendingDelete.set(team)"
+                >
+                  Delete
+                </button>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <p class="ops-muted">No teams yet — create the first routing group.</p>
+    }
+  }
+
+  @if (draft(); as editing) {
+    <section class="ops-card" aria-label="Team editor">
+      <h2 class="ops-card__title">{{ editing.id ? 'Edit team' : 'New team' }}</h2>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="team-name">Name</label>
+          <input
+            id="team-name"
+            class="form-control"
+            type="text"
+            placeholder="Support Desk"
+            [ngModel]="editing.name"
+            (ngModelChange)="update({ name: $event })"
+          />
+        </div>
+        <div class="form-field">
+          <label for="team-icon">Icon</label>
+          <select
+            id="team-icon"
+            class="form-control"
+            [ngModel]="editing.icon"
+            (ngModelChange)="update({ icon: $event })"
+          >
+            @for (icon of icons; track icon) {
+              <option [value]="icon">{{ icon }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label for="team-description">Description</label>
+        <input
+          id="team-description"
+          class="form-control"
+          type="text"
+          placeholder="What does this team own?"
+          [ngModel]="editing.description"
+          (ngModelChange)="update({ description: $event })"
+        />
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="team-weight">Round-robin weight: {{ editing.weight }}</label>
+          <input
+            id="team-weight"
+            class="form-control"
+            type="range"
+            min="1"
+            max="10"
+            [ngModel]="editing.weight"
+            (ngModelChange)="update({ weight: $event })"
+          />
+          <small class="ops-muted">Higher weight receives proportionally more new chats.</small>
+        </div>
+        <div class="form-field">
+          <span id="team-default-label">Fallback</span>
+          <label class="ops-radio" aria-labelledby="team-default-label">
+            <input
+              type="checkbox"
+              [ngModel]="editing.isDefault"
+              (ngModelChange)="update({ isDefault: $event })"
+            />
+            Default team — receives chats no rule matches
+          </label>
+        </div>
+      </div>
+
+      <fieldset class="ops-fieldset">
+        <legend>Members ({{ editing.memberUserIds.length }} selected)</legend>
+        <div class="ops-member-picker">
+          @for (user of users(); track user.id) {
+            <label class="ops-check">
+              <input
+                type="checkbox"
+                [checked]="editing.memberUserIds.includes(user.id)"
+                (change)="toggleMember(user.id)"
+              />
+              <span class="shell__avatar" aria-hidden="true">{{ initials(user.fullName) }}</span>
+              <span>
+                {{ user.fullName }}
+                <small class="ops-muted">{{ user.role }} · {{ user.department }}</small>
+              </span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <div class="ops-actions">
+        <button class="button button-primary" type="button" [disabled]="saving()" (click)="save()">
+          {{ saving() ? 'Saving…' : editing.id ? 'Save team' : 'Create team' }}
+        </button>
+        <button class="button button-ghost" type="button" (click)="draft.set(null)">Cancel</button>
+      </div>
+    </section>
+  }
+
+  <app-confirm-dialog
+    [open]="pendingDelete() !== null"
+    [title]="'Delete “' + (pendingDelete()?.name ?? '') + '”?'"
+    description="Members keep their seats — only the routing group is removed."
+    confirmLabel="Delete team"
+    (cancel)="pendingDelete.set(null)"
+    (confirm)="confirmDelete()"
+  />
+</div>

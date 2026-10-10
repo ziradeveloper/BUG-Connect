@@ -68,12 +68,13 @@ export const CLIENT_ROUTES: Routes = [
       {
         path: 'templates',
         title: 'Template Manager',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.TEMPLATE_ROUTES),
+        loadChildren: () =>
+          import('./templates/templates.routes').then((routes) => routes.TEMPLATES_ROUTES),
       },
       {
         path: 'teams',
         title: 'Teams & routing',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.TEAMS_ROUTES),
+        loadChildren: () => import('./teams/teams.routes').then((routes) => routes.TEAMS_ROUTES),
       },
       {
         path: 'flows',
@@ -110,7 +111,7 @@ export const CLIENT_ROUTES: Routes = [
         path: 'quick-replies',
         title: 'Quick replies',
         loadChildren: () =>
-          import('./later/later.routes').then((routes) => routes.QUICK_REPLIES_ROUTES),
+          import('./quick-replies/quick-replies.routes').then((routes) => routes.QUICK_REPLIES_ROUTES),
       },
       {
         path: 'settings',

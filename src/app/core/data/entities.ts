@@ -251,3 +251,92 @@ export interface MetaAppConfig {
   updatedAt: string | null;
   updatedBy: string | null;
 }
+
+/**
+ * A routing group inside a workspace. The weighted router (wave 2) hands new
+ * chats to online members; `weight` is that member pool's share of the
+ * round-robin, and exactly one team per tenant is the `isDefault` fallback.
+ */
+export interface Team {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  memberUserIds: string[];
+  /** Round-robin share, 1–10. Normalised against the other teams at send time. */
+  weight: number;
+  isDefault: boolean;
+  /** Glyph shown on the team chip. */
+  icon: string;
+  updatedAt: string;
+}
+
+/** A `/trigger` snippet an agent expands in the inbox composer. */
+export interface QuickReply {
+  id: string;
+  tenantId: string;
+  /** Includes the leading slash, unique per tenant. */
+  trigger: string;
+  title: string;
+  body: string;
+  usageCount: number;
+  updatedAt: string;
+}
+
+export type SegmentRuleField = 'tag' | 'optIn' | 'conversations' | 'name' | 'inactiveDays';
+
+export type SegmentRuleOperator =
+  | 'has'
+  | 'lacks'
+  | 'is'
+  | 'contains'
+  | 'moreThan'
+  | 'fewerThan';
+
+/** One predicate inside a contact segment. */
+export interface SegmentRule {
+  field: SegmentRuleField;
+  operator: SegmentRuleOperator;
+  value: string;
+}
+
+/**
+ * A saved audience definition. Campaigns (wave 6) send to these; the hub
+ * evaluates them live so the count on the card is never stale.
+ */
+export interface ContactSegment {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  /** 'all' = AND every rule, 'any' = OR them. */
+  match: 'all' | 'any';
+  rules: SegmentRule[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DayHours {
+  day: string;
+  open: boolean;
+  start: string;
+  end: string;
+}
+
+/**
+ * The workspace's business profile (wave 3). Flow conditions read the hours;
+ * the greeting and auto-responder feed the out-of-hours behaviour.
+ */
+export interface BusinessProfile {
+  tenantId: string;
+  displayName: string;
+  about: string;
+  address: string;
+  email: string;
+  timezone: string;
+  hours: DayHours[];
+  greetingText: string;
+  autoResponderEnabled: boolean;
+  autoResponderText: string;
+  updatedAt: string;
+}

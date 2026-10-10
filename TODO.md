@@ -43,7 +43,7 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 |---|---|---|---|
 | **1** | **Foundation**: Workspace context, auth, login fixes, brand alignment, roles/menu CRUD, users CRUD, shells, DataTable, error routes | 12 | `[x]` |
 | **2** | **Team Inbox**: Split-pane inbox, active conversation view, weighted router, internal notes, resolution handoff, full Meta Cloud API send support, fixed-pane layout | 4 | `[x]` |
-| **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 9 | `[~]` |
+| **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 9 | `[x]` |
 | **4** | **Platform Admin**: Onboard client wizard, client detail tabs, plans feature matrix, subscriptions, invoices, Meta app config, webhook health monitor, WhatsApp connection | 10 | `[x]` |
 | **5** | **Lifecycle & Self-Service**: Billing, audit logging, onboarding wizard, suspended state, password reset, invite acceptance | 7 | `[ ]` |
 | **6** | **Advanced Automation**: Visual Flow Builder canvas, WhatsApp Flows form studio, Campaign broadcast wizard, Executive analytics | 12 | `[ ]` |
@@ -94,17 +94,17 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[x]` `W2` **Meta Cloud API Send Support** — Every message object is sendable from one composer: `text`, `template` (approved only, `{{n}}` variables resolved live), `interactive` (quick replies, CTA, list picker, Flow), `image`, `video`, `audio`, `voice`, `document`, `sticker` (static **and animated**), `location`, `contacts`, `reaction`, plus internal notes. `AttachmentService` stages files with previews and enforces `META_LIMITS` before staging.
 - `[x]` `W2` **Fixed-Pane Inbox Layout** — Shell is one viewport tall (`height: 100dvh; overflow: hidden`); the queue, the thread and the customer panel each scroll independently with `overscroll-behavior: contain`; the composer is pinned to the bottom. Component hosts (`app-inbox-shell`, `app-conversation-detail-page`, `app-inbox-empty`) join the flex chain and every link sets `min-height: 0`. Below 900px the queue and thread swap instead of stacking.
 - `[x]` `W2` **Thread Ergonomics** — Day separators, conversation-start line, quote-reply context, hover reaction picker, reaction chips, jump-to-latest FAB with unread count, image lightbox, drag-and-drop attachments, slash shortcuts (`/hi`, `/hours`, …), emoji panel, sticker packs, optimistic sent → delivered → read lifecycle.
-- `[~]` `W3` **Contact Hub Directory** (`/contacts`) — Implement `<app-data-table>` with `MockDataService.contacts()`. Needs server-side pagination simulation, tag filtering UI, and an opt-out badge column.
-  » Built: `client/contacts/contacts-page` on `<app-data-table>` over `listContacts()`, tag filter chips, opt-in/opt-out status pill column, summary metrics, `contacts.view` guard, `styles/pages/contacts.css`. Browser-verified (tag filter, metrics add up). **Still open:** server-side pagination simulation (table pages client-side today); opt-out uses `Contact.optInStatus` (inverse), not an `optOut` field as originally written.
-- `[ ]` `W3` **Contact Detail View** (`/contacts/:id`) — Create split layout: Left pane for customer profile/attributes, right pane for timeline (`ConversationHistoryComponent`). Include edit form for custom attributes.
-- `[ ]` `W3` **Contact Segments** (`/contacts/segments`) — Builder UI using a reactive form array for `AND`/`OR` rules (e.g., `tag = VIP`, `lastOrder > 30 days`).
-- `[ ]` `W3` **Opt-Out List** (`/contacts/opt-outs`) — Simple data table reflecting contacts where `optOut: true`, with manual sync button.
-- `[ ]` `W3` **Template Manager** (`/templates`) — Card grid or table for Meta-approved templates. Must include category tabs (Marketing, Utility, Authentication) and language badge.
-- `[ ]` `W3` **Template Editor** (`/templates/new`) — Complex reactive form: Header (Text/Media), Body (Variables mapping `{{1}}`), Footer, Buttons (Quick Reply / URL).
-- `[ ]` `W3` **Teams & Departments** (`/teams`) — CRUD for routing groups. Assign users to teams, define weighting rules for round-robin assignment.
-- `[ ]` `W3` **Quick Replies** (`/quick-replies`) — CRUD list for `/` commands used in `ConversationDetailPageComponent`.
+- `[x]` `W3` **Contact Hub Directory** (`/contacts`) — Implement `<app-data-table>` with `MockDataService.contacts()`. Needs server-side pagination simulation, tag filtering UI, and an opt-out badge column.
+  » Built: `client/contacts/contacts-page` on `<app-data-table>` over `listContacts()`, tag filter chips, opt-in/opt-out status pill column, summary metrics, `contacts.view` guard, `styles/pages/contacts.css`. Browser-verified (tag filter, metrics add up). Rows now activate into `/contacts/:id`. **Still open:** server-side pagination simulation (deferred — datasets <100 rows, `Page<T>` already models it); opt-out uses `Contact.optInStatus` (inverse), not an `optOut` field as originally written.
+- `[x]` `W3` **Contact Detail View** (`/contacts/:contactId`) — Split layout: left profile pane (identity, opt-in toggle, tag editor, custom-attribute editor), right timeline (newest-first threads linking into the inbox). Not-found state for unknown ids.
+- `[x]` `W3` **Contact Segments** (`/contacts/segments`) — Saved audiences with an AND/OR rule builder (tag, opt-in, conversations, name, inactivity) evaluated live via `evaluateSegment()`, with match preview before saving.
+- `[x]` `W3` **Opt-Out List** (`/contacts/opt-outs`) — Data table of opted-out contacts (`!optInStatus`) with one-click resubscribe and a manual Meta sync stamp.
+- `[x]` `W3` **Template Manager** (`/templates`) — Category tabs, language badge, status pills, approval counts, and draft submission straight from the list.
+- `[x]` `W3` **Template Editor** (`/templates/new`, `/templates/:templateId`) — Header (text/media), body with sequential-`{{n}}` validation + sample values, footer, buttons (quick reply / URL), live phone preview. Drafts editable; anything Meta has seen renders locked. (Template-driven per codebase convention, not reactive as first written.)
+- `[x]` `W3` **Teams & Departments** (`/teams`) — CRUD routing groups with member picker, 1–10 round-robin weights shown as shares, and a single-default invariant (deleting the default promotes the next team).
+- `[x]` `W3` **Quick Replies** (`/quick-replies`) — CRUD for `/` triggers with uniqueness validation. The inbox composer reads these same rows, so page edits appear in slash matching immediately.
   » Route is `/quick-replies` (menu-catalog and client.routes), not `/replies` as first written.
-- `[ ]` `W3` **Business Settings** (`/settings/business`) — Reactive form for business profile (address, logo, default operating hours logic, auto-responder text).
+- `[x]` `W3` **Business Settings** (`/settings/business`) — Business identity, 7-day operating-hours grid, greeting and out-of-hours auto-responder. (Template-driven per codebase convention; no logo upload — dummy layer has no asset store.)
 - `[x]` `W4` **WhatsApp Settings** (`/settings/whatsapp`) — WABA status card (IDs, customer-facing number, connected date, recent failures), last-5 sync health list, and `Connect via Meta` (needs `settings.manage`) simulating the Embedded Signup handoff. New `client/settings/settings.routes.ts`; `/settings` home stays a stub for W3's business profile.
 - `[x]` `W4` **WhatsApp Callback Handler** (`/settings/whatsapp/callback`) — Parses `?code=&state=`, exchanges the code via `MockDataService.connectWaba()` (stamps WABA IDs, sets `connectedAt`, flips pending workspaces to active, appends the trial→active subscription event), with explicit failed states for missing codes and unresolved hosts.
 - `[ ]` `W5` **Workspace Billing** (`/billing`) — Display current tier limits vs usage (e.g., active seats, monthly campaigns). Stripe checkout simulation for upgrades.
@@ -124,6 +124,14 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 ---
 
 ## 📜 History & Updates Log
+
+### 2026-10-10 — Wave 3 finished (Client Operations, remaining 8 pages)
+- Built all 8 remaining W3 entries: contact detail, segments builder, opt-out list, template manager + editor, teams, quick replies, business settings. W3 is now 9/9 `[x]`.
+- Data layer: `Team`/`QuickReply`/`ContactSegment`/`BusinessProfile` entities, zero-draw deterministic seeds per tenant, and `evaluateSegment`/`updateContact`/`saveTeam`/`saveQuickReply`/`saveSegment`/`saveBusinessProfile`/`saveTemplate`/`submitTemplate` on `MockDataService`, plus `contactById`/`conversationsForContact` lookups.
+- Integrity fix: `Contact.conversationCount` was a decorative `rng.int(1, 9)` — reconciled from the conversations actually attached to each contact (pure post-processing, zero stream impact). The hub's "with conversations" metric and segment rules now read real numbers.
+- Integrations: the inbox composer reads slash snippets from the managed quick-reply rows; directory rows activate into the detail page; `quickReplies` unmarked as planned; replaced stubs removed from `later.routes.ts`.
+- Verified: `npx ng build` clean; **236/236 tests across 59 files** (was 192/192); SSR-rendered all new routes plus not-found/locked states with correct content, zero server errors.
+- Still open (unchanged): server-side pagination simulation deferred; no browser-viewport pass in this environment (jsdom render specs + SSR content checks instead).
 
 ### 2026-10-10 — Wave 4 shipped (Platform Admin + WhatsApp connection)
 - Built all 10 W4 entries: onboard wizard, client detail tabs, plans overview + limits editor + feature matrix, subscriptions overview + lifecycle log, invoices, Meta app config, queue health monitor, WhatsApp settings + OAuth callback.

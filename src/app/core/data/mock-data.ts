@@ -1,14 +1,18 @@
 import type {
   TenantStatus,
+  BusinessProfile,
   Campaign,
   ChatFlow,
   Contact,
+  ContactSegment,
   Conversation,
   Invoice,
   Message,
   MessageTemplate,
   PlatformStaffUser,
+  QuickReply,
   SubscriptionEvent,
+  Team,
   Tenant,
   WebhookEvent,
   WorkspaceUser,
@@ -19,6 +23,7 @@ import {
   type TemplateButtonPayload,
   type WhatsAppMessageType,
 } from './whatsapp';
+import { QUICK_REPLIES } from './composer-catalog';
 
 /**
  * Deterministic seeded generator (mulberry32) — never Math.random, so tests can
@@ -622,6 +627,10 @@ export type Dataset = {
   webhookEvents: WebhookEvent[];
   subscriptionEvents: SubscriptionEvent[];
   invoices: Invoice[];
+  teams: Team[];
+  quickReplies: QuickReply[];
+  segments: ContactSegment[];
+  businessProfiles: BusinessProfile[];
 };
 
 export function buildDataset(seed = SEED): Dataset {
@@ -637,6 +646,10 @@ export function buildDataset(seed = SEED): Dataset {
   const webhookEvents: WebhookEvent[] = [];
   const subscriptionEvents: SubscriptionEvent[] = [];
   const invoices: Invoice[] = [];
+  const teams: Team[] = [];
+  const quickReplies: QuickReply[] = [];
+  const segments: ContactSegment[] = [];
+  const businessProfiles: BusinessProfile[] = [];
 
   TENANT_SEEDS.forEach((seedTenant, tenantIndex) => {
     const tenantId = `tenant-${tenantIndex + 1}`;
@@ -995,6 +1008,137 @@ export function buildDataset(seed = SEED): Dataset {
             : null,
       });
     }
+
+    // ---- wave 3 workspace collections. Fully deterministic: no shared-rng
+    // draw happens here, so tenants — and the platform staff seeded after this
+    // loop — keep byte-identical stories to builds that predate wave 3.
+    const TEAM_SEEDS = [
+      { name: 'Support Desk', description: 'Owns escalations and open threads.', weight: 5, icon: '☎' },
+      { name: 'Sales Counter', description: 'Quotes, catalogues and bulk orders.', weight: 3, icon: '◭' },
+      { name: 'Billing Desk', description: 'Invoices, payments and receipts.', weight: 2, icon: '▤' },
+    ];
+
+    for (const [teamIndex, teamSeed] of TEAM_SEEDS.entries()) {
+      teams.push({
+        id: `${tenantId}-team-${teamIndex + 1}`,
+        tenantId,
+        name: teamSeed.name,
+        description: teamSeed.description,
+        // Round-robin seat split — deterministic from user ids, zero draws.
+        memberUserIds: tenantUsers
+          .filter((_, userIndex) => userIndex % TEAM_SEEDS.length === teamIndex)
+          .map((user) => user.id),
+        weight: teamSeed.weight,
+        isDefault: teamIndex === 0,
+        icon: teamSeed.icon,
+        updatedAt: isoAt(-(teamIndex + 2) * 24 * HOUR),
+      });
+    }
+
+    // The composer catalogue becomes per-workspace rows (same order, so `/…`
+    // expansion behaves identically) plus two workspace-flavoured snippets.
+    const EXTRA_REPLIES: { shortcut: string; label: string; body: string }[] = [
+      {
+        shortcut: '/festive',
+        label: 'Festive offer',
+        body: `Festive greetings from ${seedTenant.businessName}! Reply FESTIVE and we will share this week's offers.`,
+      },
+      {
+        shortcut: '/visit',
+        label: 'Store visit',
+        body: `You are welcome to visit our Tirunelveli store any day 10 am – 8:30 pm. Shall we book a slot for you?`,
+      },
+    ];
+
+    for (const [replyIndex, reply] of [...QUICK_REPLIES, ...EXTRA_REPLIES].entries()) {
+      quickReplies.push({
+        id: `${tenantId}-qr-${replyIndex + 1}`,
+        tenantId,
+        trigger: reply.shortcut,
+        title: reply.label,
+        body: reply.body,
+        usageCount: (tenantIndex * 13 + replyIndex * 29) % 180,
+        updatedAt: isoAt(-(replyIndex + 1) * 9 * HOUR),
+      });
+    }
+
+    segments.push(
+      {
+        id: `${tenantId}-seg-vip`,
+        tenantId,
+        name: 'VIP repeat buyers',
+        description: 'High-value regulars for early access and personal drops.',
+        match: 'all',
+        rules: [
+          { field: 'tag', operator: 'has', value: 'VIP-Retail' },
+          { field: 'conversations', operator: 'moreThan', value: '2' },
+        ],
+        createdAt: isoAt(-21 * 24 * HOUR),
+        updatedAt: isoAt(-21 * 24 * HOUR),
+      },
+      {
+        id: `${tenantId}-seg-festive`,
+        tenantId,
+        name: 'Festive campaign reach',
+        description: 'Opted-in seasonal shoppers for broadcast offers.',
+        match: 'all',
+        rules: [
+          { field: 'tag', operator: 'has', value: 'Diwali-Shopper' },
+          { field: 'optIn', operator: 'is', value: 'opted-in' },
+        ],
+        createdAt: isoAt(-12 * 24 * HOUR),
+        updatedAt: isoAt(-4 * 24 * HOUR),
+      },
+      {
+        id: `${tenantId}-seg-winback`,
+        tenantId,
+        name: 'Needs re-engagement',
+        description: 'Gone quiet or opted out — win back, never broadcast.',
+        match: 'any',
+        rules: [
+          { field: 'inactiveDays', operator: 'moreThan', value: '30' },
+          { field: 'optIn', operator: 'is', value: 'opted-out' },
+        ],
+        createdAt: isoAt(-9 * 24 * HOUR),
+        updatedAt: isoAt(-9 * 24 * HOUR),
+      },
+    );
+
+    businessProfiles.push({
+      tenantId,
+      displayName: seedTenant.businessName,
+      about: `${seedTenant.industry} — serving customers across Tirunelveli on WhatsApp.`,
+      address: 'Main Road, Tirunelveli, Tamil Nadu 627001',
+      email: `hello@${seedTenant.subdomain}.example.com`,
+      timezone: 'Asia/Kolkata',
+      hours: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => ({
+        day,
+        open: true,
+        start: '10:00',
+        end: '20:30',
+      })).concat([{ day: 'Sun', open: false, start: '10:00', end: '20:30' }]),
+      greetingText: `Welcome to ${seedTenant.businessName}! How can we help you today?`,
+      autoResponderEnabled: true,
+      autoResponderText:
+        'Thanks for messaging us! We are currently closed and will reply when we reopen at 10 am.',
+      updatedAt: isoAt(-3 * 24 * HOUR),
+    });
+
+    // ---- reconciliation (no draws): the rolled conversationCount was
+    // decorative, so threads, the hub summary and segment rules re-derive it
+    // from the conversations actually attached to each contact.
+    const threadsPerContact = new Map<string, number>();
+    for (const conversation of conversations) {
+      if (conversation.tenantId === tenantId) {
+        threadsPerContact.set(
+          conversation.contactId,
+          (threadsPerContact.get(conversation.contactId) ?? 0) + 1,
+        );
+      }
+    }
+    for (const contact of tenantContacts) {
+      contact.conversationCount = threadsPerContact.get(contact.id) ?? 0;
+    }
   });
 
   const platformStaff: PlatformStaffUser[] = [
@@ -1039,5 +1183,9 @@ export function buildDataset(seed = SEED): Dataset {
     webhookEvents,
     subscriptionEvents,
     invoices,
+    teams,
+    quickReplies,
+    segments,
+    businessProfiles,
   };
 }

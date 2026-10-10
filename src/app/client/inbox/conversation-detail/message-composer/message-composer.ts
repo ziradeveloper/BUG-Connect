@@ -15,7 +15,8 @@ import {
   AttachmentService,
   type StagedAttachment,
 } from '../../../../core/data/attachment.service';
-import { EMOJI_GROUPS, QUICK_REPLIES, STICKER_PACKS } from '../../../../core/data/composer-catalog';
+import { EMOJI_GROUPS, STICKER_PACKS } from '../../../../core/data/composer-catalog';
+import { MockDataService } from '../../../../core/data/mock-data.service';
 import type { Message } from '../../../../core/data/entities';
 import {
   META_LIMITS,
@@ -72,6 +73,7 @@ type Panel = 'none' | 'attach' | 'emoji' | 'sticker';
 })
 export class MessageComposer {
   private readonly attachments = inject(AttachmentService);
+  private readonly data = inject(MockDataService);
   private readonly textarea = viewChild<ElementRef<HTMLTextAreaElement>>('textInput');
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
@@ -102,7 +104,15 @@ export class MessageComposer {
   readonly activePack = signal(STICKER_PACKS[0]!.id);
   readonly activeEmojiGroup = signal(EMOJI_GROUPS[0]!.id);
 
-  readonly quickReplies = QUICK_REPLIES;
+  /**
+   * Slash snippets come from the workspace's managed rows (`/quick-replies`),
+   * seeded from the composer catalogue — edits there appear here immediately.
+   */
+  readonly quickReplies = computed(() =>
+    this.data
+      .quickReplies()
+      .map((reply) => ({ shortcut: reply.trigger, label: reply.title, body: reply.body })),
+  );
   readonly dragDepth = signal(0);
 
   /** Which attach action armed the file input. */
@@ -146,10 +156,9 @@ export class MessageComposer {
       return [];
     }
 
-    return QUICK_REPLIES.filter((reply) => reply.shortcut.startsWith(value.toLowerCase())).slice(
-      0,
-      4,
-    );
+    return this.quickReplies()
+      .filter((reply) => reply.shortcut.startsWith(value.toLowerCase()))
+      .slice(0, 4);
   });
 
   readonly replyPreview = computed(() => {

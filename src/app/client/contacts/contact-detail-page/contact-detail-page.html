@@ -1,0 +1,220 @@
+@if (contact(); as current) {
+  <div class="workspace-page">
+    <app-page-header
+      eyebrow="OPERATIONS"
+      [title]="current.displayName"
+      description="Profile, tags and every conversation thread for this customer."
+    >
+      <a class="button button-secondary" pageActions routerLink="/contacts">All contacts</a>
+    </app-page-header>
+
+    @if (notice()) {
+      <p class="ops-notice" role="status">
+        {{ notice() }}
+        <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+      </p>
+    }
+    @if (error()) {
+      <p class="ops-notice ops-notice--error" role="alert">
+        {{ error() }}
+        <button class="form-link" type="button" (click)="error.set(null)">Dismiss</button>
+      </p>
+    }
+
+    <div class="ops-split">
+      <section class="ops-card" aria-label="Customer profile">
+        <div class="ops-identity">
+          <span class="shell__avatar shell__avatar--lg" aria-hidden="true">
+            {{ current.displayName.slice(0, 1) }}
+          </span>
+          <div>
+            <h2 class="ops-card__title">{{ current.displayName }}</h2>
+            <p class="data-table__mono ops-muted">{{ current.waId }}</p>
+          </div>
+          <app-status-pill
+            [label]="current.optInStatus ? 'Opted in' : 'Opted out'"
+            [tone]="current.optInStatus ? 'success' : 'danger'"
+          />
+        </div>
+
+        <dl class="ops-facts">
+          <div>
+            <dt>First seen</dt>
+            <dd>{{ formatDateTime(current.createdAt) }}</dd>
+          </div>
+          <div>
+            <dt>Last seen</dt>
+            <dd>{{ formatRelative(current.lastSeenAt) }}</dd>
+          </div>
+          <div>
+            <dt>Conversations</dt>
+            <dd>{{ current.conversationCount }}</dd>
+          </div>
+          <div>
+            <dt>Assigned to</dt>
+            <dd>{{ assignedTo()?.fullName ?? 'Unassigned' }}</dd>
+          </div>
+        </dl>
+
+        <div class="form-field">
+          <label for="contact-name">Display name</label>
+          <input
+            id="contact-name"
+            class="form-control"
+            type="text"
+            [ngModel]="displayName()"
+            (ngModelChange)="displayName.set($event)"
+            [disabled]="!canManage()"
+          />
+        </div>
+
+        <div class="form-field">
+          <span id="contact-tags-label">Tags</span>
+          <span class="contact-tag-list" role="group" aria-labelledby="contact-tags-label">
+            @for (tag of tags(); track tag) {
+              <span class="contact-tag">
+                {{ tag }}
+                @if (canManage()) {
+                  <button
+                    class="form-link"
+                    type="button"
+                    [attr.aria-label]="'Remove tag ' + tag"
+                    (click)="removeTag(tag)"
+                  >
+                    ✕
+                  </button>
+                }
+              </span>
+            } @empty {
+              <span class="ops-muted">No tags yet.</span>
+            }
+          </span>
+          @if (canManage()) {
+            <div class="ops-inline">
+              <input
+                class="form-control"
+                type="text"
+                placeholder="Add a tag"
+                aria-label="Add a tag"
+                [ngModel]="tagInput()"
+                (ngModelChange)="tagInput.set($event)"
+                (keydown.enter)="addTag()"
+              />
+              <button class="button button-secondary button-sm" type="button" (click)="addTag()">
+                Add
+              </button>
+            </div>
+          }
+        </div>
+
+        <div class="form-field">
+          <span id="contact-attrs-label">Custom attributes</span>
+          <div class="ops-attrs" role="group" aria-labelledby="contact-attrs-label">
+            @for (attr of attributes(); track $index) {
+              <div class="ops-attr-row">
+                <input
+                  class="form-control"
+                  type="text"
+                  placeholder="Key"
+                  [attr.aria-label]="'Attribute key ' + ($index + 1)"
+                  [ngModel]="attr.key"
+                  (ngModelChange)="updateAttributeKey($index, $event)"
+                  [disabled]="!canManage()"
+                />
+                <input
+                  class="form-control"
+                  type="text"
+                  placeholder="Value"
+                  [attr.aria-label]="'Attribute value ' + ($index + 1)"
+                  [ngModel]="attr.value"
+                  (ngModelChange)="updateAttributeValue($index, $event)"
+                  [disabled]="!canManage()"
+                />
+                @if (canManage()) {
+                  <button
+                    class="button button-ghost button-sm"
+                    type="button"
+                    [attr.aria-label]="'Remove attribute ' + ($index + 1)"
+                    (click)="removeAttribute($index)"
+                  >
+                    ✕
+                  </button>
+                }
+              </div>
+            } @empty {
+              <span class="ops-muted">No custom attributes.</span>
+            }
+          </div>
+          @if (canManage()) {
+            <button class="button button-ghost button-sm" type="button" (click)="addAttribute()">
+              + Add attribute
+            </button>
+          }
+        </div>
+
+        @if (canManage()) {
+          <div class="ops-actions">
+            <button
+              class="button button-primary"
+              type="button"
+              [disabled]="saving()"
+              (click)="save(current)"
+            >
+              {{ saving() ? 'Saving…' : 'Save contact' }}
+            </button>
+            <button
+              class="button"
+              [class.button-danger]="current.optInStatus"
+              [class.button-secondary]="!current.optInStatus"
+              type="button"
+              [disabled]="saving()"
+              (click)="toggleOptIn(current)"
+            >
+              {{ current.optInStatus ? 'Opt out' : 'Opt back in' }}
+            </button>
+          </div>
+        } @else {
+          <p class="ops-muted">Your role can view this contact but not edit it.</p>
+        }
+      </section>
+
+      <section class="ops-card" aria-label="Conversation timeline">
+        <h2 class="ops-card__title">Timeline</h2>
+        <p class="ops-muted">{{ threads().length }} threads, newest first.</p>
+
+        @if (threads().length) {
+          <ol class="ops-timeline">
+            @for (thread of threads(); track thread.id) {
+              <li class="ops-timeline__item">
+                <div class="ops-timeline__head">
+                  <a class="ops-timeline__subject" [routerLink]="['/inbox', thread.id]">
+                    {{ thread.subject }}
+                  </a>
+                  <app-status-pill [label]="thread.status" [tone]="threadStatusTone(thread.status)" />
+                </div>
+                <p class="ops-muted">
+                  {{ threadMessages(thread.id) }} messages · {{ formatRelative(thread.lastMessageAt) }}
+                  @if (thread.unreadCount > 0) {
+                    · {{ thread.unreadCount }} unread
+                  }
+                </p>
+              </li>
+            }
+          </ol>
+        } @else {
+          <p class="ops-muted">No conversations yet — threads appear here after the first message.</p>
+        }
+      </section>
+    </div>
+  </div>
+} @else {
+  <div class="workspace-page">
+    <app-page-header
+      eyebrow="OPERATIONS"
+      title="Contact not found"
+      description="This contact does not exist in the current workspace."
+    >
+      <a class="button button-secondary" pageActions routerLink="/contacts">All contacts</a>
+    </app-page-header>
+  </div>
+}

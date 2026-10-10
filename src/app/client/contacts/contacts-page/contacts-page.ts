@@ -7,6 +7,8 @@ import {
   signal,
 } from '@angular/core';
 
+import { Router } from '@angular/router';
+
 import { PermissionService } from '../../../core/authorization/permission.service';
 import { MockDataService } from '../../../core/data/mock-data.service';
 import type { Contact } from '../../../core/data/entities';
@@ -32,6 +34,7 @@ const ALL_TAGS = null;
 })
 export class ContactsPage {
   private readonly data = inject(MockDataService);
+  private readonly router = inject(Router);
   protected readonly permissions = inject(PermissionService);
 
   protected readonly allRows = signal<Contact[]>([]);
@@ -131,5 +134,9 @@ export class ContactsPage {
 
   protected optInLabel(contact: Contact): string {
     return contact.optInStatus ? 'Opted in' : 'Opted out';
+  }
+
+  protected openContact(contact: Contact): void {
+    void this.router.navigate(['/contacts', contact.id]);
   }
 }
