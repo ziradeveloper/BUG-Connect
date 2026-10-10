@@ -1,0 +1,55 @@
+/* Contact Hub — directory filters and tag chips. */
+
+.contact-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.contact-filter {
+  appearance: none;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-full);
+  background: var(--theme-surface);
+  color: var(--theme-text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.contact-filter:hover {
+  border-color: var(--theme-brand);
+  color: var(--theme-brand);
+}
+
+.contact-filter:focus-visible {
+  outline: 2px solid var(--theme-focus-ring);
+  outline-offset: 2px;
+}
+
+.contact-filter[aria-pressed='true'] {
+  background: var(--theme-brand);
+  border-color: var(--theme-brand);
+  color: var(--theme-text-on-brand);
+}
+
+.contact-tag-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.contact-tag {
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-sunken);
+  color: var(--theme-text-secondary);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.45rem;
+  white-space: nowrap;
+}

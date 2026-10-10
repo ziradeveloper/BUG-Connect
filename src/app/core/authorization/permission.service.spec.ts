@@ -40,8 +40,10 @@ describe('PermissionService', () => {
   let session: SessionService;
 
   function configure() {
-    // A signed-in user from another test lives in sessionStorage; sign-in state
-    // is read at construction, so start every case from a clean slate.
+    // A signed-in user from another test is persisted to localStorage (see
+    // SessionService.persist) and restored at construction, so clear both
+    // stores to start every case from a clean slate.
+    localStorage.clear();
     sessionStorage.clear();
 
     TestBed.resetTestingModule();

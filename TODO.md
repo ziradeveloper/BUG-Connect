@@ -42,7 +42,7 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 |---|---|---|---|
 | **1** | **Foundation**: Workspace context, auth, login fixes, brand alignment, roles/menu CRUD, users CRUD, shells, DataTable, error routes | 12 | `[x]` |
 | **2** | **Team Inbox**: Split-pane inbox, active conversation view, weighted router, internal notes, resolution handoff, full Meta Cloud API send support, fixed-pane layout | 4 | `[x]` |
-| **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 7 | `[ ]` |
+| **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 7 (9 entries below) | `[~]` |
 | **4** | **Platform Admin**: Onboard client wizard, client detail tabs, plans feature matrix, subscriptions, webhook health monitor | 9 | `[ ]` |
 | **5** | **Lifecycle & Self-Service**: Billing, audit logging, onboarding wizard, suspended state, password reset, invite acceptance | 7 | `[ ]` |
 | **6** | **Advanced Automation**: Visual Flow Builder canvas, WhatsApp Flows form studio, Campaign broadcast wizard, Executive analytics | 12 | `[ ]` |
@@ -93,14 +93,16 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[x]` `W2` **Meta Cloud API Send Support** — Every message object is sendable from one composer: `text`, `template` (approved only, `{{n}}` variables resolved live), `interactive` (quick replies, CTA, list picker, Flow), `image`, `video`, `audio`, `voice`, `document`, `sticker` (static **and animated**), `location`, `contacts`, `reaction`, plus internal notes. `AttachmentService` stages files with previews and enforces `META_LIMITS` before staging.
 - `[x]` `W2` **Fixed-Pane Inbox Layout** — Shell is one viewport tall (`height: 100dvh; overflow: hidden`); the queue, the thread and the customer panel each scroll independently with `overscroll-behavior: contain`; the composer is pinned to the bottom. Component hosts (`app-inbox-shell`, `app-conversation-detail-page`, `app-inbox-empty`) join the flex chain and every link sets `min-height: 0`. Below 900px the queue and thread swap instead of stacking.
 - `[x]` `W2` **Thread Ergonomics** — Day separators, conversation-start line, quote-reply context, hover reaction picker, reaction chips, jump-to-latest FAB with unread count, image lightbox, drag-and-drop attachments, slash shortcuts (`/hi`, `/hours`, …), emoji panel, sticker packs, optimistic sent → delivered → read lifecycle.
-- `[ ]` `W3` **Contact Hub Directory** (`/contacts`) — Implement `<app-data-table>` with `MockDataService.contacts()`. Needs server-side pagination simulation, tag filtering UI, and an opt-out badge column.
+- `[~]` `W3` **Contact Hub Directory** (`/contacts`) — Implement `<app-data-table>` with `MockDataService.contacts()`. Needs server-side pagination simulation, tag filtering UI, and an opt-out badge column.
+  » Built: `client/contacts/contacts-page` on `<app-data-table>` over `listContacts()`, tag filter chips, opt-in/opt-out status pill column, summary metrics, `contacts.view` guard, `styles/pages/contacts.css`. Browser-verified (tag filter, metrics add up). **Still open:** server-side pagination simulation (table pages client-side today); opt-out uses `Contact.optInStatus` (inverse), not an `optOut` field as originally written.
 - `[ ]` `W3` **Contact Detail View** (`/contacts/:id`) — Create split layout: Left pane for customer profile/attributes, right pane for timeline (`ConversationHistoryComponent`). Include edit form for custom attributes.
 - `[ ]` `W3` **Contact Segments** (`/contacts/segments`) — Builder UI using a reactive form array for `AND`/`OR` rules (e.g., `tag = VIP`, `lastOrder > 30 days`).
 - `[ ]` `W3` **Opt-Out List** (`/contacts/opt-outs`) — Simple data table reflecting contacts where `optOut: true`, with manual sync button.
 - `[ ]` `W3` **Template Manager** (`/templates`) — Card grid or table for Meta-approved templates. Must include category tabs (Marketing, Utility, Authentication) and language badge.
 - `[ ]` `W3` **Template Editor** (`/templates/new`) — Complex reactive form: Header (Text/Media), Body (Variables mapping `{{1}}`), Footer, Buttons (Quick Reply / URL).
 - `[ ]` `W3` **Teams & Departments** (`/teams`) — CRUD for routing groups. Assign users to teams, define weighting rules for round-robin assignment.
-- `[ ]` `W3` **Quick Replies** (`/replies`) — CRUD list for `/` commands used in `ConversationDetailPageComponent`.
+- `[ ]` `W3` **Quick Replies** (`/quick-replies`) — CRUD list for `/` commands used in `ConversationDetailPageComponent`.
+  » Route is `/quick-replies` (menu-catalog and client.routes), not `/replies` as first written.
 - `[ ]` `W3` **Business Settings** (`/settings/business`) — Reactive form for business profile (address, logo, default operating hours logic, auto-responder text).
 - `[ ]` `W4` **WhatsApp Settings** (`/settings/whatsapp`) — UI to display `WabaConnectionStatus`. Include 'Connect via Meta' button simulating OAuth popup.
 - `[ ]` `W4` **WhatsApp Callback Handler** (`/settings/whatsapp/callback`) — Route to parse OAuth token, exchange it, and set `workspace.isWabaConnected = true`.
@@ -121,6 +123,16 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 ---
 
 ## 📜 History & Updates Log
+
+### 2026-10-10 — Wave 1 & 2 re-verified; Wave 3 started (Contact Hub Directory)
+- Verified W1 and W2 against the ledger's own bar (build, unit tests, render):
+  - `npx ng build` passes.
+  - Unit tests: 1 failure in `permission.service.spec.ts` (`fails closed with no session at all`), now fixed. The spec cleared `sessionStorage` only, but the session persists to `localStorage` (`bugconnect-session-v2`), so a session from an earlier case leaked in. The `configure()` helper now clears both stores.
+  - Suite: 127/127 before W3 work, 132/132 after.
+  - Browser (Playwright on Chromium, signed in as `admin` on `nazeel.localhost`): every W1/W2 route renders with no console or page errors. A real thread (`/inbox/tenant-1-conv-1`) renders with its composer. `/inbox/conv-1` correctly shows "Conversation not found" (IDs are `tenant-N-conv-M`).
+  - Not verified: the marketing and admin hosts were only checked over HTTP, not in a browser.
+- Started W3 with the Contact Hub Directory: replaced the `CONTACTS_ROUTES` stub with `client/contacts/` (`contacts.routes.ts`, `contacts-page/`), added `styles/pages/contacts.css`, and added a spec.
+- Known inconsistencies left for follow-up: W3 header says 7 pages but 9 entries are listed; `/replies` vs `/quick-replies`.
 
 ### 2026-10-09 — Global Styling System & UI Refresh
 - Moved all styling out of components into the global stylesheet tree `src/styles/` (tokens → base → components → pages), imported in order from `src/styles.css`. Removed every `styleUrl`, inline `styles` block and component `.css` file, and the dead `app.css`.

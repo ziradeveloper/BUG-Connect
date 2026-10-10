@@ -1,0 +1,62 @@
+<div class="workspace-page">
+     <app-page-header eyebrow="OPERATIONS" title="Contact Hub"
+          description="Every WhatsApp customer in this workspace, their tags and whether they can receive marketing messages.">
+          <span class="data-table__subdued" pageActions>Opt-in status is checked before any marketing send.</span>
+     </app-page-header>
+
+     <div class="metric-grid">
+          <div class="metric">
+               <span class="metric__label">Contacts</span>
+               <span class="metric__value">{{ summary().total }}</span>
+               <span class="metric__hint">Everyone who has messaged this number</span>
+          </div>
+          <div class="metric metric--brand">
+               <span class="metric__label">Opted in</span>
+               <span class="metric__value">{{ summary().optedIn }}</span>
+               <span class="metric__hint">Eligible for campaigns</span>
+          </div>
+          <div class="metric">
+               <span class="metric__label">Opted out</span>
+               <span class="metric__value">{{ summary().optedOut }}</span>
+               <span class="metric__hint">Excluded from every marketing send</span>
+          </div>
+          <div class="metric">
+               <span class="metric__label">With conversations</span>
+               <span class="metric__value">{{ summary().withConversations }}</span>
+               <span class="metric__hint">Have at least one thread</span>
+          </div>
+     </div>
+
+     <div class="contact-filters" role="group" aria-label="Filter contacts by tag">
+          <button type="button" class="contact-filter" [attr.aria-pressed]="isActive(null)"
+               (click)="selectTag(null)">All tags</button>
+          @for (tag of tags(); track tag) {
+          <button type="button" class="contact-filter" [attr.aria-pressed]="isActive(tag)"
+               (click)="selectTag(tag)">{{ tag }}</button>
+          }
+     </div>
+
+     <app-data-table [columns]="columns" [rows]="rows()" [loading]="loading()" [error]="error()"
+          caption="Workspace contacts, tags and opt-in status" exportName="bugconnect-contacts"
+          searchPlaceholder="Search by name, WhatsApp ID or tag" emptyTitle="No contacts match this filter"
+          emptyDescription="Contacts appear here after their first WhatsApp message.">
+
+          <ng-template appCell="displayName" let-contact>
+               <span class="shell__avatar" aria-hidden="true">{{ contact.displayName.slice(0, 1) }}</span>
+               <strong class="data-table__primary">{{ contact.displayName }}</strong>
+          </ng-template>
+
+          <ng-template appCell="tags" let-contact>
+               <span class="contact-tag-list">
+                    @for (tag of contact.tags; track tag) {
+                    <span class="contact-tag">{{ tag }}</span>
+                    }
+               </span>
+          </ng-template>
+
+          <ng-template appCell="optInStatus" let-contact>
+               <app-status-pill [label]="optInLabel(contact)"
+                    [tone]="contact.optInStatus ? 'success' : 'danger'" />
+          </ng-template>
+     </app-data-table>
+</div>
