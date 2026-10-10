@@ -103,6 +103,16 @@
   padding: 1.15rem 1.25rem;
 }
 
+.sheet__pane-head {
+  position: sticky;
+  top: -1.15rem;
+  z-index: 10;
+  margin: -1.15rem -1.25rem 0.25rem -1.25rem;
+  padding: 1.15rem 1.25rem 0.75rem;
+  background-color: var(--theme-surface);
+  border-block-end: 1px solid var(--theme-border);
+}
+
 .sheet__pane--preview {
   border-inline-start: 1px solid var(--theme-border);
   background-color: var(--theme-surface-raised);
@@ -565,11 +575,20 @@
 @media (max-width: 860px) {
   .sheet__body--split {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
     overflow-y: auto;
   }
 
   .sheet__pane {
     overflow: visible;
+    min-height: auto;
+    height: auto;
+  }
+
+  .sheet__pane-head {
+    top: 0;
+    margin-top: 0;
+    padding-top: 0.75rem;
   }
 
   .sheet__pane--preview {

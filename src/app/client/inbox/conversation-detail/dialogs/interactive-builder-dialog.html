@@ -21,18 +21,20 @@
       <div class="sheet__body sheet__body--split">
         <!-- Editor -->
         <div class="sheet__pane">
-          <div class="seg" role="group" aria-label="Interactive type">
-            @for (option of subtypes; track option.id) {
-              <button
-                type="button"
-                class="seg__option"
-                [class.seg__option--active]="subtype() === option.id"
-                [title]="option.hint"
-                (click)="subtype.set(option.id)"
-              >
-                {{ option.label }}
-              </button>
-            }
+          <div class="sheet__pane-head">
+            <div class="seg" role="group" aria-label="Interactive type">
+              @for (option of subtypes; track option.id) {
+                <button
+                  type="button"
+                  class="seg__option"
+                  [class.seg__option--active]="subtype() === option.id"
+                  [title]="option.hint"
+                  (click)="subtype.set(option.id)"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
           </div>
 
           <div class="sheet__fields">
