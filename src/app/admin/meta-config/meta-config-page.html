@@ -1,0 +1,144 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PLATFORM"
+    title="Meta app & webhook"
+    description="The single Meta Business app the platform embeds signup through, plus the callback Meta delivers events to."
+  >
+    <span pageActions>
+      @if (configured()) {
+        <app-status-pill label="Configured" tone="success" />
+      } @else {
+        <app-status-pill label="Seed reference" tone="warning" />
+      }
+    </span>
+  </app-page-header>
+
+  <p class="text-muted">{{ updatedLabel() }}</p>
+
+  <div class="surface meta-grid">
+    <label class="form-field">
+      <span>App ID</span>
+      <input
+        class="form-control"
+        name="appId"
+        [(ngModel)]="draft.appId"
+        autocomplete="off"
+        placeholder="e.g. 1042…"
+        [disabled]="!canEdit()"
+      />
+    </label>
+
+    <label class="form-field">
+      <span>App secret</span>
+      <span class="meta-secret">
+        <input
+          class="form-control"
+          name="appSecretRef"
+          [(ngModel)]="draft.appSecretRef"
+          [type]="secretVisible() ? 'text' : 'password'"
+          autocomplete="off"
+          placeholder="Stored as a reference, never displayed elsewhere"
+          [disabled]="!canEdit()"
+        />
+        <button class="button button-secondary" type="button" (click)="toggleSecret()">
+          {{ secretVisible() ? 'Hide' : 'Show' }}
+        </button>
+      </span>
+    </label>
+
+    <label class="form-field">
+      <span>Graph API version</span>
+      <select class="form-control" name="apiVersion" [(ngModel)]="draft.apiVersion" [disabled]="!canEdit()">
+        @for (version of versions; track version) {
+          <option [value]="version">{{ version }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="form-field">
+      <span>Test number</span>
+      <input
+        class="form-control"
+        name="testNumber"
+        [(ngModel)]="draft.testNumber"
+        autocomplete="off"
+        placeholder="+91 …"
+        [disabled]="!canEdit()"
+      />
+      <small class="text-muted">Meta's sandbox number for pre-live verification.</small>
+    </label>
+  </div>
+
+  <div class="surface meta-grid">
+    <div class="form-field">
+      <span>Callback URL</span>
+      <span class="meta-copy">
+        <code class="data-table__mono">{{ config().callbackUrl }}</code>
+        <button class="button button-secondary" type="button" (click)="copy('callback', config().callbackUrl)">
+          {{ copied() === 'callback' ? 'Copied' : 'Copy' }}
+        </button>
+      </span>
+      <small class="text-muted">Paste this into the Meta app's webhook configuration.</small>
+    </div>
+
+    <div class="form-field">
+      <span>Verify token</span>
+      <span class="meta-copy">
+        <code class="data-table__mono">{{ config().verifyToken }}</code>
+        <button class="button button-secondary" type="button" (click)="copy('token', config().verifyToken)">
+          {{ copied() === 'token' ? 'Copied' : 'Copy' }}
+        </button>
+        @if (canEdit()) {
+          <button class="button button-secondary" type="button" (click)="regenerateToken()">
+            Rotate
+          </button>
+        }
+      </span>
+      <small class="text-muted">Meta echoes this token on subscribe; rotation breaks delivery until Meta is updated.</small>
+    </div>
+
+    @if (canEdit()) {
+      <footer class="meta-actions">
+        @if (notice(); as text) {
+          <p class="login-status" role="status">{{ text }}</p>
+        }
+        <span class="wizard-card__spacer"></span>
+        <button class="button button-primary" type="button" (click)="save()" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save Meta reference' }}
+        </button>
+      </footer>
+    } @else if (notice(); as text) {
+      <p class="login-status" role="status">{{ text }}</p>
+    }
+  </div>
+
+  <section class="surface admin-panel" aria-label="Connected numbers per workspace">
+    <header class="admin-panel__head">
+      <div>
+        <p class="eyebrow">LIVE NUMBERS</p>
+        <h2>Connected numbers per workspace</h2>
+      </div>
+    </header>
+
+    <ul class="event-list">
+      @for (row of numbers(); track row.id) {
+        <li class="event-list__item">
+          <span
+            class="event-list__dot"
+            [attr.data-outcome]="row.connected ? 'processed' : 'queued'"
+            aria-hidden="true"
+          ></span>
+          <span class="event-list__main">
+            <strong>{{ row.businessName }}</strong>
+            <small class="text-muted">{{ row.phoneNumber ?? 'Not connected yet' }}</small>
+          </span>
+          @if (row.connected) {
+            <app-status-pill label="Live" tone="success" />
+          } @else {
+            <app-status-pill label="Pending" tone="warning" />
+          }
+        </li>
+      }
+    </ul>
+  </section>
+</div>

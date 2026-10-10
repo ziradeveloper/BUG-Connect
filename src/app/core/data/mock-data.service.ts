@@ -3,17 +3,28 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { WorkspaceContext } from '../workspace/workspace-context';
 import { buildDataset, type Dataset } from './mock-data';
 import type {
+  BusinessProfile,
   Campaign,
   ChatFlow,
   Contact,
+  ContactSegment,
   Conversation,
+  Invoice,
   Message,
   MessageTemplate,
+  MetaAppConfig,
+  Plan,
+  PlanLimits,
   PlatformStaffUser,
+  QuickReply,
+  SegmentRule,
+  SubscriptionEvent,
+  Team,
   Tenant,
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
+import { SEED_META_CONFIG, SEED_PLANS } from './plan.seed';
 import {
   payloadPreview,
   type MessagePayload,
@@ -48,6 +59,14 @@ export interface OutboundDraft {
 export class MockDataService {
   private readonly context = inject(WorkspaceContext);
   private readonly dataset = signal<Dataset>(buildDataset());
+
+  /**
+   * Platform commercial state, kept beside the dataset rather than inside it:
+   * plans and the Meta app reference are edited rarely, read on every guard
+   * check, and never belong to one tenant.
+   */
+  readonly plans = signal<Plan[]>(structuredClone(SEED_PLANS));
+  readonly metaConfig = signal<MetaAppConfig>({ ...SEED_META_CONFIG });
 
   /** 120–260 ms, deterministic per call index so tests can fake timers. */
   private tick = 0;
@@ -88,6 +107,22 @@ export class MockDataService {
 
   readonly users = computed(() =>
     this.dataset().workspaceUsers.filter((user) => user.tenantId === this.tenantId()),
+  );
+
+  readonly teams = computed(() =>
+    this.dataset().teams.filter((team) => team.tenantId === this.tenantId()),
+  );
+
+  readonly quickReplies = computed(() =>
+    this.dataset().quickReplies.filter((reply) => reply.tenantId === this.tenantId()),
+  );
+
+  readonly segments = computed(() =>
+    this.dataset().segments.filter((segment) => segment.tenantId === this.tenantId()),
+  );
+
+  readonly businessProfile = computed(
+    () => this.dataset().businessProfiles.find((profile) => profile.tenantId === this.tenantId()) ?? null,
   );
 
   readonly webhookEvents = computed(() => this.dataset().webhookEvents);
@@ -145,6 +180,83 @@ export class MockDataService {
     return { items, total: items.length };
   }
 
+  async listSubscriptionEvents(): Promise<Page<SubscriptionEvent>> {
+    const items = await this.latency(this.dataset().subscriptionEvents);
+    return { items, total: items.length };
+  }
+
+  async listInvoices(): Promise<Page<Invoice>> {
+    const items = await this.latency(this.dataset().invoices);
+    return { items, total: items.length };
+  }
+
+  async listTeams(): Promise<Page<Team>> {
+    const items = await this.latency(this.teams());
+    return { items, total: items.length };
+  }
+
+  async listQuickReplies(): Promise<Page<QuickReply>> {
+    const items = await this.latency(this.quickReplies());
+    return { items, total: items.length };
+  }
+
+  async listSegments(): Promise<Page<ContactSegment>> {
+    const items = await this.latency(this.segments());
+    return { items, total: items.length };
+  }
+
+  async getBusinessProfile(): Promise<BusinessProfile | null> {
+    await this.sleep(140);
+    const profile = this.businessProfile();
+    return profile ? structuredClone(profile) : null;
+  }
+
+  /** The contact detail page and the inbox customer panel share this lookup. */
+  contactById(id: string | null | undefined): Contact | null {
+    if (!id) {
+      return null;
+    }
+    return this.contacts().find((contact) => contact.id === id) ?? null;
+  }
+
+  conversationsForContact(contactId: string): Conversation[] {
+    return this.conversations()
+      .filter((conversation) => conversation.contactId === contactId)
+      .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
+  }
+
+  /** Platform reads across tenants, so these helpers skip the tenant scope. */
+  tenantById(id: string | null | undefined): Tenant | null {
+    if (!id) {
+      return null;
+    }
+    return this.dataset().tenants.find((tenant) => tenant.id === id) ?? null;
+  }
+
+  usersForTenant(tenantId: string): WorkspaceUser[] {
+    return this.dataset().workspaceUsers.filter((user) => user.tenantId === tenantId);
+  }
+
+  contactsForTenant(tenantId: string): Contact[] {
+    return this.dataset().contacts.filter((contact) => contact.tenantId === tenantId);
+  }
+
+  webhookEventsForTenant(tenantId: string): WebhookEvent[] {
+    return this.dataset().webhookEvents.filter((event) => event.tenantId === tenantId);
+  }
+
+  subscriptionEventsForTenant(tenantId: string): SubscriptionEvent[] {
+    return this.dataset().subscriptionEvents.filter((event) => event.tenantId === tenantId);
+  }
+
+  invoicesForTenant(tenantId: string): Invoice[] {
+    return this.dataset().invoices.filter((invoice) => invoice.tenantId === tenantId);
+  }
+
+  planForTier(tier: string): Plan | null {
+    return this.plans().find((plan) => plan.tier === tier) ?? null;
+  }
+
   /** Upsert by id; a new row is stamped into the current tenant. */
   async saveUser(
     user: Partial<WorkspaceUser> & { fullName: string; email: string },
@@ -159,7 +271,9 @@ export class MockDataService {
         ? { ...(dataset.workspaceUsers[existingIndex] as WorkspaceUser), ...user }
         : {
             id: `tenant-user-${Date.now().toString(36)}`,
-            tenantId: this.tenantId(),
+            // An explicit tenant wins: the platform console provisions users
+            // into workspaces it is not signed into (client onboarding).
+            tenantId: user.tenantId ?? this.tenantId(),
             fullName: user.fullName,
             email: user.email,
             role: user.role ?? 'agent',
@@ -211,6 +325,166 @@ export class MockDataService {
       ),
     });
     await this.sleep(180);
+  }
+
+  /** Provisions a tenant from the onboard wizard. Starts on trial, unconnected. */
+  async saveTenant(input: {
+    businessName: string;
+    subdomain: string;
+    industry: string;
+    subscriptionTier: string;
+    city?: string;
+  }): Promise<Tenant> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const tenant: Tenant = {
+      id: `tenant-${Date.now().toString(36)}`,
+      businessName: input.businessName.trim(),
+      subdomain: input.subdomain.trim().toLowerCase(),
+      metaWabaId: null,
+      metaPhoneNumberId: null,
+      phoneNumber: null,
+      subscriptionTier: input.subscriptionTier,
+      isActive: true,
+      status: 'onboarding',
+      industry: input.industry,
+      city: input.city?.trim() || 'Tirunelveli',
+      seatsUsed: 0,
+      contactCount: 0,
+      monthlyMessages: 0,
+      createdAt: now,
+      connectedAt: null,
+    };
+
+    const subscriptionEvents: SubscriptionEvent[] = [
+      ...dataset.subscriptionEvents,
+      {
+        id: `${tenant.id}-sub-1`,
+        tenantId: tenant.id,
+        from: null,
+        to: 'trial',
+        reason: 'Workspace provisioned with a 14-day trial.',
+        actor: 'platform',
+        createdAt: now,
+      },
+    ];
+
+    this.dataset.set({
+      ...dataset,
+      tenants: [...dataset.tenants, tenant],
+      subscriptionEvents,
+    });
+    await this.sleep(220);
+    return tenant;
+  }
+
+  /** Moves a tenant between tiers; the client sidebar re-gates immediately. */
+  async changeTenantTier(tenantId: string, tier: string): Promise<void> {
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      tenants: dataset.tenants.map((tenant) =>
+        tenant.id === tenantId ? { ...tenant, subscriptionTier: tier } : tenant,
+      ),
+    });
+    await this.sleep(160);
+  }
+
+  /**
+   * Completes the simulated Meta Embedded Signup: stamps the WABA ids the
+   * callback carried and flips a pending workspace to active.
+   */
+  async connectWaba(
+    tenantId: string,
+    connection: { wabaId: string; phoneNumberId: string; phoneNumber: string },
+  ): Promise<Tenant | null> {
+    const dataset = this.dataset();
+    const target = dataset.tenants.find((tenant) => tenant.id === tenantId);
+    if (!target) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const activates = target.status === 'lead_trial' || target.status === 'onboarding' || target.status === 'whatsapp_pending';
+    const updated: Tenant = {
+      ...target,
+      metaWabaId: connection.wabaId,
+      metaPhoneNumberId: connection.phoneNumberId,
+      phoneNumber: connection.phoneNumber,
+      connectedAt: target.connectedAt ?? now,
+      status: activates ? 'active' : target.status,
+      isActive: true,
+    };
+
+    const subscriptionEvents = activates
+      ? [
+          ...dataset.subscriptionEvents,
+          {
+            id: `${tenantId}-sub-${dataset.subscriptionEvents.filter((event) => event.tenantId === tenantId).length + 1}`,
+            tenantId,
+            from: 'trial' as const,
+            to: 'active' as const,
+            reason: `Trial converted to the ${target.subscriptionTier} plan after WhatsApp connection.`,
+            actor: 'workspace-admin',
+            createdAt: now,
+          },
+        ]
+      : dataset.subscriptionEvents;
+
+    this.dataset.set({
+      ...dataset,
+      tenants: dataset.tenants.map((tenant) => (tenant.id === tenantId ? updated : tenant)),
+      subscriptionEvents,
+    });
+    await this.sleep(200);
+    return updated;
+  }
+
+  /** Replaces one tier's metered limits; modules are edited on the matrix. */
+  async savePlanLimits(tier: string, limits: PlanLimits): Promise<void> {
+    this.plans.update((plans) =>
+      plans.map((plan) => (plan.tier === tier ? { ...plan, limits: { ...limits } } : plan)),
+    );
+    await this.sleep(160);
+  }
+
+  /** One checkbox of the feature matrix. Takes effect on the next read. */
+  setPlanModule(tier: string, module: string, enabled: boolean): void {
+    this.plans.update((plans) =>
+      plans.map((plan) => {
+        if (plan.tier !== tier) {
+          return plan;
+        }
+        const modules = enabled
+          ? [...new Set([...plan.modules, module])]
+          : plan.modules.filter((entry) => entry !== module);
+        return { ...plan, modules };
+      }),
+    );
+  }
+
+  async saveMetaConfig(patch: Partial<MetaAppConfig>, updatedBy: string): Promise<MetaAppConfig> {
+    const updated: MetaAppConfig = {
+      ...this.metaConfig(),
+      ...patch,
+      updatedAt: new Date().toISOString(),
+      updatedBy,
+    };
+    this.metaConfig.set(updated);
+    await this.sleep(180);
+    return updated;
+  }
+
+  /** Re-queues a failed webhook event after the operator acknowledges it. */
+  async ackWebhookEvent(id: string): Promise<void> {
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      webhookEvents: dataset.webhookEvents.map((event) =>
+        event.id === id ? { ...event, outcome: 'queued' as const, error: null } : event,
+      ),
+    });
+    await this.sleep(120);
   }
 
   /** Aggregate numbers the client dashboard shows without a reports module. */
@@ -523,6 +797,287 @@ export class MockDataService {
     this.dataset.set({ ...dataset, conversations, messages, workspaceUsers });
     await this.sleep(180);
     return { conversation: newConv, message: newMsg };
+  }
+
+  // ── Wave 3: workspace operations ────────────────────────────────
+
+  /**
+   * Evaluates segment rules against the tenant's contacts. Empty rules match
+   * everything under `all` (every vacuous truth) and nothing under `any`.
+   */
+  evaluateSegment(match: ContactSegment['match'], rules: SegmentRule[]): Contact[] {
+    const contacts = this.contacts();
+    if (rules.length === 0) {
+      return match === 'all' ? [...contacts] : [];
+    }
+
+    const test = (contact: Contact, rule: SegmentRule): boolean => {
+      const value = rule.value.trim().toLowerCase();
+      switch (rule.field) {
+        case 'tag': {
+          const has = contact.tags.some((tag) => tag.toLowerCase() === value);
+          return rule.operator === 'lacks' ? !has : has;
+        }
+        case 'optIn':
+          return rule.value === 'opted-out' ? !contact.optInStatus : contact.optInStatus;
+        case 'conversations': {
+          const count = Number(rule.value);
+          if (Number.isNaN(count)) {
+            return false;
+          }
+          return rule.operator === 'fewerThan'
+            ? contact.conversationCount < count
+            : contact.conversationCount > count;
+        }
+        case 'name':
+          return contact.displayName.toLowerCase().includes(value);
+        case 'inactiveDays': {
+          const days = Number(rule.value);
+          if (Number.isNaN(days)) {
+            return false;
+          }
+          const ageDays = (Date.now() - new Date(contact.lastSeenAt).getTime()) / 86_400_000;
+          return rule.operator === 'fewerThan' ? ageDays < days : ageDays > days;
+        }
+      }
+    };
+
+    return contacts.filter((contact) =>
+      match === 'all' ? rules.every((rule) => test(contact, rule)) : rules.some((rule) => test(contact, rule)),
+    );
+  }
+
+  async updateContact(
+    id: string,
+    patch: Partial<Pick<Contact, 'displayName' | 'tags' | 'optInStatus' | 'customAttributes'>>,
+  ): Promise<Contact | null> {
+    const dataset = this.dataset();
+    const existing = dataset.contacts.find((contact) => contact.id === id) ?? null;
+    if (!existing) {
+      return null;
+    }
+
+    const saved: Contact = { ...existing, ...patch };
+    this.dataset.set({
+      ...dataset,
+      contacts: dataset.contacts.map((contact) => (contact.id === id ? saved : contact)),
+    });
+    await this.sleep(160);
+    return saved;
+  }
+
+  async saveTeam(team: Partial<Team> & { name: string }): Promise<Team> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const existing = team.id ? (dataset.teams.find((candidate) => candidate.id === team.id) ?? null) : null;
+
+    const saved: Team = existing
+      ? { ...existing, ...team, updatedAt: now }
+      : {
+          id: `team-${Date.now().toString(36)}`,
+          tenantId: this.tenantId(),
+          name: team.name,
+          description: team.description ?? '',
+          memberUserIds: team.memberUserIds ?? [],
+          weight: team.weight ?? 1,
+          isDefault: team.isDefault ?? dataset.teams.every((candidate) => candidate.tenantId !== this.tenantId()),
+          icon: team.icon ?? '◭',
+          updatedAt: now,
+        };
+
+    // Exactly one default per tenant: promoting a team demotes the previous one.
+    this.dataset.set({
+      ...dataset,
+      teams: dataset.teams.some((candidate) => candidate.id === saved.id)
+        ? dataset.teams.map((candidate) =>
+            candidate.tenantId === saved.tenantId && candidate.id !== saved.id && saved.isDefault
+              ? { ...candidate, isDefault: false }
+              : candidate.id === saved.id
+                ? saved
+                : candidate,
+          )
+        : [
+            ...dataset.teams.map((candidate) =>
+              candidate.tenantId === saved.tenantId && saved.isDefault
+                ? { ...candidate, isDefault: false }
+                : candidate,
+            ),
+            saved,
+          ],
+    });
+    await this.sleep(180);
+    return saved;
+  }
+
+  async deleteTeam(id: string): Promise<void> {
+    const dataset = this.dataset();
+    const target = dataset.teams.find((team) => team.id === id);
+    this.dataset.set({
+      ...dataset,
+      teams: dataset.teams.filter((team) => team.id !== id).map((team, index, rest) =>
+        // Deleting the default promotes the oldest surviving team of the tenant.
+        target?.isDefault && team.tenantId === target.tenantId && index === rest.findIndex((t) => t.tenantId === target.tenantId)
+          ? { ...team, isDefault: true }
+          : team,
+      ),
+    });
+    await this.sleep(160);
+  }
+
+  async saveQuickReply(reply: Partial<QuickReply> & { trigger: string; body: string }): Promise<QuickReply> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const existing = reply.id
+      ? (dataset.quickReplies.find((candidate) => candidate.id === reply.id) ?? null)
+      : null;
+
+    const saved: QuickReply = existing
+      ? { ...existing, ...reply, updatedAt: now }
+      : {
+          id: `qr-${Date.now().toString(36)}`,
+          tenantId: this.tenantId(),
+          trigger: reply.trigger,
+          title: reply.title ?? reply.trigger.replace(/^\//, ''),
+          body: reply.body,
+          usageCount: 0,
+          updatedAt: now,
+        };
+
+    const quickReplies = existing
+      ? dataset.quickReplies.map((candidate) => (candidate.id === saved.id ? saved : candidate))
+      : [...dataset.quickReplies, saved];
+
+    this.dataset.set({ ...dataset, quickReplies });
+    await this.sleep(160);
+    return saved;
+  }
+
+  async deleteQuickReply(id: string): Promise<void> {
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      quickReplies: dataset.quickReplies.filter((reply) => reply.id !== id),
+    });
+    await this.sleep(160);
+  }
+
+  async saveSegment(segment: Partial<ContactSegment> & { name: string }): Promise<ContactSegment> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const existing = segment.id
+      ? (dataset.segments.find((candidate) => candidate.id === segment.id) ?? null)
+      : null;
+
+    const saved: ContactSegment = existing
+      ? { ...existing, ...segment, updatedAt: now }
+      : {
+          id: `seg-${Date.now().toString(36)}`,
+          tenantId: this.tenantId(),
+          name: segment.name,
+          description: segment.description ?? '',
+          match: segment.match ?? 'all',
+          rules: segment.rules ?? [],
+          createdAt: now,
+          updatedAt: now,
+        };
+
+    const segments = existing
+      ? dataset.segments.map((candidate) => (candidate.id === saved.id ? saved : candidate))
+      : [...dataset.segments, saved];
+
+    this.dataset.set({ ...dataset, segments });
+    await this.sleep(180);
+    return saved;
+  }
+
+  async deleteSegment(id: string): Promise<void> {
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      segments: dataset.segments.filter((segment) => segment.id !== id),
+    });
+    await this.sleep(160);
+  }
+
+  async saveBusinessProfile(patch: Partial<BusinessProfile>): Promise<BusinessProfile | null> {
+    const dataset = this.dataset();
+    const existing =
+      dataset.businessProfiles.find((profile) => profile.tenantId === this.tenantId()) ?? null;
+    if (!existing) {
+      return null;
+    }
+
+    const saved: BusinessProfile = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+    this.dataset.set({
+      ...dataset,
+      businessProfiles: dataset.businessProfiles.map((profile) =>
+        profile.tenantId === saved.tenantId ? saved : profile,
+      ),
+    });
+    await this.sleep(180);
+    return saved;
+  }
+
+  async saveTemplate(
+    template: Partial<MessageTemplate> & { name: string; body: string },
+  ): Promise<MessageTemplate> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const existing = template.id
+      ? (dataset.templates.find((candidate) => candidate.id === template.id) ?? null)
+      : null;
+
+    const body = template.body ?? existing?.body ?? '';
+    const variables = new Set(body.match(/\{\{\d+\}\}/g) ?? []).size;
+
+    const saved: MessageTemplate = existing
+      ? { ...existing, ...template, body, variables, updatedAt: now }
+      : {
+          id: `tpl-${Date.now().toString(36)}`,
+          tenantId: this.tenantId(),
+          name: template.name,
+          category: template.category ?? 'UTILITY',
+          language: template.language ?? 'en',
+          status: 'draft',
+          body,
+          variables,
+          header: template.header ?? null,
+          footer: template.footer ?? null,
+          buttons: template.buttons ?? [],
+          variableLabels: template.variableLabels ?? [],
+          updatedAt: now,
+          submittedAt: null,
+        };
+
+    const templates = existing
+      ? dataset.templates.map((candidate) => (candidate.id === saved.id ? saved : candidate))
+      : [...dataset.templates, saved];
+
+    this.dataset.set({ ...dataset, templates });
+    await this.sleep(180);
+    return saved;
+  }
+
+  /** Draft → pending, the way the Meta submission would leave it. */
+  async submitTemplate(id: string): Promise<MessageTemplate | null> {
+    const dataset = this.dataset();
+    const existing = dataset.templates.find((template) => template.id === id) ?? null;
+    if (!existing || existing.status !== 'draft') {
+      return null;
+    }
+
+    const saved: MessageTemplate = {
+      ...existing,
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.dataset.set({
+      ...dataset,
+      templates: dataset.templates.map((template) => (template.id === id ? saved : template)),
+    });
+    await this.sleep(200);
+    return saved;
   }
 
   private async latency<T>(items: T[]): Promise<T[]> {

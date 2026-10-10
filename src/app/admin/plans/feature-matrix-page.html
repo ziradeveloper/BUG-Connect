@@ -1,0 +1,65 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="COMMERCIAL"
+    title="Feature matrix"
+    description="Which client modules each tier unlocks. Role access still applies inside an unlocked module — a tier can only open doors, never grant keys."
+  >
+    <a class="button button-secondary" pageActions routerLink="/plans">All plans</a>
+    @if (canEdit()) {
+      <a class="button button-secondary" pageActions routerLink="/plans/edit">Edit limits</a>
+    }
+  </app-page-header>
+
+  <div class="surface matrix-scroll">
+    <table class="feature-matrix">
+      <caption class="sr-only">Module availability per subscription tier</caption>
+      <thead>
+        <tr>
+          <th scope="col">Module</th>
+          @for (plan of plans(); track plan.tier) {
+            <th scope="col">
+              {{ plan.tier }}
+              <small class="text-muted">{{ tierCount(plan.tier) }} workspaces</small>
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (module of modules; track module.key) {
+          <tr>
+            <th scope="row">
+              <span class="feature-matrix__icon" aria-hidden="true">{{ module.icon }}</span>
+              {{ module.label }}
+              @if (module.planned) {
+                <app-status-pill label="soon" tone="neutral" />
+              }
+            </th>
+            @for (plan of plans(); track plan.tier) {
+              <td>
+                <label class="feature-matrix__cell">
+                  <span class="sr-only">{{ module.label }} on {{ plan.tier }}</span>
+                  <input
+                    type="checkbox"
+                    [checked]="hasModule(plan.tier, module.key)"
+                    [disabled]="!canEdit()"
+                    (change)="toggle(plan.tier, module.key, $any($event.target).checked)"
+                  />
+                  <span class="feature-matrix__box" aria-hidden="true">
+                    @if (hasModule(plan.tier, module.key)) {
+                      ✓
+                    }
+                  </span>
+                </label>
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <p class="planned-note text-muted">
+    Changes apply on the next read — open a client workspace on that tier and its sidebar
+    re-gates without a reload.
+  </p>
+</div>

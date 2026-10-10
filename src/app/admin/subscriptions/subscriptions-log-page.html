@@ -1,0 +1,37 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="COMMERCIAL"
+    title="Subscription lifecycle log"
+    description="Every trial, activation, grace, expiry and suspension transition, newest first."
+  >
+    <a class="button button-secondary" pageActions routerLink="/subscriptions">Current states</a>
+  </app-page-header>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="loading()"
+    [error]="error()"
+    caption="Subscription lifecycle transitions"
+    exportName="bugconnect-subscription-log"
+    searchPlaceholder="Search by client, state or actor"
+    emptyTitle="No transitions match this filter"
+    emptyDescription="Transitions appear here as tenants move through their lifecycle."
+  >
+    <ng-template appCell="transition" let-row>
+      <app-status-pill [label]="transition(row)" tone="info" />
+    </ng-template>
+
+    <ng-template appCell="reason" let-row>
+      <span class="data-table__subdued">{{ row.reason }}</span>
+    </ng-template>
+
+    <ng-template appCell="actor" let-row>
+      <code class="data-table__mono">{{ row.actor }}</code>
+    </ng-template>
+
+    <ng-template appCell="createdAt" let-row>
+      <span [title]="exact(row.createdAt)">{{ ago(row.createdAt) }}</span>
+    </ng-template>
+  </app-data-table>
+</div>

@@ -1,0 +1,81 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="COMMERCIAL"
+    title="Invoices"
+    description="Billing cycles per tenant with collection state. Overdue rows are the collection queue."
+  >
+    <a class="button button-secondary" pageActions routerLink="/subscriptions">Subscriptions</a>
+  </app-page-header>
+
+  <div class="metric-grid">
+    <div class="metric">
+      <span class="metric__label">Invoices</span>
+      <span class="metric__value">{{ summary().total }}</span>
+      <span class="metric__hint">Across every workspace</span>
+    </div>
+    <div class="metric metric--brand">
+      <span class="metric__label">Outstanding</span>
+      <span class="metric__value">{{ inr(summary().outstanding) }}</span>
+      <span class="metric__hint">Due plus overdue</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Overdue</span>
+      <span class="metric__value">{{ inr(summary().overdue) }}</span>
+      <span class="metric__hint">Past the due date</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Collected</span>
+      <span class="metric__value">{{ inr(summary().collected) }}</span>
+      <span class="metric__hint">Paid to date</span>
+    </div>
+  </div>
+
+  <div class="contact-filters" role="group" aria-label="Filter invoices by status">
+    <button
+      type="button"
+      class="contact-filter"
+      [attr.aria-pressed]="isActive(null)"
+      (click)="selectStatus(null)"
+    >
+      All statuses
+    </button>
+    @for (status of statuses; track status) {
+      <button
+        type="button"
+        class="contact-filter"
+        [attr.aria-pressed]="isActive(status)"
+        (click)="selectStatus(status)"
+      >
+        {{ statusLabel(status) }}
+      </button>
+    }
+  </div>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="loading()"
+    [error]="error()"
+    caption="Platform invoices"
+    exportName="bugconnect-invoices"
+    searchPlaceholder="Search by invoice, client or period"
+    emptyTitle="No invoices match this filter"
+    emptyDescription="Invoices appear here from the first billing cycle."
+  >
+    <ng-template appCell="tenantName" let-row>
+      <strong class="data-table__primary">{{ row.tenantName }}</strong>
+    </ng-template>
+
+    <ng-template appCell="status" let-row>
+      <app-status-pill [label]="statusLabel(row.status)" [tone]="statusTone(row.status)" />
+    </ng-template>
+
+    <ng-template appCell="actions" let-row>
+      <span class="data-table__actions">
+        <a class="data-table__action" [routerLink]="['/clients', row.tenantId]" [queryParams]="{ tab: 'subscription' }">
+          Open client
+        </a>
+      </span>
+    </ng-template>
+  </app-data-table>
+</div>

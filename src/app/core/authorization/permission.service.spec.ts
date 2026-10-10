@@ -3,6 +3,7 @@ import { computed, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { SessionService } from '../auth/session.service';
+import { MockDataService } from '../data/mock-data.service';
 import { WorkspaceContext } from '../workspace/workspace-context';
 import type { ResolvedWorkspace } from '../workspace/workspace.model';
 import { PermissionService } from './permission.service';
@@ -196,6 +197,48 @@ describe('PermissionService', () => {
     permissions.saveRole(role);
     expect(permissions.deleteRole(role.id).ok).toBe(true);
     expect(permissions.roleFor(role.id)).toBeNull();
+  });
+
+  it('resolves the seeded developer role instead of failing open', () => {
+    configure();
+    session.loginAs('developer');
+
+    // role-developer exists in the seed, so the sidebar is the role's menus —
+    // not the whole catalogue a null role would have returned.
+    expect(permissions.activeRole()?.id).toBe('role-developer');
+    expect(permissions.menu().map((entry) => entry.key)).toEqual(
+      expect.arrayContaining(['developer']),
+    );
+    expect(permissions.menu().map((entry) => entry.key)).not.toContain('inbox');
+    expect(permissions.can('developer.manage', 'full')).toBe(true);
+    expect(permissions.can('inbox.view', 'view')).toBe(false);
+  });
+
+  it('re-gates the sidebar when the feature matrix moves', () => {
+    configure();
+    session.loginAs('admin');
+
+    const data = TestBed.inject(MockDataService);
+    const tier = data.currentTenant()?.subscriptionTier ?? 'Pilot';
+
+    expect(permissions.visibleMenu().some((entry) => entry.key === 'campaigns')).toBe(
+      tier !== 'Pilot',
+    );
+
+    data.setPlanModule(tier, 'campaigns', tier === 'Pilot');
+    fixture_detect_changes_hack();
+
+    function fixture_detect_changes_hack(): void {
+      // Touch the computed chain through a plain read; TestBed-free services
+      // need no fixture cycle.
+    }
+
+    expect(permissions.visibleMenu().some((entry) => entry.key === 'campaigns')).toBe(
+      tier === 'Pilot',
+    );
+
+    // Restore the seed so later cases read the documented matrix.
+    data.setPlanModule(tier, 'campaigns', tier !== 'Pilot');
   });
 
   it('switches the catalogue when the host is the platform console', () => {

@@ -10,7 +10,15 @@ import { join } from 'node:path';
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
-const angularApp = new AngularNodeAppEngine();
+/**
+ * Multi-tenant hosts are first-class here: every subdomain renders a different
+ * workspace, so the engine allowlists the dev suffixes (mirroring
+ * `allowedHosts` in angular.json) instead of falling back to CSR. Production
+ * adds its apex and tenant suffix alongside these.
+ */
+const angularApp = new AngularNodeAppEngine({
+  allowedHosts: ['localhost', '*.localhost', '127.0.0.1', '*.e2b.app'],
+});
 
 /**
  * Example Express Rest API endpoints can be defined here.

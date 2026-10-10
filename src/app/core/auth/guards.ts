@@ -41,12 +41,22 @@ export const authGuard: CanActivateFn = (_route, state) => {
  * Navigation-level capability check. This is not a security boundary — the data
  * is dummy and the session is client-side. It exists so the menu, the route and
  * the disabled buttons all read the same role record.
+ *
+ * SSR note: same as `authGuard` — the server cannot see the localStorage
+ * session, so it lets the render proceed and the browser re-runs the check
+ * after hydration. A strict server check would SSR every guarded route as
+ * `/no-access` even for signed-in users.
  */
 export function permissionGuard(
   capability: Capability,
   level: AccessLevel = 'view',
 ): CanActivateFn {
   return () => {
+    const platformId = inject(PLATFORM_ID);
+    if (!isPlatformBrowser(platformId)) {
+      return true;
+    }
+
     const permissions = inject(PermissionService);
     const router = inject(Router);
 

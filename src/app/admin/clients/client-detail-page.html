@@ -1,0 +1,284 @@
+@if (tenant(); as current) {
+  <div class="workspace-page">
+    <app-page-header
+      eyebrow="CLIENT WORKSPACE"
+      [title]="current.businessName"
+      [description]="current.subdomain + '.platform.com · ' + current.industry"
+    >
+      <span pageActions class="detail-head-pills">
+        <app-status-pill [label]="statusLabel(current)" [tone]="statusTone(current)" />
+        <app-status-pill [label]="current.subscriptionTier" tone="neutral" />
+      </span>
+      <button class="button button-secondary" pageActions type="button" (click)="openWorkspace(current)">
+        Open workspace
+      </button>
+      @if (canManage()) {
+        <button
+          class="button"
+          pageActions
+          type="button"
+          [class.button-danger]="current.status !== 'suspended'"
+          [class.button-secondary]="current.status === 'suspended'"
+          (click)="current.status === 'suspended' ? toggleSuspension() : askSuspend()"
+        >
+          {{ current.status === 'suspended' ? 'Reactivate' : 'Suspend' }}
+        </button>
+      }
+    </app-page-header>
+
+    @if (notice(); as text) {
+      <p class="login-status" role="status">
+        {{ text }}
+        <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+      </p>
+    }
+
+    <nav class="detail-tabs" aria-label="Client sections">
+      @for (entry of tabs; track entry.id) {
+        <a
+          class="detail-tabs__link"
+          [routerLink]="[]"
+          [queryParams]="{ tab: entry.id }"
+          queryParamsHandling="merge"
+          [class.detail-tabs__link--active]="activeTab() === entry.id"
+          [attr.aria-current]="activeTab() === entry.id ? 'page' : null"
+        >
+          {{ entry.label }}
+        </a>
+      }
+    </nav>
+
+    @if (activeTab() === 'overview') {
+      <div class="surface detail-facts">
+        <dl class="detail-facts__grid">
+          <div><dt>Business</dt><dd>{{ current.businessName }}</dd></div>
+          <div><dt>Workspace</dt><dd><code>{{ current.subdomain }}.platform.com</code></dd></div>
+          <div><dt>Industry</dt><dd>{{ current.industry }}</dd></div>
+          <div><dt>City</dt><dd>{{ current.city }}</dd></div>
+          <div><dt>Plan</dt><dd>{{ current.subscriptionTier }}</dd></div>
+          <div><dt>Lifecycle</dt><dd>{{ statusLabel(current) }}</dd></div>
+          <div><dt>Onboarded</dt><dd>{{ when(current.createdAt) }} ({{ ago(current.createdAt) }})</dd></div>
+          <div>
+            <dt>WhatsApp</dt>
+            <dd>
+              @if (current.metaWabaId) {
+                WABA {{ current.metaWabaId }} · {{ current.phoneNumber ?? 'number pending' }}
+              } @else {
+                Not connected yet
+              }
+            </dd>
+          </div>
+          <div><dt>Seats in use</dt><dd>{{ count(members().length) }}</dd></div>
+          <div><dt>Contacts</dt><dd>{{ count(current.contactCount) }}</dd></div>
+          <div><dt>Messages / 30d</dt><dd>{{ count(current.monthlyMessages) }}</dd></div>
+          <div>
+            <dt>Connected</dt>
+            <dd>{{ current.connectedAt ? ago(current.connectedAt) : '—' }}</dd>
+          </div>
+        </dl>
+      </div>
+    }
+
+    @if (activeTab() === 'seats') {
+      <div class="metric-grid">
+        <div class="metric metric--brand">
+          <span class="metric__label">Seats in use</span>
+          <span class="metric__value">{{ count(members().length) }}</span>
+          <span class="metric__hint">of {{ limitLabel(plan()?.limits?.seats ?? null) }} on {{ current.subscriptionTier }}</span>
+        </div>
+        <div class="metric">
+          <span class="metric__label">Online now</span>
+          <span class="metric__value">{{ count(onlineMembers()) }}</span>
+          <span class="metric__hint">Staff currently signed in</span>
+        </div>
+      </div>
+
+      <app-data-table
+        [columns]="memberColumns"
+        [rows]="members()"
+        caption="Workspace staff and their chat load"
+        exportName="bugconnect-client-seats"
+        searchPlaceholder="Search staff"
+        emptyTitle="No staff yet"
+        emptyDescription="Members appear here once the admin accepts the invite."
+      >
+        <ng-template appCell="roleId" let-user>
+          {{ roleName(user.roleId) }}
+        </ng-template>
+        <ng-template appCell="status" let-user>
+          <app-status-pill
+            [label]="user.status"
+            [tone]="user.status === 'online' ? 'success' : user.status === 'away' ? 'warning' : 'neutral'"
+          />
+        </ng-template>
+      </app-data-table>
+    }
+
+    @if (activeTab() === 'whatsapp') {
+      <div class="surface detail-facts">
+        <dl class="detail-facts__grid">
+          <div>
+            <dt>Connection</dt>
+            <dd>
+              @if (current.metaWabaId) {
+                <app-status-pill label="Connected" tone="success" />
+              } @else {
+                <app-status-pill [label]="statusLabel(current)" [tone]="statusTone(current)" />
+              }
+            </dd>
+          </div>
+          <div><dt>WABA ID</dt><dd>{{ current.metaWabaId ?? '—' }}</dd></div>
+          <div><dt>Phone number ID</dt><dd>{{ current.metaPhoneNumberId ?? '—' }}</dd></div>
+          <div><dt>Customer-facing number</dt><dd>{{ current.phoneNumber ?? '—' }}</dd></div>
+          <div>
+            <dt>Connected</dt>
+            <dd>{{ current.connectedAt ? when(current.connectedAt) : 'Not connected yet' }}</dd>
+          </div>
+          <div>
+            <dt>Recent failures</dt>
+            <dd>
+              @if (failedWebhooks()) {
+                <app-status-pill [label]="failedWebhooks() + ' failed'" tone="danger" />
+              } @else {
+                <span class="data-table__subdued">none in the recent window</span>
+              }
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <section class="surface admin-panel" aria-label="Recent webhook activity">
+        <header class="admin-panel__head">
+          <div>
+            <p class="eyebrow">INGESTION</p>
+            <h2>Recent webhook activity</h2>
+          </div>
+          <a class="button button-secondary" routerLink="/health/monitor">Queue monitor</a>
+        </header>
+
+        @if (recentWebhookEvents().length) {
+          <ul class="event-list">
+            @for (event of recentWebhookEvents(); track event.id) {
+              <li class="event-list__item">
+                <span class="event-list__dot" [attr.data-outcome]="event.outcome" aria-hidden="true"></span>
+                <span class="event-list__main">
+                  <strong>{{ event.type }}</strong>
+                  <small class="text-muted">{{ event.outcome }} · {{ ago(event.receivedAt) }}</small>
+                </span>
+                <span class="event-list__ack">{{ event.ackMs }} ms</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="admin-panel__note text-muted">No webhook events recorded for this workspace yet.</p>
+        }
+      </section>
+    }
+
+    @if (activeTab() === 'subscription') {
+      <div class="surface detail-plan">
+        <div>
+          <p class="eyebrow">CURRENT TIER</p>
+          <h2>{{ current.subscriptionTier }}</h2>
+          <p class="text-muted">{{ plan()?.tagline }}</p>
+        </div>
+        @if (canManage()) {
+          <label class="form-field detail-plan__change">
+            <span>Move to tier</span>
+            <select
+              class="form-control"
+              [ngModel]="current.subscriptionTier"
+              (ngModelChange)="askTierChange($event)"
+              name="tier"
+            >
+              @for (tier of tiers; track tier) {
+                <option [value]="tier">{{ tier }}</option>
+              }
+            </select>
+          </label>
+        }
+      </div>
+
+      <div class="surface admin-panel">
+        <header class="admin-panel__head">
+          <div>
+            <p class="eyebrow">METERED USAGE</p>
+            <h2>Limits vs usage</h2>
+          </div>
+        </header>
+        <ul class="usage-list">
+          @for (row of usage(); track row.label) {
+            <li class="usage-list__item">
+              <span class="usage-list__label">{{ row.label }}</span>
+              <span class="usage-list__bar" role="img" [attr.aria-label]="row.label + ': ' + count(row.used) + ' of ' + limitLabel(row.limit)">
+                <span
+                  class="usage-list__fill"
+                  [attr.data-tone]="usageTone(row)"
+                  [style.width.%]="row.limit === null ? 100 : usagePercent(row)"
+                ></span>
+              </span>
+              <span class="usage-list__numbers">{{ count(row.used) }} / {{ limitLabel(row.limit) }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+
+      <app-data-table
+        [columns]="invoiceColumns"
+        [rows]="invoices()"
+        caption="Invoices for this workspace"
+        exportName="bugconnect-client-invoices"
+        searchPlaceholder="Search invoices"
+        emptyTitle="No invoices yet"
+        emptyDescription="Invoices appear here from the first billing cycle."
+      >
+        <ng-template appCell="status" let-invoice>
+          <app-status-pill [label]="invoice.status" [tone]="invoiceTone(invoice.status)" />
+        </ng-template>
+      </app-data-table>
+    }
+
+    @if (activeTab() === 'history') {
+      <ol class="timeline">
+        @for (item of timeline(); track item.at + item.title) {
+          <li class="timeline__item">
+            <span class="timeline__dot" aria-hidden="true"></span>
+            <div class="timeline__body">
+              <p class="timeline__title">{{ item.title }}</p>
+              <p class="timeline__detail text-muted">{{ item.detail }}</p>
+              <p class="timeline__when text-muted">{{ when(item.at) }}</p>
+            </div>
+          </li>
+        }
+      </ol>
+    }
+
+    <app-confirm-dialog
+      [open]="pendingSuspend()"
+      title="Suspend this workspace?"
+      [description]="current.businessName + ' will be locked out until reactivated.'"
+      confirmLabel="Suspend workspace"
+      (cancel)="pendingSuspend.set(false)"
+      (confirm)="toggleSuspension()"
+    />
+
+    <app-confirm-dialog
+      [open]="pendingTier() !== null"
+      title="Move to the {{ pendingTier() }} plan?"
+      description="Module access re-gates immediately for everyone in this workspace."
+      confirmLabel="Move plan"
+      (cancel)="pendingTier.set(null)"
+      (confirm)="confirmTierChange()"
+    />
+  </div>
+} @else {
+  <div class="workspace-page">
+    <app-page-header
+      eyebrow="NOT FOUND"
+      title="Client not found"
+      description="No workspace matches this address. It may have been archived."
+    >
+      <a class="button button-secondary" pageActions routerLink="/clients">All clients</a>
+    </app-page-header>
+  </div>
+}

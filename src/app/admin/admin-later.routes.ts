@@ -7,71 +7,11 @@ import type { PlannedConfig } from '../client/later/planned-module-page';
 /**
  * Platform stubs, kept out of admin.routes.ts so a wave can replace one module
  * without touching the route table.
+ *
+ * Wave 4 landed plans, subscriptions, meta-config and health as real modules;
+ * what remains here is genuinely later-wave work.
  */
 const ADMIN_PLANNED: Record<string, { capability: Capability | null; config: PlannedConfig }> = {
-  plans: {
-    capability: 'plans.manage',
-    config: {
-      eyebrow: 'COMMERCIAL',
-      title: 'Plans & features',
-      phase: 'Built in wave 4',
-      icon: '◔',
-      description:
-        'What each plan gates. The nine dimensions the PRD lists are the controls; module access is the feature matrix.',
-      includes: [
-        'Users, WhatsApp numbers, flows, campaigns, contacts',
-        'Automation depth, developer APIs, analytics retention, support',
-        'Module → plan matrix that unlocks the client sidebar',
-      ],
-      note: 'Client workspaces already read this matrix — a tenant on Pilot cannot see a Growth module even if its role allows it.',
-    },
-  },
-  subscriptions: {
-    capability: 'clients.view',
-    config: {
-      eyebrow: 'COMMERCIAL',
-      title: 'Subscriptions',
-      phase: 'Built in wave 4',
-      icon: '▤',
-      description:
-        'Trial, active, grace and expired state per tenant, with what triggered the change.',
-      includes: ['Lifecycle transitions', 'Renewal and grace handling', 'Suspension reasons'],
-      note: 'Suspension already works from the Clients list; this screen is its history.',
-    },
-  },
-  metaConfig: {
-    capability: 'meta.manage',
-    config: {
-      eyebrow: 'PLATFORM',
-      title: 'Meta app & webhook',
-      phase: 'Built in wave 4',
-      icon: '◍',
-      description:
-        'The single Meta Business app the platform embeds signup through, plus the callback the webhooks hit.',
-      includes: [
-        'App id, app secret reference and API version',
-        'Callback URL and verify token',
-        'Test numbers per tenant',
-      ],
-      note: 'Credentials are referenced here, never stored in the browser. With dummy data there is nothing to read yet.',
-    },
-  },
-  health: {
-    capability: 'health.view',
-    config: {
-      eyebrow: 'PLATFORM',
-      title: 'Webhook health',
-      phase: 'Built in wave 4',
-      icon: '❤',
-      description:
-        'Meta needs a 200 inside three seconds. This is acknowledgement latency, queue depth and failures by tenant.',
-      includes: [
-        'Ack time per event against the 150 ms target',
-        'Queue depth and retry backlog',
-        'Failed and duplicate events',
-      ],
-    },
-  },
   analytics: {
     capability: 'analytics.view',
     config: {
@@ -131,10 +71,6 @@ function adminStub(key: keyof typeof ADMIN_PLANNED): Routes {
   ];
 }
 
-export const PLANS_ROUTES = adminStub('plans');
-export const SUBSCRIPTIONS_ROUTES = adminStub('subscriptions');
-export const META_CONFIG_ROUTES = adminStub('metaConfig');
-export const HEALTH_ROUTES = adminStub('health');
 export const ANALYTICS_ROUTES = adminStub('analytics');
 export const ANNOUNCEMENTS_ROUTES = adminStub('announcements');
 export const PLATFORM_AUDIT_ROUTES = adminStub('audit');

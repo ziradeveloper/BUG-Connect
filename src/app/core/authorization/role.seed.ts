@@ -24,6 +24,7 @@ const PLATFORM_ALL_MENUS: MenuKey[] = [
   'clients',
   'plans',
   'subscriptions',
+  'invoices',
   'users',
   'roles',
   'analytics',
@@ -148,6 +149,22 @@ export const SEED_ROLES: Role[] = [
     memberCount: 0,
   },
   {
+    id: 'role-developer',
+    name: 'Integration User',
+    description:
+      'Builds on the workspace APIs: Developer Hub and read-only settings. No inbox, staff or billing access.',
+    scope: 'client',
+    menus: ['dashboard', 'developer', 'settings', 'profile'],
+    capabilities: capabilities([
+      ['dashboard.view', 'view'],
+      ['developer.manage', 'full'],
+      ['settings.view', 'view'],
+      ['profile.manage', 'full'],
+    ]),
+    system: true,
+    memberCount: 0,
+  },
+  {
     id: 'role-platform-owner',
     name: 'Platform Owner',
     description: 'Manages plans, provisioning, Meta configuration and platform health.',
@@ -196,7 +213,10 @@ export const SEED_ROLES: Role[] = [
   },
 ];
 
-/** Plan → modules. `plans/:id/features` edits this matrix. */
+/**
+ * Plan → modules. Seeds `MockDataService.plans`; `/plans/matrix` edits the
+ * live rows from there, and `PermissionService.planModules` reads them back.
+ */
 export const PLAN_MODULES: Record<string, MenuKey[]> = {
   Pilot: [
     'dashboard',

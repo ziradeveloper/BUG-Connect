@@ -1,0 +1,193 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="WORKSPACE"
+    title="Business profile"
+    description="Identity, operating hours and the out-of-hours auto-responder. Flow conditions read these hours."
+  >
+    @if (profile()) {
+      <span class="data-table__subdued" pageActions>
+        Updated {{ formatDateTime(profile()!.updatedAt) }}
+      </span>
+    }
+  </app-page-header>
+
+  @if (notice()) {
+    <p class="ops-notice" role="status">
+      {{ notice() }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+  @if (error()) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ error() }}
+      <button class="form-link" type="button" (click)="error.set(null)">Dismiss</button>
+    </p>
+  }
+
+  @if (loading()) {
+    <p class="ops-muted">Loading the business profile…</p>
+  } @else if (draft(); as editing) {
+    <div class="ops-split">
+      <section class="ops-card" aria-label="Business identity">
+        <h2 class="ops-card__title">Identity</h2>
+
+        <div class="form-field">
+          <label for="business-name">Display name</label>
+          <input
+            id="business-name"
+            class="form-control"
+            type="text"
+            [ngModel]="editing.displayName"
+            (ngModelChange)="update({ displayName: $event })"
+            [disabled]="!canManage()"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="business-about">About</label>
+          <textarea
+            id="business-about"
+            class="form-control"
+            rows="2"
+            [ngModel]="editing.about"
+            (ngModelChange)="update({ about: $event })"
+            [disabled]="!canManage()"
+          ></textarea>
+        </div>
+
+        <div class="form-field">
+          <label for="business-address">Address</label>
+          <input
+            id="business-address"
+            class="form-control"
+            type="text"
+            [ngModel]="editing.address"
+            (ngModelChange)="update({ address: $event })"
+            [disabled]="!canManage()"
+          />
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="business-email">Business email</label>
+            <input
+              id="business-email"
+              class="form-control"
+              [class.form-control--invalid]="emailError() !== null"
+              type="email"
+              [ngModel]="editing.email"
+              (ngModelChange)="update({ email: $event })"
+              [disabled]="!canManage()"
+            />
+            @if (emailError()) {
+              <small class="field-error">{{ emailError() }}</small>
+            }
+          </div>
+          <div class="form-field">
+            <label for="business-timezone">Timezone</label>
+            <select
+              id="business-timezone"
+              class="form-control"
+              [ngModel]="editing.timezone"
+              (ngModelChange)="update({ timezone: $event })"
+              [disabled]="!canManage()"
+            >
+              @for (zone of timezones; track zone) {
+                <option [value]="zone">{{ zone }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="business-greeting">Greeting for new chats</label>
+          <textarea
+            id="business-greeting"
+            class="form-control"
+            rows="2"
+            [ngModel]="editing.greetingText"
+            (ngModelChange)="update({ greetingText: $event })"
+            [disabled]="!canManage()"
+          ></textarea>
+        </div>
+      </section>
+
+      <div class="ops-stack">
+        <section class="ops-card" aria-label="Operating hours">
+          <h2 class="ops-card__title">Operating hours</h2>
+          <div class="ops-hours">
+            @for (day of editing.hours; track day.day) {
+              <div class="ops-hours__row">
+                <label class="ops-check">
+                  <input
+                    type="checkbox"
+                    [checked]="day.open"
+                    (change)="updateDay($index, { open: $any($event.target).checked })"
+                    [disabled]="!canManage()"
+                  />
+                  {{ day.day }}
+                </label>
+                <input
+                  class="form-control"
+                  type="time"
+                  aria-label="Opens {{ day.day }}"
+                  [ngModel]="day.start"
+                  (ngModelChange)="updateDay($index, { start: $event })"
+                  [disabled]="!canManage() || !day.open"
+                />
+                <span class="ops-muted">–</span>
+                <input
+                  class="form-control"
+                  type="time"
+                  aria-label="Closes {{ day.day }}"
+                  [ngModel]="day.end"
+                  (ngModelChange)="updateDay($index, { end: $event })"
+                  [disabled]="!canManage() || !day.open"
+                />
+              </div>
+            }
+          </div>
+          @if (hoursError()) {
+            <small class="field-error">{{ hoursError() }}</small>
+          }
+        </section>
+
+        <section class="ops-card" aria-label="Auto-responder">
+          <h2 class="ops-card__title">Out-of-hours auto-responder</h2>
+          <label class="ops-check">
+            <input
+              type="checkbox"
+              [ngModel]="editing.autoResponderEnabled"
+              (ngModelChange)="update({ autoResponderEnabled: $event })"
+              [disabled]="!canManage()"
+            />
+            Reply automatically when the workspace is closed
+          </label>
+          <div class="form-field">
+            <label for="business-autoreply">Auto-reply text</label>
+            <textarea
+              id="business-autoreply"
+              class="form-control"
+              rows="3"
+              [ngModel]="editing.autoResponderText"
+              (ngModelChange)="update({ autoResponderText: $event })"
+              [disabled]="!canManage() || !editing.autoResponderEnabled"
+            ></textarea>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    @if (canManage()) {
+      <div class="ops-actions">
+        <button class="button button-primary" type="button" [disabled]="saving()" (click)="save()">
+          {{ saving() ? 'Saving…' : 'Save profile' }}
+        </button>
+      </div>
+    } @else {
+      <p class="ops-muted">Your role can view these settings but not change them.</p>
+    }
+  } @else {
+    <p class="ops-muted">No business profile exists for this workspace yet.</p>
+  }
+</div>

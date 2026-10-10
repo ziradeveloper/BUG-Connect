@@ -1,0 +1,64 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="COMMERCIAL"
+    title="Subscriptions"
+    description="Trial, active, grace and expired state per tenant, with what triggered the change."
+  >
+    <a class="button button-secondary" pageActions routerLink="/subscriptions/log">Lifecycle log</a>
+    <a class="button button-secondary" pageActions routerLink="/invoices">Invoices</a>
+  </app-page-header>
+
+  <div class="metric-grid">
+    <div class="metric">
+      <span class="metric__label">Tenants</span>
+      <span class="metric__value">{{ summary().total }}</span>
+      <span class="metric__hint">Every provisioned workspace</span>
+    </div>
+    <div class="metric metric--brand">
+      <span class="metric__label">Active</span>
+      <span class="metric__value">{{ summary().active }}</span>
+      <span class="metric__hint">Paying and connected</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">On trial</span>
+      <span class="metric__value">{{ summary().trial }}</span>
+      <span class="metric__hint">Yet to convert</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Needs attention</span>
+      <span class="metric__value">{{ summary().attention }}</span>
+      <span class="metric__hint">Grace, expired or suspended</span>
+    </div>
+  </div>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    caption="Subscription state per tenant"
+    exportName="bugconnect-subscriptions"
+    searchPlaceholder="Search by business or state"
+    emptyTitle="No subscriptions match this filter"
+    emptyDescription="Workspaces appear here once they are provisioned."
+  >
+    <ng-template appCell="businessName" let-row>
+      <strong class="data-table__primary">{{ row.businessName }}</strong>
+      <small class="data-table__subdued">{{ row.subdomain }}.platform.com</small>
+    </ng-template>
+
+    <ng-template appCell="state" let-row>
+      <app-status-pill [label]="stateLabel(row.state)" [tone]="stateTone(row.state)" />
+    </ng-template>
+
+    <ng-template appCell="stateReason" let-row>
+      <span class="data-table__subdued">{{ row.stateReason }}</span>
+    </ng-template>
+
+    <ng-template appCell="actions" let-row>
+      <span class="data-table__actions">
+        <a class="data-table__action" [routerLink]="['/clients', row.id]" [queryParams]="{ tab: 'subscription' }">
+          Open
+        </a>
+      </span>
+    </ng-template>
+  </app-data-table>
+</div>

@@ -1,0 +1,125 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="WORKSPACE"
+    title="Quick replies"
+    description="Slash-command snippets agents expand in the inbox composer — shared across the workspace."
+  >
+    @if (canManage()) {
+      <button class="button button-primary" pageActions type="button" (click)="newReply()">
+        New snippet
+      </button>
+    }
+  </app-page-header>
+
+  @if (notice()) {
+    <p class="ops-notice" role="status">
+      {{ notice() }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+  @if (error()) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ error() }}
+      <button class="form-link" type="button" (click)="error.set(null)">Dismiss</button>
+    </p>
+  }
+
+  @if (loading()) {
+    <p class="ops-muted">Loading snippets…</p>
+  } @else if (replies().length) {
+    <ul class="ops-reply-list">
+      @for (reply of replies(); track reply.id) {
+        <li class="ops-card ops-reply">
+          <div class="ops-reply__head">
+            <code class="ops-reply__trigger">{{ reply.trigger }}</code>
+            <span class="ops-muted">{{ reply.title }}</span>
+          </div>
+          <p class="ops-reply__body">{{ reply.body }}</p>
+          <div class="ops-reply__foot">
+            <span class="ops-muted">
+              Used {{ reply.usageCount }} times · updated {{ formatRelative(reply.updatedAt) }}
+            </span>
+            @if (canManage()) {
+              <span class="ops-reply__actions">
+                <button class="button button-secondary button-sm" type="button" (click)="edit(reply)">
+                  Edit
+                </button>
+                <button
+                  class="button button-ghost button-sm"
+                  type="button"
+                  (click)="pendingDelete.set(reply)"
+                >
+                  Delete
+                </button>
+              </span>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="ops-muted">No snippets yet — agents currently see no slash suggestions.</p>
+  }
+
+  @if (draft(); as editing) {
+    <section class="ops-card" aria-label="Snippet editor">
+      <h2 class="ops-card__title">{{ editing.id ? 'Edit snippet' : 'New snippet' }}</h2>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="reply-trigger">Trigger</label>
+          <input
+            id="reply-trigger"
+            class="form-control data-table__mono"
+            type="text"
+            placeholder="/track"
+            [ngModel]="editing.trigger"
+            (ngModelChange)="update({ trigger: $event })"
+          />
+          @if (triggerError(editing) && editing.trigger.length > 1) {
+            <small class="field-error">{{ triggerError(editing) }}</small>
+          }
+        </div>
+        <div class="form-field">
+          <label for="reply-title">Title</label>
+          <input
+            id="reply-title"
+            class="form-control"
+            type="text"
+            placeholder="Order tracking"
+            [ngModel]="editing.title"
+            (ngModelChange)="update({ title: $event })"
+          />
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label for="reply-body">Body — what the agent sends</label>
+        <textarea
+          id="reply-body"
+          class="form-control"
+          rows="3"
+          placeholder="Share your order number and we will send the live delivery status."
+          [ngModel]="editing.body"
+          (ngModelChange)="update({ body: $event })"
+        ></textarea>
+      </div>
+
+      <div class="ops-actions">
+        <button class="button button-primary" type="button" [disabled]="saving()" (click)="save()">
+          {{ saving() ? 'Saving…' : editing.id ? 'Save snippet' : 'Create snippet' }}
+        </button>
+        <button class="button button-ghost" type="button" (click)="draft.set(null)">Cancel</button>
+      </div>
+    </section>
+  }
+
+  <app-confirm-dialog
+    [open]="pendingDelete() !== null"
+    [title]="'Delete ' + (pendingDelete()?.trigger ?? '') + '?'"
+    description="Agents will stop seeing this suggestion in the composer."
+    confirmLabel="Delete snippet"
+    (cancel)="pendingDelete.set(null)"
+    (confirm)="confirmDelete()"
+  />
+</div>

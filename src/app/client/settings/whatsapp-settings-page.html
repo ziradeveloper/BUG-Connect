@@ -1,0 +1,88 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="WORKSPACE"
+    title="WhatsApp connection"
+    description="The number customers message and the Business Account behind it. Connection runs through Meta's Embedded Signup."
+  >
+    <a class="button button-secondary" pageActions routerLink="/settings">All settings</a>
+  </app-page-header>
+
+  @if (tenant(); as current) {
+    <div class="surface detail-facts">
+      <dl class="detail-facts__grid">
+        <div>
+          <dt>Status</dt>
+          <dd>
+            @if (connected()) {
+              <app-status-pill label="Connected" tone="success" />
+            } @else {
+              <app-status-pill label="Not connected" tone="warning" />
+            }
+          </dd>
+        </div>
+        <div><dt>WABA ID</dt><dd>{{ current.metaWabaId ?? '—' }}</dd></div>
+        <div><dt>Phone number ID</dt><dd>{{ current.metaPhoneNumberId ?? '—' }}</dd></div>
+        <div><dt>Customer-facing number</dt><dd>{{ current.phoneNumber ?? '—' }}</dd></div>
+        <div><dt>Connected</dt><dd>{{ when(current.connectedAt) }}</dd></div>
+        <div>
+          <dt>Recent failures</dt>
+          <dd>
+            @if (failedEvents()) {
+              <app-status-pill [label]="failedEvents() + ' failed'" tone="danger" />
+            } @else {
+              <span class="data-table__subdued">none in the recent window</span>
+            }
+          </dd>
+        </div>
+      </dl>
+
+      @if (!connected()) {
+        <footer class="meta-actions">
+          <p class="text-muted">
+            Connecting opens Meta's signup and returns here with an authorization code.
+            @if (!canManage()) {
+              Your role can view this screen but cannot connect the number.
+            }
+          </p>
+          <span class="wizard-card__spacer"></span>
+          <button
+            class="button button-primary"
+            type="button"
+            (click)="connect()"
+            [disabled]="!canManage()"
+          >
+            Connect via Meta
+          </button>
+        </footer>
+      }
+    </div>
+
+    <section class="surface admin-panel" aria-label="Sync health">
+      <header class="admin-panel__head">
+        <div>
+          <p class="eyebrow">SYNC HEALTH</p>
+          <h2>Recent webhook deliveries</h2>
+        </div>
+      </header>
+
+      @if (recentEvents().length) {
+        <ul class="event-list">
+          @for (event of recentEvents(); track event.id) {
+            <li class="event-list__item">
+              <span class="event-list__dot" [attr.data-outcome]="event.outcome" aria-hidden="true"></span>
+              <span class="event-list__main">
+                <strong>{{ event.type }}</strong>
+                <small class="text-muted">{{ event.outcome }} · {{ ago(event.receivedAt) }}</small>
+              </span>
+              <span class="event-list__ack">{{ event.ackMs }} ms</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="admin-panel__note text-muted">No deliveries recorded for this workspace yet.</p>
+      }
+    </section>
+  } @else {
+    <p class="admin-panel__note text-muted">No workspace is resolved for this host.</p>
+  }
+</div>

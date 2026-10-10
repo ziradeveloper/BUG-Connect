@@ -9,7 +9,7 @@ import {
   PLATFORM_MENU,
   type MenuEntry,
 } from '../navigation/menu-catalog';
-import { DEFAULT_PLAN_MODULES, PLAN_MODULES, SEED_ROLES } from './role.seed';
+import { DEFAULT_PLAN_MODULES, SEED_ROLES } from './role.seed';
 import {
   atLeast,
   CAPABILITY_MENUS,
@@ -101,14 +101,19 @@ export class PermissionService {
     return catalogue.filter((entry) => !allowed.has(entry.key) && !entry.hidden);
   });
 
-  /** Plan gating is layered on top of role gating (Admin owns plans). */
+  /**
+   * Plan gating is layered on top of role gating. The modules come from the
+   * live plan records — `/plans/matrix` edits the same rows — so a tier change
+   * re-gates the client sidebar without a reload.
+   */
   readonly planModules = computed<Set<MenuKey>>(() => {
     if (this.workspace.isPlatform()) {
       return new Set(PLATFORM_MENU.map((entry) => entry.key));
     }
 
     const tier = this.data.currentTenant()?.subscriptionTier ?? 'Pilot';
-    return new Set<MenuKey>(PLAN_MODULES[tier] ?? DEFAULT_PLAN_MODULES);
+    const plan = this.data.planForTier(tier);
+    return new Set<MenuKey>((plan?.modules ?? DEFAULT_PLAN_MODULES) as MenuKey[]);
   });
 
   readonly visibleMenu = computed<MenuEntry[]>(() => {
@@ -124,8 +129,6 @@ export class PermissionService {
   can(capability: Capability, required: AccessLevel = 'view'): boolean {
     const role = this.activeRole();
 
-    console.log('[PermissionService.can]', capability, { role, menus: role?.menus, cap: role?.capabilities[capability], required });
-
     if (!role) {
       // Unauthenticated or unknown role: allow nothing beyond what the catalogue
       // leaves open, so the guard sends the user to /no-access.
@@ -137,13 +140,10 @@ export class PermissionService {
     const menus = CAPABILITY_MENUS.get(capability);
 
     if (menus?.length && !menus.some((key) => role.menus.includes(key))) {
-      console.log('[PermissionService.can] Failed menu check', menus);
       return false;
     }
 
-    const level = atLeast(role.capabilities[capability], required);
-    console.log('[PermissionService.can] atLeast:', level);
-    return level;
+    return atLeast(role.capabilities[capability], required);
   }
 
   levelFor(capability: Capability): AccessLevel {

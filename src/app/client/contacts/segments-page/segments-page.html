@@ -1,0 +1,242 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="OPERATIONS"
+    title="Contact segments"
+    description="Saved audiences for campaigns, evaluated live against the workspace contacts."
+  >
+    @if (canManage()) {
+      <button class="button button-primary" pageActions type="button" (click)="newSegment()">
+        New segment
+      </button>
+    }
+  </app-page-header>
+
+  @if (notice()) {
+    <p class="ops-notice" role="status">
+      {{ notice() }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+  @if (error()) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ error() }}
+      <button class="form-link" type="button" (click)="error.set(null)">Dismiss</button>
+    </p>
+  }
+
+  <div class="ops-split">
+    <section class="ops-card" aria-label="Saved segments">
+      <h2 class="ops-card__title">Saved</h2>
+      @if (segments().length) {
+        <ul class="ops-list">
+          @for (segment of segments(); track segment.id) {
+            <li>
+              <button
+                type="button"
+                class="ops-list__item"
+                [class.ops-list__item--active]="isSelected(segment)"
+                (click)="select(segment)"
+              >
+                <span class="ops-list__main">
+                  <strong>{{ segment.name }}</strong>
+                  <span class="ops-muted">
+                    {{ segment.rules.length }} rules · match {{ segment.match }}
+                  </span>
+                </span>
+                <app-status-pill [label]="matchCount(segment) + ' contacts'" tone="info" />
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="ops-muted">No segments yet — create the first audience.</p>
+      }
+    </section>
+
+    <section class="ops-card" aria-label="Segment builder">
+      @if (draft().id || draft().rules.length) {
+        <h2 class="ops-card__title">{{ draft().id ? 'Edit segment' : 'New segment' }}</h2>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="segment-name">Name</label>
+            <input
+              id="segment-name"
+              class="form-control"
+              type="text"
+              placeholder="e.g. VIP repeat buyers"
+              [ngModel]="draft().name"
+              (ngModelChange)="updateDraft({ name: $event })"
+              [disabled]="!canManage()"
+            />
+          </div>
+          <div class="form-field">
+            <label for="segment-description">Description</label>
+            <input
+              id="segment-description"
+              class="form-control"
+              type="text"
+              placeholder="Who is this audience for?"
+              [ngModel]="draft().description"
+              (ngModelChange)="updateDraft({ description: $event })"
+              [disabled]="!canManage()"
+            />
+          </div>
+        </div>
+
+        <fieldset class="ops-fieldset" [disabled]="!canManage()">
+          <legend>Match</legend>
+          <label class="ops-radio">
+            <input
+              type="radio"
+              name="segment-match"
+              [checked]="draft().match === 'all'"
+              (change)="updateDraft({ match: 'all' })"
+            />
+            All rules (AND)
+          </label>
+          <label class="ops-radio">
+            <input
+              type="radio"
+              name="segment-match"
+              [checked]="draft().match === 'any'"
+              (change)="updateDraft({ match: 'any' })"
+            />
+            Any rule (OR)
+          </label>
+        </fieldset>
+
+        <div class="ops-rules">
+          @for (rule of draft().rules; track $index) {
+            <div class="ops-rule">
+              <span class="ops-rule__join">
+                @if ($index > 0) {
+                  {{ draft().match === 'all' ? 'AND' : 'OR' }}
+                }
+              </span>
+              <select
+                class="form-control"
+                [attr.aria-label]="'Rule ' + ($index + 1) + ' field'"
+                [ngModel]="rule.field"
+                (ngModelChange)="updateRule($index, { field: $event })"
+                [disabled]="!canManage()"
+              >
+                @for (meta of fieldMeta; track meta.field) {
+                  <option [value]="meta.field">{{ meta.label }}</option>
+                }
+              </select>
+              <select
+                class="form-control"
+                [attr.aria-label]="'Rule ' + ($index + 1) + ' operator'"
+                [ngModel]="rule.operator"
+                (ngModelChange)="updateRule($index, { operator: $event })"
+                [disabled]="!canManage()"
+              >
+                @for (op of operatorsFor(rule.field); track op.value) {
+                  <option [value]="op.value">{{ op.label }}</option>
+                }
+              </select>
+              @if (metaFor(rule.field).options; as options) {
+                <select
+                  class="form-control"
+                  [attr.aria-label]="'Rule ' + ($index + 1) + ' value'"
+                  [ngModel]="rule.value || options[0]"
+                  (ngModelChange)="updateRule($index, { value: $event })"
+                  [disabled]="!canManage()"
+                >
+                  @for (option of options; track option) {
+                    <option [value]="option">{{ option }}</option>
+                  }
+                </select>
+              } @else {
+                <input
+                  class="form-control"
+                  type="text"
+                  [placeholder]="metaFor(rule.field).placeholder"
+                  [attr.aria-label]="'Rule ' + ($index + 1) + ' value'"
+                  [ngModel]="rule.value"
+                  (ngModelChange)="updateRule($index, { value: $event })"
+                  [disabled]="!canManage()"
+                />
+              }
+              @if (canManage()) {
+                <button
+                  class="button button-ghost button-sm"
+                  type="button"
+                  [attr.aria-label]="'Remove rule ' + ($index + 1)"
+                  (click)="removeRule($index)"
+                >
+                  ✕
+                </button>
+              }
+            </div>
+          } @empty {
+            <p class="ops-muted">No rules — an empty segment matches everyone under AND.</p>
+          }
+        </div>
+
+        @if (canManage()) {
+          <div class="ops-actions">
+            <button class="button button-ghost button-sm" type="button" (click)="addRule()">
+              + Add rule
+            </button>
+          </div>
+        }
+
+        <div class="ops-preview">
+          <strong>{{ preview().length }} contacts match</strong>
+          <span class="ops-muted">
+            @for (match of preview().slice(0, 4); track match.id) {
+              {{ match.displayName }}@if (!$last) { · }
+            }
+            @if (preview().length > 4) {
+              and {{ preview().length - 4 }} more
+            }
+            @if (!preview().length) {
+              No contacts match these rules yet.
+            }
+          </span>
+        </div>
+
+        @if (canManage()) {
+          <div class="ops-actions">
+            <button
+              class="button button-primary"
+              type="button"
+              [disabled]="saving()"
+              (click)="save()"
+            >
+              {{ saving() ? 'Saving…' : draft().id ? 'Save segment' : 'Create segment' }}
+            </button>
+            @if (draft().id) {
+              <button
+                class="button button-danger"
+                type="button"
+                (click)="pendingDelete.set(segments().find((s) => s.id === draft().id) ?? null)"
+              >
+                Delete
+              </button>
+            }
+          </div>
+        }
+      } @else {
+        <h2 class="ops-card__title">Segment builder</h2>
+        <p class="ops-muted">Select a segment to inspect its rules, or start a new audience.</p>
+        @if (canManage()) {
+          <button class="button button-secondary" type="button" (click)="newSegment()">
+            New segment
+          </button>
+        }
+      }
+    </section>
+  </div>
+
+  <app-confirm-dialog
+    [open]="pendingDelete() !== null"
+    [title]="'Delete “' + (pendingDelete()?.name ?? '') + '”?'"
+    description="Campaigns built on this audience will need a new one."
+    confirmLabel="Delete segment"
+    (cancel)="pendingDelete.set(null)"
+    (confirm)="confirmDelete()"
+  />
+</div>

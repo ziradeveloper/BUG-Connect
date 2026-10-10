@@ -38,32 +38,6 @@ const PLANNED = {
     ],
     note: 'The dashboard already reads these same conversations, so the queue is the next layer on data that exists.',
   },
-  templates: {
-    eyebrow: 'AUTOMATION',
-    title: 'Template Manager',
-    phase: 'Built in wave 3',
-    icon: '◨',
-    description:
-      'The catalogue of message templates, their Meta approval status, languages and variables.',
-    includes: [
-      'Template list with category, language and status',
-      'Variable definitions before submission',
-      'Synchronisation with the workspace Meta assets',
-      'Selectable from campaigns and flows',
-    ],
-  },
-  teams: {
-    eyebrow: 'WORKSPACE',
-    title: 'Teams & routing',
-    phase: 'Built in wave 3',
-    icon: '◭',
-    description: 'Departments, queue ownership and which team a flow hands a conversation to.',
-    includes: [
-      'Department list with members',
-      'Default team per conversation type',
-      'Escalation targets for handoff nodes',
-    ],
-  },
   flows: {
     eyebrow: 'AUTOMATION',
     title: 'Flow Builder',
@@ -148,42 +122,12 @@ const PLANNED = {
       'Exportable history',
     ],
   },
-  quickReplies: {
-    eyebrow: 'WORKSPACE',
-    title: 'Quick replies',
-    phase: 'Built in wave 3',
-    icon: '✎',
-    description: 'Saved snippets agents insert with a slash command in the composer.',
-    includes: [
-      'Trigger phrase and body per snippet',
-      'Reusable from the inbox composer',
-      'Shared across the workspace',
-    ],
-  },
-  settings: {
-    eyebrow: 'WORKSPACE',
-    title: 'Workspace settings',
-    phase: 'Built in wave 3 and 4',
-    icon: '⚙',
-    description:
-      'Business profile, operating hours, the WhatsApp connection and everything else configured once by an administrator.',
-    includes: [
-      'Business profile and greeting',
-      'Working hours and holiday fallback (flow conditions read these)',
-      'WhatsApp connection and sync health',
-      'Meta Embedded Signup for self-service connection',
-    ],
-  },
 } satisfies Record<string, PlannedConfig>;
 
 export const INBOX_ROUTES = stub('inbox.view', PLANNED.inbox);
-export const TEMPLATE_ROUTES = stub('templates.view', PLANNED.templates);
-export const TEAMS_ROUTES = stub('teams.view', PLANNED.teams);
 export const FLOW_ROUTES = stub('flows.view', PLANNED.flows);
 export const CAMPAIGN_ROUTES = stub('campaigns.view', PLANNED.campaigns);
 export const REPORTS_ROUTES = stub('reports.view', PLANNED.reports);
 export const DEVELOPER_ROUTES = stub('developer.manage', PLANNED.developer);
 export const BILLING_ROUTES = stub('billing.view', PLANNED.billing);
 export const AUDIT_ROUTES = stub('audit.view', PLANNED.audit);
-export const QUICK_REPLIES_ROUTES = stub('settings.view', PLANNED.quickReplies);
-export const SETTINGS_ROUTES = stub('settings.view', PLANNED.settings);

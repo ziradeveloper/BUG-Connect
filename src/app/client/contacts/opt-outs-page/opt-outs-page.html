@@ -1,0 +1,84 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="OPERATIONS"
+    title="Opt-out list"
+    description="Contacts excluded from every marketing send. Campaigns check this list before each batch."
+  >
+    <span class="data-table__subdued" pageActions>
+      @if (lastSyncAt()) {
+        Last synced {{ formatDateTime(lastSyncAt()) }}
+      } @else {
+        Not synced this session
+      }
+    </span>
+    @if (canManage()) {
+      <button
+        pageActions
+        class="button button-secondary"
+        type="button"
+        [disabled]="syncing()"
+        (click)="syncNow()"
+      >
+        {{ syncing() ? 'Syncing…' : 'Sync from Meta' }}
+      </button>
+    }
+  </app-page-header>
+
+  @if (notice()) {
+    <p class="ops-notice" role="status">
+      {{ notice() }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Opted out</span>
+      <span class="metric__value">{{ rows().length }}</span>
+      <span class="metric__hint">Excluded from marketing</span>
+    </div>
+  </div>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="loading()"
+    [error]="error()"
+    caption="Opted-out workspace contacts"
+    exportName="bugconnect-opt-outs"
+    searchPlaceholder="Search by name or WhatsApp ID"
+    emptyTitle="Nobody opted out"
+    emptyDescription="Every contact in this workspace can currently receive marketing messages."
+  >
+    <ng-template appCell="displayName" let-contact>
+      <a class="ops-link" [routerLink]="['/contacts', contact.id]">
+        {{ contact.displayName }}
+      </a>
+    </ng-template>
+
+    <ng-template appCell="tags" let-contact>
+      <span class="contact-tag-list">
+        @for (tag of contact.tags; track tag) {
+          <span class="contact-tag">{{ tag }}</span>
+        } @empty {
+          <span class="data-table__subdued">—</span>
+        }
+      </span>
+    </ng-template>
+
+    <ng-template appCell="actions" let-contact>
+      @if (canManage()) {
+        <button
+          class="button button-ghost button-sm"
+          type="button"
+          [disabled]="actingId() === contact.id"
+          (click)="resubscribe(contact)"
+        >
+          {{ actingId() === contact.id ? 'Saving…' : 'Resubscribe' }}
+        </button>
+      } @else {
+        <app-status-pill label="Opted out" tone="danger" />
+      }
+    </ng-template>
+  </app-data-table>
+</div>

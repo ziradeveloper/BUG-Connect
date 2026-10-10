@@ -19,6 +19,7 @@ export type MenuKey =
   | 'clients'
   | 'plans'
   | 'subscriptions'
+  | 'invoices'
   | 'metaConfig'
   | 'health'
   | 'announcements'
@@ -99,6 +100,7 @@ export const MENU_CAPABILITY: Record<MenuKey, Capability> = {
   clients: 'clients.view',
   plans: 'plans.manage',
   subscriptions: 'clients.view',
+  invoices: 'clients.view',
   metaConfig: 'meta.manage',
   health: 'health.view',
   announcements: 'announcements.manage',

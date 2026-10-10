@@ -1,0 +1,47 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="COMMERCIAL"
+    title="Plans & features"
+    description="What each tier meters and which modules it unlocks. Edits re-gate every workspace on that tier immediately."
+  >
+    <a class="button button-secondary" pageActions routerLink="/plans/matrix">Feature matrix</a>
+    @if (canEdit()) {
+      <a class="button button-primary" pageActions routerLink="/plans/edit">Edit limits</a>
+    }
+  </app-page-header>
+
+  <div class="tier-grid">
+    @for (card of cards(); track card.plan.tier) {
+      <section class="surface tier-card" [attr.aria-label]="card.plan.tier + ' plan'">
+        <header class="tier-card__head">
+          <div>
+            <p class="eyebrow">{{ card.plan.tier.toUpperCase() }}</p>
+            <h2>{{ price(card.plan) }}</h2>
+          </div>
+          <app-status-pill [label]="card.workspaces + ' workspaces'" tone="neutral" />
+        </header>
+
+        <p class="text-muted">{{ card.plan.tagline }}</p>
+
+        <dl class="tier-card__limits">
+          @for (row of card.limits; track row.label) {
+            <div>
+              <dt>{{ row.label }}</dt>
+              <dd>{{ limitValue(row.value) }}</dd>
+            </div>
+          }
+        </dl>
+
+        <p class="tier-card__modules">
+          <strong>{{ card.plan.modules.length }}</strong> modules unlocked
+        </p>
+        <p class="text-muted tier-card__support">{{ card.plan.supportSla }}</p>
+      </section>
+    }
+  </div>
+
+  <p class="planned-note text-muted">
+    Prices show as Custom until the commercial model is confirmed — the platform never invents
+    price numbers. Limits and module access above are the enforceable part of each plan.
+  </p>
+</div>

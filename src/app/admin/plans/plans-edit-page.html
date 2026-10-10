@@ -1,0 +1,67 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="COMMERCIAL"
+    title="Edit plan limits"
+    description="Metered caps per tier. Unlimited is stored as no cap, exactly how the usage meters read it."
+  >
+    <a class="button button-secondary" pageActions routerLink="/plans">All plans</a>
+    <a class="button button-secondary" pageActions routerLink="/plans/matrix">Feature matrix</a>
+  </app-page-header>
+
+  <nav class="detail-tabs" aria-label="Tiers">
+    @for (entry of tiers; track entry) {
+      <a
+        class="detail-tabs__link"
+        [routerLink]="[]"
+        [queryParams]="{ tier: entry }"
+        [class.detail-tabs__link--active]="activeTier() === entry"
+        [attr.aria-current]="activeTier() === entry ? 'page' : null"
+      >
+        {{ entry }}
+      </a>
+    }
+  </nav>
+
+  @if (draft(); as limits) {
+    <div class="surface limit-editor">
+      @for (field of fields; track field.key) {
+        <div class="limit-editor__row">
+          <label class="form-field limit-editor__field">
+            <span>{{ field.label }}</span>
+            <input
+              class="form-control"
+              type="number"
+              [name]="field.key"
+              [min]="field.min"
+              [step]="field.step"
+              [value]="limits[field.key] ?? ''"
+              [disabled]="isUnlimited(field.key)"
+              [placeholder]="isUnlimited(field.key) ? 'Unlimited' : ''"
+              (change)="setValue(field.key, $any($event.target).value)"
+            />
+            <small class="text-muted">{{ field.hint }}</small>
+          </label>
+          <label class="limit-editor__unlimited">
+            <input
+              type="checkbox"
+              [name]="field.key + '-unlimited'"
+              [checked]="isUnlimited(field.key)"
+              (change)="toggleUnlimited(field.key, $any($event.target).checked)"
+            />
+            <span>Unlimited</span>
+          </label>
+        </div>
+      }
+
+      <footer class="limit-editor__actions">
+        @if (notice(); as text) {
+          <p class="login-status" role="status">{{ text }}</p>
+        }
+        <span class="wizard-card__spacer"></span>
+        <button class="button button-primary" type="button" (click)="save()" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save ' + activeTier() + ' limits' }}
+        </button>
+      </footer>
+    </div>
+  }
+</div>

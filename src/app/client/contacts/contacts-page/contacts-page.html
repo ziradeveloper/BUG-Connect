@@ -37,6 +37,7 @@
      </div>
 
      <app-data-table [columns]="columns" [rows]="rows()" [loading]="loading()" [error]="error()"
+          [activatable]="true" (rowClick)="openContact($event)"
           caption="Workspace contacts, tags and opt-in status" exportName="bugconnect-contacts"
           searchPlaceholder="Search by name, WhatsApp ID or tag" emptyTitle="No contacts match this filter"
           emptyDescription="Contacts appear here after their first WhatsApp message.">
