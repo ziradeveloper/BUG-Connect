@@ -38,20 +38,6 @@ const PLANNED = {
     ],
     note: 'The dashboard already reads these same conversations, so the queue is the next layer on data that exists.',
   },
-  contacts: {
-    eyebrow: 'OPERATIONS',
-    title: 'Contact Hub',
-    phase: 'Built in wave 3',
-    icon: '◉',
-    description:
-      'Customer profiles, tags, segments and the opt-out list every campaign is checked against.',
-    includes: [
-      'Contact directory with WhatsApp identifier and custom attributes',
-      'Tags and saved segments',
-      'Conversation and campaign history per contact',
-      'Opt-in status enforced before marketing sends',
-    ],
-  },
   templates: {
     eyebrow: 'AUTOMATION',
     title: 'Template Manager',
@@ -191,7 +177,6 @@ const PLANNED = {
 } satisfies Record<string, PlannedConfig>;
 
 export const INBOX_ROUTES = stub('inbox.view', PLANNED.inbox);
-export const CONTACTS_ROUTES = stub('contacts.view', PLANNED.contacts);
 export const TEMPLATE_ROUTES = stub('templates.view', PLANNED.templates);
 export const TEAMS_ROUTES = stub('teams.view', PLANNED.teams);
 export const FLOW_ROUTES = stub('flows.view', PLANNED.flows);

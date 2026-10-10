@@ -63,8 +63,7 @@ export const CLIENT_ROUTES: Routes = [
       {
         path: 'contacts',
         title: 'Contact Hub',
-        // Wave 3 replaces this with ./contacts/contacts.routes
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.CONTACTS_ROUTES),
+        loadChildren: () => import('./contacts/contacts.routes').then((m) => m.CONTACTS_ROUTES),
       },
       {
         path: 'templates',
