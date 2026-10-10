@@ -1,4 +1,4 @@
-<div class="shell">
+<div class="shell" [class.shell--collapsed]="collapsed()">
      <aside class="shell__rail" [class.shell__rail--open]="navOpen()" aria-label="Workspace navigation">
           <div class="shell__rail-brand">
                <a class="shell__brand" [routerLink]="homePath()" (click)="closeNav()">
@@ -6,12 +6,26 @@
                     <span class="shell__brand-name">{{ brandName() }}<span class="text-brand">{{ brandAccent()
                               }}</span></span>
                </a>
-               <button class="shell__rail-close" type="button" aria-label="Close navigation" (click)="closeNav()">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                         <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-linecap="round"
-                              stroke-width="1.8" />
-                    </svg>
-               </button>
+               <div class="shell__rail-actions">
+                    <button class="shell__rail-toggle" type="button"
+                         [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+                         [title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+                         (click)="toggleCollapse()">
+                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              @if (collapsed()) {
+                              <path d="m9 18 6-6-6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                              } @else {
+                              <path d="m15 18-6-6 6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                              }
+                         </svg>
+                    </button>
+                    <button class="shell__rail-close" type="button" aria-label="Close navigation" (click)="closeNav()">
+                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-linecap="round"
+                                   stroke-width="1.8" />
+                         </svg>
+                    </button>
+               </div>
           </div>
 
           @if (contextLabel()) {
@@ -23,10 +37,17 @@
           <nav class="shell__nav">
                @for (group of groups; track group.id) {
                @if (entriesFor(group.id).length) {
-               <p class="shell__group">{{ group.label }}</p>
+               <p class="shell__group" [title]="group.label">{{ group.label }}</p>
                @for (entry of entriesFor(group.id); track entry.key) {
-               <a class="shell__link" [routerLink]="entry.path ? '/' + entry.path : '/'" routerLinkActive
-                    [routerLinkActiveOptions]="{ exact: entry.path === '' }" (click)="closeNav()">
+               <a class="shell__link"
+                    [routerLink]="entry.path ? '/' + entry.path : '/'"
+                    [routerLinkActive]="'active'"
+                    [routerLinkActiveOptions]="{ exact: entry.path === '' }"
+                    [attr.data-tooltip]="entry.label"
+                    [attr.aria-label]="entry.label"
+                    (mouseenter)="showTooltip($event, entry.label)"
+                    (mouseleave)="hideTooltip()"
+                    (click)="closeNav()">
                     <span class="shell__link-icon" aria-hidden="true">{{ entry.icon }}</span>
                     <span class="shell__link-label">{{ entry.label }}</span>
                     @if (entry.planned) {
@@ -42,8 +63,13 @@
           <div class="shell__locked">
                <p class="shell__group">Hidden by your role</p>
                @for (entry of blocked(); track entry.key) {
-               <p class="shell__locked-item" [title]="'Your role does not include ' + entry.label">
-                    <span aria-hidden="true">🔒</span>{{ entry.label }}
+               <p class="shell__locked-item"
+                  [title]="'Your role does not include ' + entry.label"
+                  [attr.data-tooltip]="'Role locked: ' + entry.label"
+                  (mouseenter)="showTooltip($event, 'Role locked: ' + entry.label)"
+                  (mouseleave)="hideTooltip()">
+                    <span aria-hidden="true">🔒</span>
+                    <span class="shell__locked-label">{{ entry.label }}</span>
                </p>
                }
           </div>

@@ -32,3 +32,6 @@
 @import './styles/pages/inbox.css';
 @import './styles/pages/inbox-bubbles.css';
 @import './styles/pages/inbox-composer.css';
+
+/* Trigger CSS rebuild */
+

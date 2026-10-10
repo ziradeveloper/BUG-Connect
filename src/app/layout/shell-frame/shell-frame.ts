@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  input,
+  OnDestroy,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 
 import { SessionService } from '../../core/auth/session.service';
@@ -20,7 +28,7 @@ import { labelFromSlug } from '../../core/workspace/subdomain.resolver';
   templateUrl: './shell-frame.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ShellFrame {
+export class ShellFrame implements OnDestroy {
   readonly brandName = input.required<string>();
   readonly brandAccent = input('');
   readonly brandMark = input('W');
@@ -37,8 +45,69 @@ export class ShellFrame {
   protected readonly data = inject(MockDataService);
 
   protected readonly navOpen = signal(false);
+  protected readonly collapsed = signal(this.loadCollapsedState());
+
+  private loadCollapsedState(): boolean {
+    try {
+      return localStorage.getItem('bugconnect_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  protected toggleCollapse(): void {
+    this.hideTooltip();
+    this.collapsed.update((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem('bugconnect_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  }
 
   private readonly router = inject(Router);
+  private readonly el = inject(ElementRef);
+
+  /** Singleton floating tooltip element appended to <body> */
+  private tooltipEl: HTMLDivElement | null = null;
+  private tooltipHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+  ngOnDestroy(): void {
+    this.tooltipEl?.remove();
+    this.tooltipEl = null;
+  }
+
+  protected showTooltip(event: MouseEvent, label: string): void {
+    if (!this.collapsed()) return;
+    if (this.tooltipHideTimer) {
+      clearTimeout(this.tooltipHideTimer);
+      this.tooltipHideTimer = null;
+    }
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const tip = this.getOrCreateTooltip();
+    tip.textContent = label;
+    // Position: right of the rail element, vertically centered
+    tip.style.top = `${rect.top + rect.height / 2}px`;
+    tip.style.left = `${rect.right + 12}px`;
+    tip.classList.add('shell-tooltip--visible');
+  }
+
+  protected hideTooltip(): void {
+    this.tooltipHideTimer = setTimeout(() => {
+      this.getOrCreateTooltip().classList.remove('shell-tooltip--visible');
+    }, 80);
+  }
+
+  private getOrCreateTooltip(): HTMLDivElement {
+    if (!this.tooltipEl) {
+      this.tooltipEl = document.createElement('div');
+      this.tooltipEl.className = 'shell-tooltip';
+      document.body.appendChild(this.tooltipEl);
+    }
+    return this.tooltipEl;
+  }
 
   protected readonly groups = MENU_GROUPS;
 
