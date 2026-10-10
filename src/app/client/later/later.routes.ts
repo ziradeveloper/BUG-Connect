@@ -160,20 +160,6 @@ const PLANNED = {
       'Shared across the workspace',
     ],
   },
-  settings: {
-    eyebrow: 'WORKSPACE',
-    title: 'Workspace settings',
-    phase: 'Built in wave 3 and 4',
-    icon: '⚙',
-    description:
-      'Business profile, operating hours, the WhatsApp connection and everything else configured once by an administrator.',
-    includes: [
-      'Business profile and greeting',
-      'Working hours and holiday fallback (flow conditions read these)',
-      'WhatsApp connection and sync health',
-      'Meta Embedded Signup for self-service connection',
-    ],
-  },
 } satisfies Record<string, PlannedConfig>;
 
 export const INBOX_ROUTES = stub('inbox.view', PLANNED.inbox);
@@ -186,4 +172,3 @@ export const DEVELOPER_ROUTES = stub('developer.manage', PLANNED.developer);
 export const BILLING_ROUTES = stub('billing.view', PLANNED.billing);
 export const AUDIT_ROUTES = stub('audit.view', PLANNED.audit);
 export const QUICK_REPLIES_ROUTES = stub('settings.view', PLANNED.quickReplies);
-export const SETTINGS_ROUTES = stub('settings.view', PLANNED.settings);

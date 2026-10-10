@@ -21,6 +21,8 @@ export interface ConvListItem {
   contactName: string;
   avatarText: string;
   lastAt: string;
+  /** Raw ISO timestamp behind `lastAt` — the queue's recency sort key. */
+  lastAtIso: string;
   subject: string;
   /** One-line preview of the newest message, with its type icon. */
   preview: string;
@@ -89,6 +91,7 @@ export class InboxShellComponent {
         contactName: contact?.displayName ?? 'Unknown Contact',
         avatarText: contact ? initials(contact.displayName) : '?',
         lastAt: formatRelative(conv.lastMessageAt),
+        lastAtIso: conv.lastMessageAt,
         subject: conv.subject,
         preview: last ? payloadPreview(last.type, last.payload, last.content) : 'No messages yet',
         previewIcon: last ? MESSAGE_TYPE_ICON[last.type] : '',
@@ -124,7 +127,8 @@ export class InboxShellComponent {
       )
       .sort((a, b) => {
         if (b.unreadCount !== a.unreadCount) return b.unreadCount - a.unreadCount;
-        return 0;
+        // Unread first, then newest activity first — the queue's stable order.
+        return b.lastAtIso.localeCompare(a.lastAtIso);
       });
   });
 

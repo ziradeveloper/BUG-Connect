@@ -1,0 +1,28 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="WORKSPACE"
+    title="Connecting WhatsApp"
+    description="Meta redirected back here with an authorization code; this screen exchanges it for the connection."
+  >
+    <a class="button button-secondary" pageActions routerLink="/settings/whatsapp">Connection status</a>
+  </app-page-header>
+
+  <div class="surface callback-card">
+    @if (phase() === 'working') {
+      <app-status-pill label="Exchanging code…" tone="info" />
+      <p class="text-muted">{{ detail() }}</p>
+    } @else if (phase() === 'connected') {
+      <app-status-pill label="Connected" tone="success" />
+      <p>{{ detail() }}</p>
+      <p>
+        <a class="button button-primary" routerLink="/settings/whatsapp">View connection</a>
+      </p>
+    } @else {
+      <app-status-pill label="Connection failed" tone="danger" />
+      <p>{{ detail() }}</p>
+      <p>
+        <a class="button button-secondary" routerLink="/settings/whatsapp">Back to settings</a>
+      </p>
+    }
+  </div>
+</div>

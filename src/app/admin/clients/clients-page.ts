@@ -46,7 +46,9 @@ import { PageHeader, StatusPill } from '../../shared/ui/ui';
         emptyDescription="Onboarded businesses appear here once their workspace is provisioned."
       >
         <ng-template appCell="businessName" let-tenant>
-          <strong class="data-table__primary">{{ tenant.businessName }}</strong>
+          <a class="data-table__primary data-table__link" [routerLink]="['/clients', tenant.id]">
+            {{ tenant.businessName }}
+          </a>
           <small class="data-table__subdued">{{ tenant.industry }}</small>
         </ng-template>
 

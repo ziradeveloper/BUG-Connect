@@ -7,13 +7,19 @@ import type {
   ChatFlow,
   Contact,
   Conversation,
+  Invoice,
   Message,
   MessageTemplate,
+  MetaAppConfig,
+  Plan,
+  PlanLimits,
   PlatformStaffUser,
+  SubscriptionEvent,
   Tenant,
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
+import { SEED_META_CONFIG, SEED_PLANS } from './plan.seed';
 import {
   payloadPreview,
   type MessagePayload,
@@ -48,6 +54,14 @@ export interface OutboundDraft {
 export class MockDataService {
   private readonly context = inject(WorkspaceContext);
   private readonly dataset = signal<Dataset>(buildDataset());
+
+  /**
+   * Platform commercial state, kept beside the dataset rather than inside it:
+   * plans and the Meta app reference are edited rarely, read on every guard
+   * check, and never belong to one tenant.
+   */
+  readonly plans = signal<Plan[]>(structuredClone(SEED_PLANS));
+  readonly metaConfig = signal<MetaAppConfig>({ ...SEED_META_CONFIG });
 
   /** 120–260 ms, deterministic per call index so tests can fake timers. */
   private tick = 0;
@@ -145,6 +159,48 @@ export class MockDataService {
     return { items, total: items.length };
   }
 
+  async listSubscriptionEvents(): Promise<Page<SubscriptionEvent>> {
+    const items = await this.latency(this.dataset().subscriptionEvents);
+    return { items, total: items.length };
+  }
+
+  async listInvoices(): Promise<Page<Invoice>> {
+    const items = await this.latency(this.dataset().invoices);
+    return { items, total: items.length };
+  }
+
+  /** Platform reads across tenants, so these helpers skip the tenant scope. */
+  tenantById(id: string | null | undefined): Tenant | null {
+    if (!id) {
+      return null;
+    }
+    return this.dataset().tenants.find((tenant) => tenant.id === id) ?? null;
+  }
+
+  usersForTenant(tenantId: string): WorkspaceUser[] {
+    return this.dataset().workspaceUsers.filter((user) => user.tenantId === tenantId);
+  }
+
+  contactsForTenant(tenantId: string): Contact[] {
+    return this.dataset().contacts.filter((contact) => contact.tenantId === tenantId);
+  }
+
+  webhookEventsForTenant(tenantId: string): WebhookEvent[] {
+    return this.dataset().webhookEvents.filter((event) => event.tenantId === tenantId);
+  }
+
+  subscriptionEventsForTenant(tenantId: string): SubscriptionEvent[] {
+    return this.dataset().subscriptionEvents.filter((event) => event.tenantId === tenantId);
+  }
+
+  invoicesForTenant(tenantId: string): Invoice[] {
+    return this.dataset().invoices.filter((invoice) => invoice.tenantId === tenantId);
+  }
+
+  planForTier(tier: string): Plan | null {
+    return this.plans().find((plan) => plan.tier === tier) ?? null;
+  }
+
   /** Upsert by id; a new row is stamped into the current tenant. */
   async saveUser(
     user: Partial<WorkspaceUser> & { fullName: string; email: string },
@@ -159,7 +215,9 @@ export class MockDataService {
         ? { ...(dataset.workspaceUsers[existingIndex] as WorkspaceUser), ...user }
         : {
             id: `tenant-user-${Date.now().toString(36)}`,
-            tenantId: this.tenantId(),
+            // An explicit tenant wins: the platform console provisions users
+            // into workspaces it is not signed into (client onboarding).
+            tenantId: user.tenantId ?? this.tenantId(),
             fullName: user.fullName,
             email: user.email,
             role: user.role ?? 'agent',
@@ -211,6 +269,166 @@ export class MockDataService {
       ),
     });
     await this.sleep(180);
+  }
+
+  /** Provisions a tenant from the onboard wizard. Starts on trial, unconnected. */
+  async saveTenant(input: {
+    businessName: string;
+    subdomain: string;
+    industry: string;
+    subscriptionTier: string;
+    city?: string;
+  }): Promise<Tenant> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const tenant: Tenant = {
+      id: `tenant-${Date.now().toString(36)}`,
+      businessName: input.businessName.trim(),
+      subdomain: input.subdomain.trim().toLowerCase(),
+      metaWabaId: null,
+      metaPhoneNumberId: null,
+      phoneNumber: null,
+      subscriptionTier: input.subscriptionTier,
+      isActive: true,
+      status: 'onboarding',
+      industry: input.industry,
+      city: input.city?.trim() || 'Tirunelveli',
+      seatsUsed: 0,
+      contactCount: 0,
+      monthlyMessages: 0,
+      createdAt: now,
+      connectedAt: null,
+    };
+
+    const subscriptionEvents: SubscriptionEvent[] = [
+      ...dataset.subscriptionEvents,
+      {
+        id: `${tenant.id}-sub-1`,
+        tenantId: tenant.id,
+        from: null,
+        to: 'trial',
+        reason: 'Workspace provisioned with a 14-day trial.',
+        actor: 'platform',
+        createdAt: now,
+      },
+    ];
+
+    this.dataset.set({
+      ...dataset,
+      tenants: [...dataset.tenants, tenant],
+      subscriptionEvents,
+    });
+    await this.sleep(220);
+    return tenant;
+  }
+
+  /** Moves a tenant between tiers; the client sidebar re-gates immediately. */
+  async changeTenantTier(tenantId: string, tier: string): Promise<void> {
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      tenants: dataset.tenants.map((tenant) =>
+        tenant.id === tenantId ? { ...tenant, subscriptionTier: tier } : tenant,
+      ),
+    });
+    await this.sleep(160);
+  }
+
+  /**
+   * Completes the simulated Meta Embedded Signup: stamps the WABA ids the
+   * callback carried and flips a pending workspace to active.
+   */
+  async connectWaba(
+    tenantId: string,
+    connection: { wabaId: string; phoneNumberId: string; phoneNumber: string },
+  ): Promise<Tenant | null> {
+    const dataset = this.dataset();
+    const target = dataset.tenants.find((tenant) => tenant.id === tenantId);
+    if (!target) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const activates = target.status === 'lead_trial' || target.status === 'onboarding' || target.status === 'whatsapp_pending';
+    const updated: Tenant = {
+      ...target,
+      metaWabaId: connection.wabaId,
+      metaPhoneNumberId: connection.phoneNumberId,
+      phoneNumber: connection.phoneNumber,
+      connectedAt: target.connectedAt ?? now,
+      status: activates ? 'active' : target.status,
+      isActive: true,
+    };
+
+    const subscriptionEvents = activates
+      ? [
+          ...dataset.subscriptionEvents,
+          {
+            id: `${tenantId}-sub-${dataset.subscriptionEvents.filter((event) => event.tenantId === tenantId).length + 1}`,
+            tenantId,
+            from: 'trial' as const,
+            to: 'active' as const,
+            reason: `Trial converted to the ${target.subscriptionTier} plan after WhatsApp connection.`,
+            actor: 'workspace-admin',
+            createdAt: now,
+          },
+        ]
+      : dataset.subscriptionEvents;
+
+    this.dataset.set({
+      ...dataset,
+      tenants: dataset.tenants.map((tenant) => (tenant.id === tenantId ? updated : tenant)),
+      subscriptionEvents,
+    });
+    await this.sleep(200);
+    return updated;
+  }
+
+  /** Replaces one tier's metered limits; modules are edited on the matrix. */
+  async savePlanLimits(tier: string, limits: PlanLimits): Promise<void> {
+    this.plans.update((plans) =>
+      plans.map((plan) => (plan.tier === tier ? { ...plan, limits: { ...limits } } : plan)),
+    );
+    await this.sleep(160);
+  }
+
+  /** One checkbox of the feature matrix. Takes effect on the next read. */
+  setPlanModule(tier: string, module: string, enabled: boolean): void {
+    this.plans.update((plans) =>
+      plans.map((plan) => {
+        if (plan.tier !== tier) {
+          return plan;
+        }
+        const modules = enabled
+          ? [...new Set([...plan.modules, module])]
+          : plan.modules.filter((entry) => entry !== module);
+        return { ...plan, modules };
+      }),
+    );
+  }
+
+  async saveMetaConfig(patch: Partial<MetaAppConfig>, updatedBy: string): Promise<MetaAppConfig> {
+    const updated: MetaAppConfig = {
+      ...this.metaConfig(),
+      ...patch,
+      updatedAt: new Date().toISOString(),
+      updatedBy,
+    };
+    this.metaConfig.set(updated);
+    await this.sleep(180);
+    return updated;
+  }
+
+  /** Re-queues a failed webhook event after the operator acknowledges it. */
+  async ackWebhookEvent(id: string): Promise<void> {
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      webhookEvents: dataset.webhookEvents.map((event) =>
+        event.id === id ? { ...event, outcome: 'queued' as const, error: null } : event,
+      ),
+    });
+    await this.sleep(120);
   }
 
   /** Aggregate numbers the client dashboard shows without a reports module. */

@@ -234,6 +234,18 @@
     cursor: not-allowed;
   }
 
+  /* Invalid state for template-driven forms (user form, onboard wizard). */
+  .form-control--invalid,
+  .form-input--invalid {
+    border-color: var(--theme-danger);
+  }
+
+  .form-control--invalid:focus-visible,
+  .form-input--invalid:focus-visible {
+    border-color: var(--theme-danger);
+    box-shadow: 0 0 0 4px rgb(185 28 28 / 0.16);
+  }
+
   .form-control::placeholder,
   .form-input::placeholder {
     color: var(--theme-text-secondary);

@@ -47,6 +47,7 @@ Multi-tenancy is enforced at the network & route resolution layer before any com
 - **Server Context**: Reads the incoming HTTP `Host` header via `@angular/core` `REQUEST` token (`new URL(request.url, 'http://localhost')`).
 - **Browser Context**: Inspects `window.location.hostname` and `window.location.search`.
 - **SSR Prerendering Disabled**: All routes in `app.routes.server.ts` use `RenderMode.Server` (`** → RenderMode.Server`) to guarantee host header evaluation per request.
+- **SSR Build Wiring**: `angular.json` sets `server`, `outputMode: server` and `ssr.entry` so `ng build` emits `dist/BUGConnect/server/server.mjs` (served via `serve:ssr`). `src/server.ts` passes an `allowedHosts` list (`localhost`, `*.localhost`, `127.0.0.1`) to `AngularNodeAppEngine` — multi-tenant hosts are the normal case here, and Angular's SSRF validation would otherwise reject every tenant `Host` header and silently fall back to CSR. Production adds its apex and tenant suffix to the same list.
 
 ### Isolated Route Trees (`src/app/app.routes.ts`):
 Routes are split into three `canMatch` guarded branches:
@@ -54,7 +55,7 @@ Routes are split into three `canMatch` guarded branches:
 - `clientGuard`: Matches routes on tenant subdomains (e.g. `nazeel.localhost`).
 - `marketingGuard`: Matches routes on public host.
 
-This guarantees that platform routes (`/clients`) are inaccessible on tenant hosts and return a clean `404` or `302 → /login`.
+This guarantees that platform routes (`/clients`) are inaccessible on tenant hosts: each branch's `**` wildcard redirects the request to that host's own `/` (`302`), so no tree can ever leak another tree's pages.
 
 ---
 
@@ -116,7 +117,7 @@ export type PlatformStaffUser = {
   id: string;
   fullName: string;
   email: string;
-  role: 'owner' | 'operations';
+  role: 'owner' | 'operations' | 'support';
   roleId: string;
   isActive: boolean;
   lastLoginAt: string;
@@ -177,23 +178,26 @@ export type MenuKey =
   | 'inbox'
   | 'contacts'
   | 'flows'
-  | 'whatsapp-flows'
   | 'templates'
   | 'campaigns'
   | 'reports'
   | 'teams'
   | 'users'
   | 'roles'
-  | 'replies'
+  | 'quickReplies'
   | 'settings'
-  | 'developer'
   | 'billing'
   | 'audit'
+  | 'developer'
+  | 'profile'
   | 'clients'
   | 'plans'
+  | 'subscriptions'
+  | 'invoices'
+  | 'metaConfig'
   | 'health'
-  | 'config'
-  | 'profile';
+  | 'announcements'
+  | 'analytics';
 
 export type Role = {
   id: string;
@@ -211,12 +215,13 @@ export type Role = {
 
 ### `SessionService` (`src/app/core/auth/session.service.ts`):
 - Controls user state: `user = signal<SessionUser | null>(null)`.
-- Handles sign in, credentials resolution (`resolveUser()`), logout, and session persistence in `sessionStorage['bugconnect-session']`.
+- Handles sign in, credentials resolution (`resolveUser()`), logout, and session persistence in `localStorage['bugconnect-session-v2']`. The server cannot read this store, so `authGuard` and `permissionGuard` pass on the server and re-enforce in the browser after hydration.
 - Demo Accounts & Credential Mappings:
   - `systemadmin` / `admin@123` → Platform Owner (`admin.localhost`).
   - `admin` / `admin@123` → Workspace Admin (`nazeel.localhost`).
   - `supervisor` / `admin@123` → Supervisor.
   - `agent` / `admin@123` → Support Agent.
+  - `developer` / `admin@123` → Integration User (Developer Hub).
 
 ### `PermissionService` (`src/app/core/authorization/permission.service.ts`):
 - Evaluates active user role against required capabilities and permitted menus.
@@ -313,18 +318,18 @@ the .NET API means replacing `MockDataService` only — no component imports the
   - Thread ergonomics: day separators, quote-replies, hover reactions, jump-to-latest,
     lightbox, drag-and-drop attachments, `{{n}}` template variables, slash shortcuts.
 
-### Wave 3: Client Operations & Directory (`[ ]`)
-- **Contact Hub** (`/contacts`, `/contacts/:id`): Directory with tags, segments, lead status, opt-out enforcement.
-- **Template Manager** (`/templates`, `/templates/new`): Synchronized Meta message templates with category, language, and variable placeholders.
-- **Teams & Departments** (`/teams`): Agent department grouping and queue routing limits.
-- **Quick Replies** (`/replies`): Shortcut canned responses for agents.
-- **Business Settings** (`/settings`): Business profile, default queue hours, auto-responders.
+### Wave 3: Client Operations & Directory (`[~]` in progress)
+- **Contact Hub** (`/contacts`, `/contacts/:id`): Directory with tags, segments, lead status, opt-out enforcement. SHIPPED 2026-10-10 (first of 9 entries; remaining 8 unstarted — see TODO.md).
 
-### Wave 4: Platform Admin Governance (`[ ]`)
-- **Onboard Client Wizard** (`/clients/new`): Multi-step form for provisioning a new tenant workspace with subdomain, subscription plan, and admin credentials.
-- **Client Detail View** (`/clients/:id`): Workspace overview, seats usage, WABA ID status, invoice history, status toggles.
-- **Plans & Features Matrix** (`/plans`, `/subscriptions`): Subscription tier limits configuration.
-- **Queue & Webhook Monitor** (`/health`): Real-time ingestion latency (P95 ack ms) and failure queue acknowledgment monitor.
+### Wave 4: Platform Admin Governance (`[x]` — shipped 2026-10-10)
+- **Onboard Client Wizard** (`/clients/new`): 3-step provisioning with subdomain validation, tier preview, and trial onboarding.
+- **Client Detail View** (`/clients/:id`): Overview, seats, WABA status, subscription, and history tabs with tier moves and suspend/reactivate.
+- **Plans** (`/plans`, `/plans/edit`, `/plans/matrix`): Tier overview, limits editor, and module × tier feature matrix that re-gates client sidebars live.
+- **Subscriptions** (`/subscriptions`, `/subscriptions/log`): Per-tenant current state derived from the event trail plus the transition log.
+- **Invoices** (`/invoices`): Status-filtered platform invoice records.
+- **Meta App Configuration** (`/meta-config`): App ID/secret, callback + verify token management, connected numbers.
+- **Queue & Webhook Monitor** (`/health/monitor`): Ack p50/p95/max, latency distribution, dead-letter acknowledgement.
+- **WhatsApp Connection** (`/settings/whatsapp`, `/settings/whatsapp/callback`): Embedded-Signup handoff and OAuth callback exchange (client-side entries in the W4 list).
 
 ### Wave 5: Lifecycle & Self-Service (`[ ]`)
 - **Billing & Subscriptions** (`/billing`): Payment method management, usage invoice downloads.

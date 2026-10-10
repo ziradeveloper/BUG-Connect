@@ -19,6 +19,8 @@ export interface Tenant {
   subdomain: string;
   metaWabaId: string | null;
   metaPhoneNumberId: string | null;
+  /** The WhatsApp number customers message, once the workspace connects. */
+  phoneNumber: string | null;
   subscriptionTier: string;
   isActive: boolean;
   status: TenantStatus;
@@ -177,4 +179,75 @@ export interface WebhookEvent {
   ackMs: number;
   outcome: 'processed' | 'queued' | 'duplicate' | 'failed';
   error: string | null;
+}
+
+/**
+ * One metered dimension of a subscription tier. `null` means the plan does not
+ * cap it (Scale), which the UI renders as "Unlimited".
+ */
+export interface PlanLimits {
+  seats: number | null;
+  whatsappNumbers: number;
+  flows: number | null;
+  campaignsPerMonth: number | null;
+  contacts: number | null;
+  messagesPerMonth: number | null;
+}
+
+export type PlanTier = 'Pilot' | 'Growth' | 'Scale';
+
+/**
+ * A subscription tier. `modules` is the feature matrix row: menus this tier
+ * unlocks in the client sidebar, layered on top of role gating.
+ */
+export interface Plan {
+  tier: PlanTier;
+  tagline: string;
+  monthlyPriceInr: number | null;
+  limits: PlanLimits;
+  modules: string[];
+  supportSla: string;
+}
+
+export type SubscriptionState = 'trial' | 'active' | 'grace' | 'expired' | 'suspended';
+
+/** One lifecycle transition of a tenant's subscription, newest last. */
+export interface SubscriptionEvent {
+  id: string;
+  tenantId: string;
+  from: SubscriptionState | null;
+  to: SubscriptionState;
+  reason: string;
+  actor: string;
+  createdAt: string;
+}
+
+export type InvoiceStatus = 'paid' | 'due' | 'overdue' | 'void';
+
+export interface Invoice {
+  id: string;
+  tenantId: string;
+  number: string;
+  period: string;
+  amountInr: number;
+  status: InvoiceStatus;
+  issuedAt: string;
+  dueAt: string;
+  paidAt: string | null;
+}
+
+/**
+ * The single Meta Business app the platform embeds signup through. Values are
+ * references the operator pastes from Meta's dashboard — with dummy data there
+ * is nothing live to read, so the form holds them in memory only.
+ */
+export interface MetaAppConfig {
+  appId: string;
+  appSecretRef: string;
+  apiVersion: string;
+  callbackUrl: string;
+  verifyToken: string;
+  testNumber: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
 }

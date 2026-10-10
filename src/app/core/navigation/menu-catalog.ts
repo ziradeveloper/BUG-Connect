@@ -192,7 +192,14 @@ export const PLATFORM_MENU: MenuEntry[] = [
     icon: '▤',
     group: 'platform',
     capability: 'clients.view',
-    planned: true,
+  },
+  {
+    key: 'invoices',
+    label: 'Invoices',
+    path: 'invoices',
+    icon: '▦',
+    group: 'platform',
+    capability: 'clients.view',
   },
   {
     key: 'users',

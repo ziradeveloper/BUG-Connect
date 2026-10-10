@@ -4,9 +4,11 @@ import type {
   ChatFlow,
   Contact,
   Conversation,
+  Invoice,
   Message,
   MessageTemplate,
   PlatformStaffUser,
+  SubscriptionEvent,
   Tenant,
   WebhookEvent,
   WorkspaceUser,
@@ -618,6 +620,8 @@ export type Dataset = {
   templates: MessageTemplate[];
   campaigns: Campaign[];
   webhookEvents: WebhookEvent[];
+  subscriptionEvents: SubscriptionEvent[];
+  invoices: Invoice[];
 };
 
 export function buildDataset(seed = SEED): Dataset {
@@ -631,18 +635,29 @@ export function buildDataset(seed = SEED): Dataset {
   const templates: MessageTemplate[] = [];
   const campaigns: Campaign[] = [];
   const webhookEvents: WebhookEvent[] = [];
+  const subscriptionEvents: SubscriptionEvent[] = [];
+  const invoices: Invoice[] = [];
 
   TENANT_SEEDS.forEach((seedTenant, tenantIndex) => {
     const tenantId = `tenant-${tenantIndex + 1}`;
     const tenantContacts: Contact[] = [];
 
+    // Hoisted so the customer-facing number derives from the same digits: the
+    // shared stream consumes exactly the two ids it always has.
+    const metaWabaId =
+      seedTenant.status === 'active' ? `10${rng.int(100000000, 999999999)}` : null;
+    const metaPhoneNumberId =
+      seedTenant.status === 'active' ? `10${rng.int(100000000, 999999999)}` : null;
+
     tenants.push({
       id: tenantId,
       businessName: seedTenant.businessName,
       subdomain: seedTenant.subdomain,
-      metaWabaId: seedTenant.status === 'active' ? `10${rng.int(100000000, 999999999)}` : null,
-      metaPhoneNumberId:
-        seedTenant.status === 'active' ? `10${rng.int(100000000, 999999999)}` : null,
+      metaWabaId,
+      metaPhoneNumberId,
+      phoneNumber: metaPhoneNumberId
+        ? `+91 ${metaPhoneNumberId.slice(2, 7)} ${metaPhoneNumberId.slice(7)}`
+        : null,
       subscriptionTier: seedTenant.tier,
       isActive: seedTenant.status !== 'suspended' && seedTenant.status !== 'archived',
       status: seedTenant.status,
@@ -661,8 +676,22 @@ export function buildDataset(seed = SEED): Dataset {
 
     for (let i = 0; i < userCount; i += 1) {
       const fullName = nameFor(rng);
+      // Seats 2 and 3 are pinned so the developer and agent demo logins resolve
+      // in every tenant. The discarded roll keeps the shared stream identical
+      // to the unpinned sequence — downstream seeds are unaffected.
+      const developerRoll = i >= 2 ? rng.chance(0.2) : false;
       const role =
-        i === 0 ? 'admin' : i === 1 ? 'supervisor' : rng.chance(0.2) ? 'developer' : 'agent';
+        i === 0
+          ? 'admin'
+          : i === 1
+            ? 'supervisor'
+            : i === 2
+              ? 'developer'
+              : i === 3
+                ? 'agent'
+                : developerRoll
+                  ? 'developer'
+                  : 'agent';
       const isOnline = rng.chance(0.45);
       const capacity = role === 'supervisor' ? rng.int(6, 10) : rng.int(3, 8);
       const user: WorkspaceUser = {
@@ -727,8 +756,10 @@ export function buildDataset(seed = SEED): Dataset {
 
     // ---- Meta message templates (seeded before conversations so a thread can
     // quote a template the tenant actually owns)
-    for (const template of TEMPLATE_SEEDS) {
-      const status = rng.pick([
+    for (const [templateIndex, template] of TEMPLATE_SEEDS.entries()) {
+      // The roll is always consumed; the first template pins to approved so the
+      // composer gate ("approved only") never faces an empty shelf by chance.
+      const rolled = rng.pick([
         'draft',
         'pending',
         'approved',
@@ -737,6 +768,7 @@ export function buildDataset(seed = SEED): Dataset {
         'rejected',
         'paused',
       ] as const);
+      const status = templateIndex === 0 ? 'approved' : rolled;
 
       templates.push({
         id: `${tenantId}-tpl-${template.name}`,
@@ -901,6 +933,68 @@ export function buildDataset(seed = SEED): Dataset {
         error: failed ? 'Tenant resolver cache miss for phone-number id' : null,
       });
     }
+
+    // ---- subscription lifecycle: every tenant starts on trial, then follows
+    // its seeded status. Newest last, so the log reads top-down.
+    const tenantCreatedAt = (tenants[tenantIndex] as Tenant).createdAt;
+    const lifecycle: { to: SubscriptionEvent['to']; reason: string; actor: string; at: string }[] = [
+      { to: 'trial', reason: 'Workspace provisioned with a 14-day trial.', actor: 'system', at: tenantCreatedAt },
+    ];
+
+    if (seedTenant.status === 'active') {
+      lifecycle.push({
+        to: 'active',
+        reason: `Trial converted to the ${seedTenant.tier} plan after WhatsApp connection.`,
+        actor: 'Zira Developer',
+        at: (tenants[tenantIndex] as Tenant).connectedAt ?? tenantCreatedAt,
+      });
+    }
+
+    for (let i = 0; i < lifecycle.length; i += 1) {
+      const step = lifecycle[i]!;
+      subscriptionEvents.push({
+        id: `${tenantId}-sub-${i + 1}`,
+        tenantId,
+        from: i === 0 ? null : lifecycle[i - 1]!.to,
+        to: step.to,
+        reason: step.reason,
+        actor: step.actor,
+        createdAt: step.at,
+      });
+    }
+
+    // ---- invoices: one per month since provisioning, newest first. Rolled on a
+    // private stream so the shared sequence — and every earlier tenant's story
+    // — is byte-identical to builds that predate billing.
+    const billing = new Rng(SEED + 1000 + tenantIndex);
+    const invoiceCount = billing.int(2, 4);
+    const baseAmount = seedTenant.tier === 'Scale' ? 49900 : seedTenant.tier === 'Growth' ? 14900 : 0;
+
+    for (let i = 0; i < invoiceCount; i += 1) {
+      const issuedAt = isoAt(-billing.int(8 + i * 28, 30 + i * 30) * 24 * HOUR);
+      const status =
+        baseAmount === 0
+          ? 'paid'
+          : i === 0 && billing.chance(0.4)
+            ? billing.pick(['due', 'overdue'] as const)
+            : 'paid';
+      const issued = new Date(issuedAt);
+
+      invoices.push({
+        id: `${tenantId}-inv-${i + 1}`,
+        tenantId,
+        number: `INV-2026-${String(tenantIndex * 4 + 41 - i).padStart(4, '0')}`,
+        period: issued.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+        amountInr: baseAmount,
+        status,
+        issuedAt,
+        dueAt: new Date(issued.getTime() + 14 * 24 * HOUR).toISOString(),
+        paidAt:
+          status === 'paid'
+            ? new Date(issued.getTime() + billing.int(1, 12) * 24 * HOUR).toISOString()
+            : null,
+      });
+    }
   });
 
   const platformStaff: PlatformStaffUser[] = [
@@ -943,5 +1037,7 @@ export function buildDataset(seed = SEED): Dataset {
     templates,
     campaigns,
     webhookEvents,
+    subscriptionEvents,
+    invoices,
   };
 }

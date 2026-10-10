@@ -1,0 +1,147 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PLATFORM"
+    title="Onboard client"
+    description="Provision a tenant workspace. It starts on trial and unconnected — the admin links WhatsApp later through Embedded Signup."
+  >
+    <a class="button button-secondary" pageActions routerLink="/clients">All clients</a>
+  </app-page-header>
+
+  <ol class="wizard-steps" aria-label="Onboarding progress">
+    <li class="wizard-steps__item" [class.wizard-steps__item--done]="step() > 1" [class.wizard-steps__item--now]="step() === 1" [attr.aria-current]="step() === 1 ? 'step' : null">
+      <span class="wizard-steps__n">1</span> Business
+    </li>
+    <li class="wizard-steps__item" [class.wizard-steps__item--done]="step() > 2" [class.wizard-steps__item--now]="step() === 2" [attr.aria-current]="step() === 2 ? 'step' : null">
+      <span class="wizard-steps__n">2</span> Address &amp; plan
+    </li>
+    <li class="wizard-steps__item" [class.wizard-steps__item--now]="step() === 3" [attr.aria-current]="step() === 3 ? 'step' : null">
+      <span class="wizard-steps__n">3</span> Workspace admin
+    </li>
+  </ol>
+
+  <div class="surface wizard-card">
+    @if (step() === 1) {
+      <div class="wizard-card__grid">
+        <label class="form-field">
+          <span>Business name</span>
+          <input
+            class="form-control"
+            name="businessName"
+            [(ngModel)]="draft.businessName"
+            #businessField="ngModel"
+            required
+            minlength="2"
+            autocomplete="off"
+            placeholder="e.g. Nazeel Silks & Bridal"
+            [class.form-control--invalid]="businessField.invalid && (businessField.touched || attempted())"
+          />
+          @if (businessField.invalid && (businessField.touched || attempted())) {
+            <span class="field-error">Enter the business name the team will see.</span>
+          }
+        </label>
+
+        <label class="form-field">
+          <span>Industry</span>
+          <select class="form-control" name="industry" [(ngModel)]="draft.industry" required>
+            @for (industry of industries; track industry) {
+              <option [value]="industry">{{ industry }}</option>
+            }
+          </select>
+        </label>
+      </div>
+    }
+
+    @if (step() === 2) {
+      <div class="wizard-card__grid">
+        <label class="form-field">
+          <span>Subdomain</span>
+          <input
+            class="form-control"
+            name="subdomain"
+            [(ngModel)]="draft.subdomain"
+            autocomplete="off"
+            placeholder="e.g. nazeel"
+            [class.form-control--invalid]="attempted() && subdomainError() !== null"
+          />
+          @if (attempted() && subdomainError()) {
+            <span class="field-error">{{ subdomainError() }}</span>
+          }
+          <small class="text-muted">Workspace address: <code>{{ workspaceUrl() }}</code></small>
+        </label>
+
+        <label class="form-field">
+          <span>Subscription tier</span>
+          <select class="form-control" name="tier" [(ngModel)]="draft.tier" required>
+            @for (tier of tiers; track tier) {
+              <option [value]="tier">{{ tier }}</option>
+            }
+          </select>
+          <small class="text-muted">{{ planHint() }}</small>
+        </label>
+      </div>
+    }
+
+    @if (step() === 3) {
+      <div class="wizard-card__grid">
+        <label class="form-field">
+          <span>Admin full name</span>
+          <input
+            class="form-control"
+            name="adminName"
+            [(ngModel)]="draft.adminName"
+            #adminNameField="ngModel"
+            required
+            minlength="2"
+            autocomplete="off"
+            [class.form-control--invalid]="adminNameField.invalid && (adminNameField.touched || attempted())"
+          />
+          @if (adminNameField.invalid && (adminNameField.touched || attempted())) {
+            <span class="field-error">Enter the admin's name.</span>
+          }
+        </label>
+
+        <label class="form-field">
+          <span>Admin work email</span>
+          <input
+            class="form-control"
+            name="adminEmail"
+            type="email"
+            [(ngModel)]="draft.adminEmail"
+            #adminEmailField="ngModel"
+            required
+            email
+            autocomplete="off"
+            [class.form-control--invalid]="adminEmailField.invalid && (adminEmailField.touched || attempted())"
+          />
+          @if (adminEmailField.invalid && (adminEmailField.touched || attempted())) {
+            <span class="field-error">A valid email is required for the admin invite.</span>
+          }
+        </label>
+      </div>
+
+      <dl class="wizard-review">
+        <div><dt>Business</dt><dd>{{ draft.businessName || '—' }}</dd></div>
+        <div><dt>Address</dt><dd><code>{{ workspaceUrl() }}</code></dd></div>
+        <div><dt>Plan</dt><dd>{{ draft.tier }} · {{ planHint() }}</dd></div>
+        <div><dt>Admin</dt><dd>{{ draft.adminName || '—' }} · {{ draft.adminEmail || '—' }}</dd></div>
+      </dl>
+    }
+
+    <footer class="wizard-card__actions">
+      @if (notice(); as text) {
+        <p class="login-status" role="status">{{ text }}</p>
+      }
+      <span class="wizard-card__spacer"></span>
+      @if (step() > 1) {
+        <button class="button button-secondary" type="button" (click)="back()">Back</button>
+      }
+      @if (step() < 3) {
+        <button class="button button-primary" type="button" (click)="next()">Continue</button>
+      } @else {
+        <button class="button button-primary" type="button" (click)="submit()" [disabled]="saving()">
+          {{ saving() ? 'Creating…' : 'Create workspace' }}
+        </button>
+      }
+    </footer>
+  </div>
+</div>

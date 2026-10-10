@@ -1,8 +1,6 @@
 import type { Routes } from '@angular/router';
 
 import { authGuard, permissionGuard } from '../core/auth/guards';
-import type { Capability } from '../core/authorization/role.model';
-import type { PlannedConfig } from '../client/later/planned-module-page';
 
 /**
  * Platform console tree — mounted only when the host is the admin subdomain.
@@ -27,6 +25,28 @@ export const ADMIN_ROUTES: Routes = [
         title: 'Clients',
         loadComponent: () =>
           import('../admin/clients/clients-page').then((page) => page.ClientsPage),
+        canActivate: [permissionGuard('clients.view')],
+      },
+      {
+        // Before `:clientId` — otherwise "new" reads as a client id.
+        path: 'clients/new',
+        title: 'Onboard client',
+        loadComponent: () =>
+          import('../admin/clients/client-wizard-page').then((page) => page.ClientWizardPage),
+        canActivate: [permissionGuard('clients.manage', 'edit')],
+      },
+      {
+        path: 'clients/:clientId',
+        title: 'Client workspace',
+        loadComponent: () =>
+          import('../admin/clients/client-detail-page').then((page) => page.ClientDetailPage),
+        canActivate: [permissionGuard('clients.view')],
+      },
+      {
+        path: 'invoices',
+        title: 'Invoices',
+        loadComponent: () =>
+          import('../admin/invoices/invoices-page').then((page) => page.InvoicesPage),
         canActivate: [permissionGuard('clients.view')],
       },
       {
@@ -57,24 +77,25 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'plans',
         title: 'Plans & features',
-        loadChildren: () => import('./admin-later.routes').then((routes) => routes.PLANS_ROUTES),
+        loadChildren: () => import('./plans/plans.routes').then((routes) => routes.PLANS_ROUTES),
       },
       {
         path: 'subscriptions',
         title: 'Subscriptions',
         loadChildren: () =>
-          import('./admin-later.routes').then((routes) => routes.SUBSCRIPTIONS_ROUTES),
+          import('./subscriptions/subscriptions.routes').then((routes) => routes.SUBSCRIPTIONS_ROUTES),
       },
       {
         path: 'meta-config',
         title: 'Meta app & webhook',
-        loadChildren: () =>
-          import('./admin-later.routes').then((routes) => routes.META_CONFIG_ROUTES),
+        loadComponent: () =>
+          import('./meta-config/meta-config-page').then((page) => page.MetaConfigPage),
+        canActivate: [permissionGuard('meta.manage')],
       },
       {
         path: 'health',
         title: 'Webhook health',
-        loadChildren: () => import('./admin-later.routes').then((routes) => routes.HEALTH_ROUTES),
+        loadChildren: () => import('./health/health.routes').then((routes) => routes.HEALTH_ROUTES),
       },
       {
         path: 'analytics',

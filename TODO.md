@@ -19,6 +19,7 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 | `nazeel.localhost:4200` | **Client Workspace** | `admin` | `admin@123` | Workspace Admin |
 | `nazeel.localhost:4200` | **Client Workspace** | `supervisor` | `admin@123` | Supervisor (No Billing/WhatsApp) |
 | `nazeel.localhost:4200` | **Client Workspace** | `agent` | `admin@123` | Support Agent (Inbox & Contacts) |
+| `nazeel.localhost:4200` | **Client Workspace** | `developer` | `admin@123` | Integration User (Developer Hub) |
 
 ---
 
@@ -42,8 +43,8 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 |---|---|---|---|
 | **1** | **Foundation**: Workspace context, auth, login fixes, brand alignment, roles/menu CRUD, users CRUD, shells, DataTable, error routes | 12 | `[x]` |
 | **2** | **Team Inbox**: Split-pane inbox, active conversation view, weighted router, internal notes, resolution handoff, full Meta Cloud API send support, fixed-pane layout | 4 | `[x]` |
-| **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 7 (9 entries below) | `[~]` |
-| **4** | **Platform Admin**: Onboard client wizard, client detail tabs, plans feature matrix, subscriptions, webhook health monitor | 9 | `[ ]` |
+| **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 9 | `[~]` |
+| **4** | **Platform Admin**: Onboard client wizard, client detail tabs, plans feature matrix, subscriptions, invoices, Meta app config, webhook health monitor, WhatsApp connection | 10 | `[x]` |
 | **5** | **Lifecycle & Self-Service**: Billing, audit logging, onboarding wizard, suspended state, password reset, invite acceptance | 7 | `[ ]` |
 | **6** | **Advanced Automation**: Visual Flow Builder canvas, WhatsApp Flows form studio, Campaign broadcast wizard, Executive analytics | 12 | `[ ]` |
 
@@ -68,15 +69,15 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[x]` `W1` **Clients List** (`/clients`) — Onboarded tenant data table with subdomain link, subscription tier, WABA ID status, view-as shortcut, and suspension action.
 - `[x]` `W1` **Platform Staff List** (`/users`) — Platform staff team members list and role assignment.
 - `[x]` `W1` **Roles & Menus** (`/roles`, `/roles/:roleId`) — Platform roles list and permission capability matrix.
-- `[x]` `W1` **Planned Stubs** (`/plans`, `/subscriptions`, `/health`, `/announcements`, `/audit`, `/config`) — Route stubs with `PlannedState` placeholders.
-- `[ ]` `W4` **Onboard Client Wizard** (`/clients/new`) — Tenant creation form (business name, subdomain, tier, admin details).
-- `[ ]` `W4` **Client Detail View** (`/clients/:id`) — Detailed workspace tabs (overview, seats, WABA status, subscription, history).
-- `[ ]` `W4` **Plans Management** (`/plans/edit`) — Tier limits editor (seats, messages, campaign limits).
-- `[ ]` `W4` **Feature Matrix** (`/plans/matrix`) — Cross-tier module availability matrix.
-- `[ ]` `W4` **Subscriptions Log** (`/subscriptions/log`) — Tenant billing and subscription lifecycle log.
-- `[ ]` `W4` **Invoices List** (`/invoices`) — Platform invoice records.
-- `[ ]` `W4` **Meta App Configuration** (`/config`) — Meta Cloud API App ID, App Secret, and Webhook Verify Token configuration.
-- `[ ]` `W4` **Queue Health Monitor** (`/health/monitor`) — Real-time P95 latency graphs and dead-letter failure queue acknowledgement.
+- `[x]` `W1` **Planned Stubs** (`/plans`, `/subscriptions`, `/meta-config`, `/health`, `/analytics`, `/announcements`, `/audit`) — Route stubs with `PlannedState` placeholders. (W4 replaced the first four with real modules; the entry originally listed `/config`, which never existed as a route.)
+- `[x]` `W4` **Onboard Client Wizard** (`/clients/new`) — 3-step wizard (business → subdomain + tier → admin + review). Validates subdomain shape + uniqueness, previews the workspace URL and tier limits, provisions the tenant on trial and creates its admin. Fixes the dead `Onboard client` button on the Clients list.
+- `[x]` `W4` **Client Detail View** (`/clients/:clientId`, `?tab=`) — Overview facts, Seats (staff table + online count), WhatsApp (WABA status + recent deliveries), Subscription (tier move with confirm, limits-vs-usage meters, tenant invoices), History (subscription trail + provisioned/connected milestones timeline). Suspend/reactivate with confirm, dev `Open workspace` shortcut.
+- `[x]` `W4` **Plans Management** (`/plans`, `/plans/edit`) — Tier overview cards (limits, module count, workspaces on tier, Custom pricing) plus the limits editor: tier tabs, per-dimension number-or-Unlimited rows, saved to the live plan records.
+- `[x]` `W4` **Feature Matrix** (`/plans/matrix`) — Module × tier checkbox matrix writing straight to `MockDataService.plans`, which `PermissionService.planModules` reads — tier edits re-gate client sidebars without a reload (pinned by spec).
+- `[x]` `W4` **Subscriptions** (`/subscriptions`, `/subscriptions/log`) — Per-tenant current state derived from the event trail (suspension overrides billing) with summary metrics, plus the full newest-first transition log.
+- `[x]` `W4` **Invoices List** (`/invoices`) — New menu key + sidebar entry. Status filter chips, outstanding/overdue/collected totals, per-row link into the client subscription tab.
+- `[x]` `W4` **Meta App Configuration** (`/meta-config`) — App ID, secret (masked + reveal), API version, callback URL + verify token (copy + rotate), test number, save stamp, and the connected-numbers-per-workspace list. (Ledger originally wrote `/config`; the route has always been `/meta-config`.)
+- `[x]` `W4` **Queue Health Monitor** (`/health/monitor`, `/health` redirects) — Ack p50/p95/max, dead-letter + backlog metrics, latency distribution bars, outcome filter chips, and failed-event acknowledgement back into the retry queue.
 - `[ ]` `W6` **Announcements** (`/announcements/new`) — System-wide operational broadcast announcements.
 - `[ ]` `W5` **Platform Audit Log** (`/audit`) — Global administrative action audit log.
 - `[ ]` `W5` **Platform Settings** (`/settings`) — System configuration and domain settings.
@@ -104,8 +105,8 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[ ]` `W3` **Quick Replies** (`/quick-replies`) — CRUD list for `/` commands used in `ConversationDetailPageComponent`.
   » Route is `/quick-replies` (menu-catalog and client.routes), not `/replies` as first written.
 - `[ ]` `W3` **Business Settings** (`/settings/business`) — Reactive form for business profile (address, logo, default operating hours logic, auto-responder text).
-- `[ ]` `W4` **WhatsApp Settings** (`/settings/whatsapp`) — UI to display `WabaConnectionStatus`. Include 'Connect via Meta' button simulating OAuth popup.
-- `[ ]` `W4` **WhatsApp Callback Handler** (`/settings/whatsapp/callback`) — Route to parse OAuth token, exchange it, and set `workspace.isWabaConnected = true`.
+- `[x]` `W4` **WhatsApp Settings** (`/settings/whatsapp`) — WABA status card (IDs, customer-facing number, connected date, recent failures), last-5 sync health list, and `Connect via Meta` (needs `settings.manage`) simulating the Embedded Signup handoff. New `client/settings/settings.routes.ts`; `/settings` home stays a stub for W3's business profile.
+- `[x]` `W4` **WhatsApp Callback Handler** (`/settings/whatsapp/callback`) — Parses `?code=&state=`, exchanges the code via `MockDataService.connectWaba()` (stamps WABA IDs, sets `connectedAt`, flips pending workspaces to active, appends the trial→active subscription event), with explicit failed states for missing codes and unresolved hosts.
 - `[ ]` `W5` **Workspace Billing** (`/billing`) — Display current tier limits vs usage (e.g., active seats, monthly campaigns). Stripe checkout simulation for upgrades.
 - `[ ]` `W5` **Workspace Audit Log** (`/audit`) — Simple chronological table of `MockDataService.auditEvents()` filtered by `tenantId`.
 - `[ ]` `W6` **Flow Builder List** (`/flows`) — Table of saved flows. Columns: Name, Trigger, Status (Draft, Live), Last Edited.
@@ -123,6 +124,17 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 ---
 
 ## 📜 History & Updates Log
+
+### 2026-10-10 — Wave 4 shipped (Platform Admin + WhatsApp connection)
+- Built all 10 W4 entries: onboard wizard, client detail tabs, plans overview + limits editor + feature matrix, subscriptions overview + lifecycle log, invoices, Meta app config, queue health monitor, WhatsApp settings + OAuth callback.
+- Data layer: `Plan`/`PlanLimits`/`SubscriptionEvent`/`Invoice`/`MetaAppConfig` entities, `Tenant.phoneNumber`, `plan.seed.ts`, subscription + invoice trails in `buildDataset()`, and `saveTenant` / `changeTenantTier` / `connectWaba` / `savePlanLimits` / `setPlanModule` / `saveMetaConfig` / `ackWebhookEvent` / cross-tenant readers on `MockDataService`.
+- `PermissionService.planModules` now reads the live plan records, so matrix/tier edits re-gate sidebars immediately (spec-pinned). New `invoices` menu key; `subscriptions` unmarked as planned.
+- W1–W3 fixes in the same pass: removed `console.log` spam from `PermissionService.can`; added the missing `role-developer` seed (developer logins previously failed open on menus, closed on routes); inbox queue now sorts unread-first then newest-first; `saveUser()` honors an explicit `tenantId`; added the missing `.form-control--invalid` style so form errors actually render; pinned seats 2–3 to developer/agent so every demo login resolves in every tenant.
+- Determinism: new seeds consume zero shared-RNG calls for existing tenants (phone number derives from the WABA digits, invoices roll on a private stream), and the first template pins to `approved` so the composer's approved-only shelf can never be empty by chance.
+- SSR actually wired: `angular.json` now emits `server/server.mjs` (`serve:ssr` worked for the first time), `server.ts` allowlists the multi-tenant hosts (Angular rejects them otherwise and silently falls back to CSR), and `permissionGuard` matches `authGuard`'s SSR-lenient behavior so signed-in users don't SSR as `/no-access`.
+- Verified: `npx ng build` clean; **192/192 tests across 50 files** (was 132/132); SSR-rendered 20+ routes across marketing/client/platform hosts with correct content, host isolation intact, `?ws=` override working, zero server errors.
+- Ledger corrections: W3 count 7→9, W4 count 9→10, `/config`→`/meta-config`, platform stub list synced to the real routes, developer demo credentials added.
+- Still open (unchanged): W3's 8 unstarted pages; server-side pagination simulation deferred (datasets <100 rows — `Page<T>` already models server paging for when seeds scale); no browser-viewport pass in this environment (jsdom render specs + SSR content checks instead).
 
 ### 2026-10-10 — Wave 1 & 2 re-verified; Wave 3 started (Contact Hub Directory)
 - Verified W1 and W2 against the ledger's own bar (build, unit tests, render):

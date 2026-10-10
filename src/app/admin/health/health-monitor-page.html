@@ -1,0 +1,121 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PLATFORM"
+    title="Queue health monitor"
+    description="Acknowledgement latency, the outcome mix, and the dead-letter queue of failed events."
+  />
+
+  @if (notice(); as text) {
+    <p class="login-status" role="status">
+      {{ text }}
+      <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+    </p>
+  }
+
+  <div class="metric-grid">
+    <div class="metric">
+      <span class="metric__label">Events (window)</span>
+      <span class="metric__value">{{ stats().total }}</span>
+      <span class="metric__hint">{{ budgetNote() }}</span>
+    </div>
+    <div class="metric" [class.metric--brand]="stats().overTarget > 0">
+      <span class="metric__label">Ack p95</span>
+      <span class="metric__value">{{ stats().p95 }} ms</span>
+      <span class="metric__hint">p50 {{ stats().p50 }} ms · max {{ stats().max }} ms</span>
+    </div>
+    <div class="metric" [class.metric--brand]="stats().failed > 0">
+      <span class="metric__label">Dead letters</span>
+      <span class="metric__value">{{ stats().failed }}</span>
+      <span class="metric__hint">Failed after acknowledgement</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Retry backlog</span>
+      <span class="metric__value">{{ stats().queued }}</span>
+      <span class="metric__hint">{{ stats().duplicate }} duplicates absorbed</span>
+    </div>
+  </div>
+
+  <section class="surface admin-panel" aria-label="Acknowledgement latency distribution">
+    <header class="admin-panel__head">
+      <div>
+        <p class="eyebrow">LATENCY</p>
+        <h2>Acknowledgement distribution</h2>
+      </div>
+    </header>
+    <ul class="usage-list">
+      @for (bucket of buckets(); track bucket.label) {
+        <li class="usage-list__item">
+          <span class="usage-list__label">{{ bucket.label }}</span>
+          <span class="usage-list__bar" role="img" [attr.aria-label]="bucket.label + ': ' + bucket.count + ' events'">
+            <span class="usage-list__fill" data-tone="ok" [style.width.%]="bucket.width"></span>
+          </span>
+          <span class="usage-list__numbers">{{ bucket.count }}</span>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <div class="contact-filters" role="group" aria-label="Filter events by outcome">
+    <button
+      type="button"
+      class="contact-filter"
+      [attr.aria-pressed]="isActive(null)"
+      (click)="selectOutcome(null)"
+    >
+      All outcomes
+    </button>
+    @for (outcome of outcomes; track outcome) {
+      <button
+        type="button"
+        class="contact-filter"
+        [attr.aria-pressed]="isActive(outcome)"
+        (click)="selectOutcome(outcome)"
+      >
+        {{ outcome }}
+      </button>
+    }
+  </div>
+
+  <app-data-table
+    [columns]="columns()"
+    [rows]="filtered()"
+    [loading]="loading()"
+    [error]="error()"
+    caption="Webhook ingestion events"
+    exportName="bugconnect-webhook-events"
+    searchPlaceholder="Search by workspace or error"
+    emptyTitle="No events match this filter"
+    emptyDescription="Events appear here as Meta delivers them."
+  >
+    <ng-template appCell="ackMs" let-row>
+      <span [class.data-table__danger]="row.ackMs > ackTarget">{{ row.ackMs }} ms</span>
+    </ng-template>
+
+    <ng-template appCell="outcome" let-row>
+      <app-status-pill [label]="row.outcome" [tone]="outcomeTone(row.outcome)" />
+    </ng-template>
+
+    <ng-template appCell="error" let-row>
+      @if (row.error) {
+        <span class="data-table__danger">{{ row.error }}</span>
+      } @else {
+        <span class="data-table__subdued">—</span>
+      }
+    </ng-template>
+
+    <ng-template appCell="actions" let-row>
+      @if (row.outcome === 'failed') {
+        <span class="data-table__actions">
+          <button
+            class="data-table__action"
+            type="button"
+            (click)="acknowledge(row)"
+            [disabled]="acking() === row.id"
+          >
+            {{ acking() === row.id ? 'Queueing…' : 'Acknowledge' }}
+          </button>
+        </span>
+      }
+    </ng-template>
+  </app-data-table>
+</div>

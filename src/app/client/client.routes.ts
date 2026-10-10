@@ -115,7 +115,7 @@ export const CLIENT_ROUTES: Routes = [
       {
         path: 'settings',
         title: 'Workspace settings',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.SETTINGS_ROUTES),
+        loadChildren: () => import('./settings/settings.routes').then((routes) => routes.SETTINGS_ROUTES),
       },
       {
         path: 'profile',
