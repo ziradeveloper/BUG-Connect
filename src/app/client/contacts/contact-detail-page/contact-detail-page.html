@@ -71,7 +71,7 @@
         <div class="form-field">
           <span id="contact-tags-label">Tags</span>
           <span class="contact-tag-list" role="group" aria-labelledby="contact-tags-label">
-            @for (tag of tags(); track tag) {
+            @for (tag of tags(); track $index) {
               <span class="contact-tag">
                 {{ tag }}
                 @if (canManage()) {

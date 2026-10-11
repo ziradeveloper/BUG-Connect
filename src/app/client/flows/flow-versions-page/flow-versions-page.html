@@ -4,15 +4,17 @@
     [title]="(flow()?.name ?? 'Flow') + ' — versions'"
     description="Append-only changelog for this flow. Restoring an older snapshot publishes it as a new version, so nothing is ever rewritten."
   >
-    <a class="button button-secondary" pageActions routerLink="/flows">All flows</a>
-    @if (flow(); as current) {
-      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'edit']">
-        Canvas
-      </a>
-      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'simulate']">
-        Simulate
-      </a>
-    }
+    <ng-container pageActions>
+      <a class="button button-secondary" routerLink="/flows">All flows</a>
+      @if (flow(); as current) {
+        <a class="button button-secondary" [routerLink]="['/flows', current.id, 'edit']">
+          Canvas
+        </a>
+        <a class="button button-secondary" [routerLink]="['/flows', current.id, 'simulate']">
+          Simulate
+        </a>
+      }
+    </ng-container>
   </app-page-header>
 
   @if (!flow()) {

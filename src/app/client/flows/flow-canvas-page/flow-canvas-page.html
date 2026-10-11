@@ -10,15 +10,17 @@
         : 'This flow id is not part of the workspace seed.'
     "
   >
-    <a class="button button-secondary" pageActions routerLink="/flows">All flows</a>
-    @if (flow(); as current) {
-      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'simulate']">
-        Simulate
-      </a>
-      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'versions']">
-        Versions
-      </a>
-    }
+    <ng-container pageActions>
+      <a class="button button-secondary" routerLink="/flows">All flows</a>
+      @if (flow(); as current) {
+        <a class="button button-secondary" [routerLink]="['/flows', current.id, 'simulate']">
+          Simulate
+        </a>
+        <a class="button button-secondary" [routerLink]="['/flows', current.id, 'versions']">
+          Versions
+        </a>
+      }
+    </ng-container>
   </app-page-header>
 
   @if (!flow()) {

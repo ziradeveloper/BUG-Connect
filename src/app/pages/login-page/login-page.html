@@ -68,6 +68,7 @@
           [(ngModel)]="username"
           #usernameModel="ngModel"
           required
+          autocomplete="username"
           placeholder="admin@bugconnect.example"
         />
         @if (loginForm.submitted && usernameModel.invalid) {
@@ -89,6 +90,7 @@
             [(ngModel)]="password"
             #passwordModel="ngModel"
             required
+            autocomplete="current-password"
             placeholder="••••••••"
           />
           <button type="button" class="password-control__toggle" (click)="togglePasswordVisibility()">

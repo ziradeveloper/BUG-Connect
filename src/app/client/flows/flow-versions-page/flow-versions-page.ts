@@ -8,7 +8,7 @@ import { DataTableComponent } from '../../../shared/data-table/data-table';
 import { DataTableCellDirective } from '../../../shared/data-table/data-table.model';
 import type { DataColumn } from '../../../shared/data-table/data-table.model';
 import { formatDateTime, formatRelative } from '../../../shared/format';
-import { ConfirmDialog, PageHeader, StatusPill } from '../../../shared/ui/ui';
+import { ConfirmDialog, PageHeader } from '../../../shared/ui/ui';
 
 /**
  * Flow version history (`/flows/:id/versions`, wave 6).
@@ -24,7 +24,6 @@ import { ConfirmDialog, PageHeader, StatusPill } from '../../../shared/ui/ui';
     DataTableComponent,
     DataTableCellDirective,
     PageHeader,
-    StatusPill,
     ConfirmDialog,
   ],
   templateUrl: './flow-versions-page.html',
