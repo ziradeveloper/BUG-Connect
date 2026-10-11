@@ -18,7 +18,7 @@ export type PlannedConfig = {
  * resolve normally — only the screen is honest about not existing yet.
  *
  * Bound from `route.data.planned`, so a module's stub is one entry in
- * later.routes.ts and nothing extra is imported per page.
+ * admin-later.routes.ts and nothing extra is imported per page.
  */
 @Component({
   selector: 'app-planned-module-page',

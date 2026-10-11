@@ -8,8 +8,9 @@ import type { PlannedConfig } from '../client/later/planned-module-page';
  * Platform stubs, kept out of admin.routes.ts so a wave can replace one module
  * without touching the route table.
  *
- * Wave 4 landed plans, subscriptions, meta-config and health as real modules and
- * wave 5 took audit; what remains here is genuinely later-wave work.
+ * Wave 4 landed plans, subscriptions, meta-config and health as real modules,
+ * wave 5 took audit and wave 6 took announcements; what remains here is
+ * cross-tenant analytics, which the PRD places after wave 6.
  */
 const ADMIN_PLANNED: Record<string, { capability: Capability | null; config: PlannedConfig }> = {
   analytics: {
@@ -17,7 +18,7 @@ const ADMIN_PLANNED: Record<string, { capability: Capability | null; config: Pla
     config: {
       eyebrow: 'PLATFORM',
       title: 'Cross-tenant analytics',
-      phase: 'Built in wave 6',
+      phase: 'Planned after wave 6',
       icon: '◮',
       description:
         'Adoption and usage across all workspaces, kept separate from any single tenant’s reporting.',
@@ -26,17 +27,6 @@ const ADMIN_PLANNED: Record<string, { capability: Capability | null; config: Pla
         'Message volume by plan',
         'Time from signup to first live conversation',
       ],
-    },
-  },
-  announcements: {
-    capability: 'announcements.manage',
-    config: {
-      eyebrow: 'PLATFORM',
-      title: 'Announcements',
-      phase: 'Built in wave 6',
-      icon: '▷',
-      description: 'In-console notices for onboarding steps, maintenance and plan changes.',
-      includes: ['Target by plan, industry or single tenant', 'Expiry and read receipts'],
     },
   },
 };
@@ -57,4 +47,3 @@ function adminStub(key: keyof typeof ADMIN_PLANNED): Routes {
 }
 
 export const ANALYTICS_ROUTES = adminStub('analytics');
-export const ANNOUNCEMENTS_ROUTES = adminStub('announcements');

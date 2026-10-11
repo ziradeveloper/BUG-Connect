@@ -1,0 +1,272 @@
+/*
+ * Wave 6 — platform announcements (`/announcements`).
+ *
+ * The editor is a two-column workspace: the notice on the left, and on the right
+ * the three things that decide whether it can go out — who it reaches, what the
+ * banner looks like, and what is still wrong with it. The preview is styled like
+ * the banner a client console would show, so the platform owner is looking at
+ * the real thing rather than a description of it.
+ */
+
+.ann-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.ann-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.ann-side {
+  display: grid;
+  gap: 1rem;
+}
+
+.ann-panel {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.95rem 1.05rem 1.1rem;
+}
+
+.ann-panel__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.ann-danger {
+  color: var(--theme-danger);
+}
+
+.ann-count {
+  margin-inline-start: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-style: normal;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- kind and audience pickers ---------------------------------------- */
+
+.ann-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.4rem 1rem;
+}
+
+.ann-choices__text {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.ann-choices__text strong {
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+}
+
+.ann-choices__text small {
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+.ann-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.ann-tenants {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.4rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.ann-tenants__text {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.ann-tenants__text strong {
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+}
+
+.ann-tenants__text small {
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- schedule --------------------------------------------------------- */
+
+.ann-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.9rem;
+}
+
+.ann-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.ann-body {
+  min-height: 9rem;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+/* ---- reach ------------------------------------------------------------ */
+
+.ann-reach {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--theme-text-secondary);
+}
+
+.ann-reach strong {
+  font-size: 1.25rem;
+  color: var(--theme-text-primary);
+}
+
+.ann-matched {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 15rem;
+  margin: 0;
+  padding: 0.5rem 0 0;
+  overflow: auto;
+  border-top: 1px solid var(--theme-border);
+  list-style: none;
+}
+
+.ann-matched li {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.ann-matched strong {
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+}
+
+.ann-matched small {
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- the banner as a workspace sees it -------------------------------- */
+
+.ann-preview {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--theme-border);
+  border-inline-start: 3px solid var(--theme-brand);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface);
+}
+
+.ann-preview--pinned {
+  border-inline-start-color: var(--theme-warning);
+  box-shadow: var(--theme-shadow-xs);
+}
+
+.ann-preview__title {
+  font-size: 0.9375rem;
+  color: var(--theme-text-primary);
+}
+
+.ann-preview p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--theme-text-secondary);
+}
+
+.ann-preview__empty {
+  font-style: italic;
+}
+
+.ann-kind {
+  justify-self: start;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ann-kind--maintenance {
+  background: var(--theme-warning-surface);
+  color: var(--theme-warning);
+}
+
+.ann-kind--release {
+  background: var(--theme-brand-soft);
+  color: var(--theme-brand);
+}
+
+.ann-kind--billing {
+  background: var(--theme-info-surface);
+  color: var(--theme-info);
+}
+
+.ann-kind--policy {
+  background: var(--theme-surface-hover);
+  color: var(--theme-text-secondary);
+}
+
+.ann-pin {
+  margin-inline-end: 0.3rem;
+  font-size: 0.625rem;
+  color: var(--theme-warning);
+}
+
+/* ---- publish check ---------------------------------------------------- */
+
+.ann-issues {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  font-size: 0.8125rem;
+  color: var(--theme-danger);
+}
+
+/* ---- folding ---------------------------------------------------------- */
+
+@media (max-width: 70rem) {
+  .ann-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ann-side {
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 40rem) {
+  .ann-choices,
+  .ann-tenants,
+  .ann-times {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ann-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ann-matched {
+    max-height: 11rem;
+  }
+}

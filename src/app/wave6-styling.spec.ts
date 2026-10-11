@@ -3,6 +3,8 @@ import { join, relative } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { ANNOUNCEMENT_KINDS } from './core/data/announcements';
+
 /**
  * Wave 6 styling guard, the companion to `wave5-styling.spec.ts`: the automation
  * and growth screens wear classes that must all resolve in `src/styles`, and the
@@ -18,6 +20,10 @@ const TEMPLATES = [
   'src/app/client/campaigns/campaigns-page/campaigns-page.html',
   'src/app/client/campaigns/campaign-wizard-page/campaign-wizard-page.html',
   'src/app/client/campaigns/campaign-monitor-page/campaign-monitor-page.html',
+  'src/app/client/reports/reports-page/reports-page.html',
+  'src/app/client/developer/developer-page/developer-page.html',
+  'src/app/admin/announcements/announcements-page/announcements-page.html',
+  'src/app/admin/announcements/announcement-editor-page/announcement-editor-page.html',
 ];
 
 const STYLE_ROOT = join(process.cwd(), 'src/styles');
@@ -32,6 +38,9 @@ function walk(dir: string): string[] {
 const stylesheets = walk(STYLE_ROOT).filter((file) => file.endsWith('.css'));
 const automationCss = readFileSync(join(STYLE_ROOT, 'pages/automation.css'), 'utf8');
 const growthCss = readFileSync(join(STYLE_ROOT, 'pages/growth.css'), 'utf8');
+const insightsCss = readFileSync(join(STYLE_ROOT, 'pages/insights.css'), 'utf8');
+const integrationsCss = readFileSync(join(STYLE_ROOT, 'pages/integrations.css'), 'utf8');
+const announcementsCss = readFileSync(join(STYLE_ROOT, 'pages/announcements.css'), 'utf8');
 const allCss = stylesheets.map((file) => readFileSync(file, 'utf8')).join('\n');
 
 describe('wave 6 styling contract', () => {
@@ -51,7 +60,10 @@ describe('wave 6 styling contract', () => {
 
       for (const match of html.matchAll(/\bclass="([^"]*)"/g)) {
         for (const name of (match[1] as string).split(/\s+/)) {
-          if (name) used.add(name);
+          // `ann-kind ann-kind--{{ row.kind }}` interpolates its suffix, so the
+          // fragments of the expression are not class names; the family of
+          // suffixes is checked against the entity union below instead.
+          if (name && /^-?[a-zA-Z][\w-]*$/.test(name)) used.add(name);
         }
       }
       for (const match of html.matchAll(/\[class\.([\w-]+)\]/g)) {
@@ -108,6 +120,53 @@ describe('wave 6 styling contract', () => {
     expect(growthCss).toMatch(/\.camp-chart__bar--delivered\s*\{/);
     expect(growthCss).toMatch(/\.camp-chart__bar--read\s*\{/);
     expect(growthCss).toMatch(/@media \(max-width: 40rem\)/);
+  });
+
+  it('draws the reports charts without a charting dependency', () => {
+    const reportsHtml = readFileSync(
+      join(process.cwd(), 'src/app/client/reports/reports-page/reports-page.html'),
+      'utf8',
+    );
+
+    // The volume chart is one inline SVG: grid lines, an area, two series, dots.
+    expect(reportsHtml).toMatch(/<svg[\s\S]*?viewBox="0 0 600 220"/);
+    expect(reportsHtml).toMatch(/rep-chart__area/);
+    expect(reportsHtml).toMatch(/rep-chart__line--inbound/);
+    // The containment ring is a conic gradient with a punched-out centre.
+    expect(insightsCss).toMatch(/\.rep-ring\s*\{[^}]*border-radius:\s*var\(--radius-full\)/);
+    expect(reportsHtml).toMatch(/\[style\.background\]="ring\(\)"/);
+    // Funnel and leaderboard bars are divs sized in percent.
+    expect(reportsHtml).toMatch(/\[style\.width\.%\]="stage\.pctOfAudience"/);
+    // And the whole sheet folds: two panels to one at 70rem, labels stacked at 40rem.
+    expect(insightsCss).toMatch(/@media \(max-width: 70rem\)/);
+    expect(insightsCss).toMatch(/@media \(max-width: 40rem\)/);
+    expect(reportsHtml).not.toMatch(/<canvas/i);
+  });
+
+  it('keeps the hub and the announcement editor readable on a phone', () => {
+    // The hub is code and copy, so the sheet is about scrollable blocks that fold.
+    expect(integrationsCss).toMatch(/\.dev-code\s*\{[^}]*overflow:\s*auto/);
+    expect(integrationsCss).toMatch(/@media \(max-width: 70rem\)/);
+    expect(integrationsCss).toMatch(/@media \(max-width: 40rem\)/);
+
+    // The editor's two columns become one, and its preview keeps the banner shape.
+    expect(announcementsCss).toMatch(/\.ann-grid\s*\{[^}]*grid-template-columns/);
+    expect(announcementsCss).toMatch(/\.ann-preview\s*\{[^}]*border-inline-start/);
+    expect(announcementsCss).toMatch(/\.ann-kind--maintenance\s*\{/);
+    expect(announcementsCss).toMatch(/\.ann-kind--billing\s*\{/);
+    expect(announcementsCss).toMatch(/@media \(max-width: 70rem\)/);
+    expect(announcementsCss).toMatch(/@media \(max-width: 40rem\)/);
+  });
+
+  it('styles every announcement kind the entity allows', () => {
+    // The templates build `ann-kind--{{ kind }}` at runtime, so the contract for
+    // those is that every value in the catalogue has a rule of its own.
+    const missing = ANNOUNCEMENT_KINDS.filter(
+      (option) => !new RegExp(`\\.ann-kind--${option.value}\\s*\\{`).test(announcementsCss),
+    ).map((option) => option.value);
+
+    expect(ANNOUNCEMENT_KINDS.length).toBe(4);
+    expect(missing).toEqual([]);
   });
 
   it('keeps the canvas a positioned surface with drawn connectors', () => {

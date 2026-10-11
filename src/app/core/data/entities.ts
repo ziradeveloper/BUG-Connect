@@ -369,6 +369,103 @@ export interface BusinessProfile {
  * Which part of the product an audited action belongs to. The log filters on
  * this, and the platform view adds a tenant column on top.
  */
+/**
+ * Developer Hub (wave 6).
+ *
+ * A workspace integrates through scoped API keys and one signed webhook
+ * endpoint. The key's secret is only ever shown at creation, so the row keeps the
+ * visible prefix and a digest — exactly what a real key store would hold.
+ */
+export type ApiKeyScope =
+  | 'messages.send'
+  | 'conversations.read'
+  | 'contacts.write'
+  | 'templates.read'
+  | 'flows.read'
+  | 'webhooks.manage'
+  | 'reports.read';
+
+export interface ApiKeyToken {
+  id: string;
+  tenantId: string;
+  name: string;
+  scopes: ApiKeyScope[];
+  /** The public part of the key, e.g. `bc_live_9f3a2c`. The secret is never stored. */
+  prefix: string;
+  /** Hex digest of the secret, so a leak can be recognised without storing it. */
+  secretDigest: string;
+  createdAt: string;
+  createdBy: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  /** Calls made with this key in the last 30 days. */
+  calls30d: number;
+}
+
+/** The events a workspace can subscribe its endpoint to. */
+export type WebhookEventName =
+  | 'message.received'
+  | 'message.status'
+  | 'conversation.assigned'
+  | 'flow.completed'
+  | 'contact.opt_out';
+
+export interface WebhookEndpoint {
+  id: string;
+  tenantId: string;
+  url: string;
+  /** HMAC secret the deliveries are signed with. */
+  secret: string;
+  events: WebhookEventName[];
+  status: 'active' | 'paused' | 'failing';
+  /** Consecutive failed deliveries; the third one flips the endpoint to failing. */
+  failureCount: number;
+  lastDeliveryAt: string | null;
+  /** HTTP status of the most recent delivery attempt. */
+  lastStatus: number | null;
+  updatedAt: string;
+}
+
+/**
+ * Platform announcements (wave 6).
+ *
+ * In-console notices the platform owner sends to workspaces: maintenance
+ * windows, releases, billing changes. Targeting is by plan tier, by industry or
+ * by named workspaces, and the notice carries its own publish and expiry times —
+ * so whether it is live is a function of the clock, not of a flag somebody
+ * forgets to flip.
+ */
+export type AnnouncementKind = 'maintenance' | 'release' | 'billing' | 'policy';
+
+/** Who a notice is addressed to. */
+export type AnnouncementAudienceType = 'everyone' | 'tiers' | 'industry' | 'tenants';
+
+export interface Announcement {
+  id: string;
+  title: string;
+  /** Plain text with line breaks; the console renders it as paragraphs. */
+  body: string;
+  kind: AnnouncementKind;
+  audience: {
+    type: AnnouncementAudienceType;
+    /** Tier names, when targeting by plan. */
+    tiers: string[];
+    industry: string | null;
+    tenantIds: string[];
+  };
+  publishAt: string;
+  expiresAt: string | null;
+  pinned: boolean;
+  /** Drafts and withdrawals are deliberate; live/scheduled follow the clock. */
+  status: 'draft' | 'published' | 'withdrawn';
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Workspaces that have opened the notice. */
+  views: number;
+}
+
 export type AuditArea =
   | 'auth'
   | 'users'

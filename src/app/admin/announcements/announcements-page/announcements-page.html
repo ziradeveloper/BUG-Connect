@@ -1,0 +1,117 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PLATFORM"
+    title="Announcements"
+    description="In-console notices for every workspace: maintenance windows, releases, billing and policy changes. A notice's state follows its own schedule — published and in the future reads as scheduled, past its expiry reads as expired."
+  >
+    @if (canManage()) {
+      <a class="button button-primary" pageActions routerLink="/announcements/new">
+        New announcement
+      </a>
+    }
+  </app-page-header>
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Notices</span>
+      <span class="metric__value">{{ summary().total }}</span>
+      <span class="metric__hint">{{ summary().drafts }} drafts</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Live now</span>
+      <span class="metric__value">{{ summary().live }}</span>
+      <span class="metric__hint">{{ summary().reached }} workspaces reached</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Scheduled</span>
+      <span class="metric__value">{{ summary().scheduled }}</span>
+      <span class="metric__hint">Waiting on their publish time</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Audience</span>
+      <span class="metric__value">Plan, industry or named</span>
+      <span class="metric__hint">Previewed before it goes out</span>
+    </div>
+  </div>
+
+  @if (notice(); as message) {
+    <p class="ops-notice" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    caption="Platform announcements"
+    [rowKey]="rowKey"
+    [loading]="loading()"
+    searchPlaceholder="Search notices"
+    exportName="bugconnect-announcements"
+    emptyTitle="No announcements yet"
+    emptyDescription="Write the first notice — a maintenance window is usually the reason a workspace starts reading these."
+    (rowClick)="open($event)"
+  >
+    <ng-template appCell="title" let-row>
+      <strong class="data-table__primary">
+        @if (row.pinned) {
+          <span class="ann-pin" title="Pinned">▲</span>
+        }
+        {{ row.title }}
+      </strong>
+      <span class="data-table__subdued">
+        <span class="ann-kind ann-kind--{{ row.kind }}">{{ kindLabel(row.kind) }}</span>
+        by {{ row.createdBy }} · updated {{ formatRelative(row.updatedAt) }}
+      </span>
+    </ng-template>
+
+    <ng-template appCell="state" let-row>
+      <app-status-pill [label]="stateLabel(row)" [tone]="stateTone(row)" />
+      @if (row.expiresAt) {
+        <span class="data-table__subdued">Until {{ formatDateTime(row.expiresAt) }}</span>
+      } @else {
+        <span class="data-table__subdued">No expiry</span>
+      }
+    </ng-template>
+
+    <ng-template appCell="actions" let-row>
+      @if (canManage()) {
+        <div class="ops-buttons">
+          <a class="form-link" [routerLink]="['/announcements', row.id]">Edit</a>
+          <button class="form-link" type="button" (click)="togglePin(row)">
+            {{ row.pinned ? 'Unpin' : 'Pin' }}
+          </button>
+          @if (stateOf(row) !== 'withdrawn' && stateOf(row) !== 'draft') {
+            <button class="form-link ann-danger" type="button" (click)="askWithdraw(row)">
+              Withdraw
+            </button>
+          }
+          @if (stateOf(row) === 'draft') {
+            <button class="form-link ann-danger" type="button" (click)="askDelete(row)">
+              Delete
+            </button>
+          }
+        </div>
+      }
+    </ng-template>
+  </app-data-table>
+
+  <app-confirm-dialog
+    [open]="pendingWithdraw() !== null"
+    title="Withdraw this announcement?"
+    description="Workspaces stop seeing it immediately. The notice stays in this list as withdrawn, so the record shows it went out and came back."
+    confirmLabel="Withdraw"
+    (cancel)="pendingWithdraw.set(null)"
+    (confirm)="confirmWithdraw()"
+  />
+
+  <app-confirm-dialog
+    [open]="pendingDelete() !== null"
+    title="Delete this draft?"
+    description="The draft is removed for good. Only drafts can be deleted — anything that was published stays in the record."
+    confirmLabel="Delete draft"
+    (cancel)="pendingDelete.set(null)"
+    (confirm)="confirmDelete()"
+  />
+</div>
