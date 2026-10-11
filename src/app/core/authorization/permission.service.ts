@@ -183,9 +183,21 @@ export class PermissionService {
         ? roles.map((candidate) => (candidate.id === role.id ? role : candidate))
         : [...roles, role],
     );
+
+    // Role edits are platform-level configuration: they change what any member
+    // of the role can reach, in every workspace the role is used in.
+    this.data.recordAudit({
+      area: 'roles',
+      action: exists ? `Saved the ${role.name} role` : `Created the ${role.name} role`,
+      target: `${role.name} · ${role.menus.length} menus`,
+      level: 'warning',
+      tenantId: null,
+    });
   }
 
   toggleMenu(roleId: string, key: MenuKey): void {
+    const granted = !this.roleFor(roleId)?.menus.includes(key);
+
     this.roles.update((roles) =>
       roles.map((role) => {
         if (role.id !== roleId) {
@@ -199,6 +211,14 @@ export class PermissionService {
         return { ...role, menus };
       }),
     );
+
+    this.data.recordAudit({
+      area: 'roles',
+      action: `${granted ? 'Granted' : 'Revoked'} the ${MENU_BY_KEY[key]?.label ?? key} menu`,
+      target: `Role ${this.labelFor(roleId)}`,
+      level: 'warning',
+      tenantId: null,
+    });
   }
 
   setLevel(roleId: string, capability: Capability, level: AccessLevel): void {
@@ -209,6 +229,14 @@ export class PermissionService {
           : role,
       ),
     );
+
+    this.data.recordAudit({
+      area: 'roles',
+      action: `Set ${capability} to ${level}`,
+      target: `Role ${this.labelFor(roleId)}`,
+      level: 'warning',
+      tenantId: null,
+    });
   }
 
   deleteRole(id: string): { ok: boolean; message?: string } {
@@ -232,6 +260,13 @@ export class PermissionService {
     }
 
     this.roles.update((roles) => roles.filter((candidate) => candidate.id !== id));
+    this.data.recordAudit({
+      area: 'roles',
+      action: `Deleted the ${role.name} role`,
+      target: role.name,
+      level: 'critical',
+      tenantId: null,
+    });
     return { ok: true };
   }
 

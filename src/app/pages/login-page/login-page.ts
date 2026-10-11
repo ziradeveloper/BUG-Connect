@@ -17,6 +17,7 @@ const DEMO_ACCOUNTS = [
   { id: 'admin', label: 'Workspace Admin', note: 'Tenant workspace (nazeel.localhost)' },
   { id: 'supervisor', label: 'Supervisor', note: 'No WhatsApp or billing' },
   { id: 'agent', label: 'Support agent', note: 'Inbox and contacts only' },
+  { id: 'developer', label: 'Integration user', note: 'Developer Hub and read-only settings' },
 ] as const;
 
 @Component({
@@ -114,7 +115,8 @@ export class LoginPage {
   }
 
   protected requestPasswordReset(): void {
-    this.statusType = 'info';
-    this.statusMessage = 'Password recovery is not available in this demo login yet.';
+    // Wave 5 — self-service recovery lives on its own page so the login card
+    // stops being a dead end.
+    void this.router.navigate(['/forgot-password']);
   }
 }

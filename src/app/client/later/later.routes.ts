@@ -22,37 +22,6 @@ function stub(capability: Capability | null, config: PlannedConfig): Routes {
 }
 
 const PLANNED = {
-  inbox: {
-    eyebrow: 'OPERATIONS',
-    title: 'Team Inbox',
-    phase: 'Built in wave 2',
-    icon: '◫',
-    description:
-      'The shared queue where escalated conversations land. Real-time sync, assignment, internal notes and collision indicators.',
-    includes: [
-      'Unassigned, Mine, Open and Resolved queues',
-      'Agent whisper notes shown in the thread',
-      'Typing and active-view indicators to prevent double replies',
-      'Composer with / quick-reply snippets and media attach',
-      'Mark resolved frees chat capacity back to the router',
-    ],
-    note: 'The dashboard already reads these same conversations, so the queue is the next layer on data that exists.',
-  },
-  flows: {
-    eyebrow: 'AUTOMATION',
-    title: 'Flow Builder',
-    phase: 'Built after the engine',
-    icon: '⇄',
-    description:
-      'The visual designer for customer journeys. The Flow Engine behaviour and its five nodes come first; this is the canvas on top of the same schema.',
-    includes: [
-      'Inbound hook, interactive menu, selection, weighted router, close',
-      'Up to three buttons or a ten-option list per menu node',
-      'Conditions on hours, tags and lead status',
-      'In-browser simulator on a virtual phone before publishing',
-    ],
-    note: 'Business §11 puts the Builder in Phase 2 while Master §8 puts it in Phase 1 — the engine first, canvas after, is how this build resolves that.',
-  },
   campaigns: {
     eyebrow: 'GROWTH',
     title: 'Campaign Manager',
@@ -96,38 +65,8 @@ const PLANNED = {
       'Workspace-specific Postman export',
     ],
   },
-  billing: {
-    eyebrow: 'WORKSPACE',
-    title: 'Subscription',
-    phase: 'Pricing is an open decision',
-    icon: '▤',
-    description: 'The plan this workspace is on, what it consumes, and the invoices behind it.',
-    includes: [
-      'Current plan and the nine metered dimensions',
-      'Usage against each limit',
-      'Invoices and payment status',
-    ],
-    note: 'The PRD has no published prices, so this screen will show limits and usage until the commercial model is confirmed — not invented numbers.',
-  },
-  audit: {
-    eyebrow: 'INSIGHTS',
-    title: 'Audit log',
-    phase: 'Built in a later wave',
-    icon: '☰',
-    description:
-      'Administrative actions recorded for accountability, filterable by actor and area.',
-    includes: [
-      'Who changed what and when',
-      'Role, plan and connection changes',
-      'Exportable history',
-    ],
-  },
 } satisfies Record<string, PlannedConfig>;
 
-export const INBOX_ROUTES = stub('inbox.view', PLANNED.inbox);
-export const FLOW_ROUTES = stub('flows.view', PLANNED.flows);
 export const CAMPAIGN_ROUTES = stub('campaigns.view', PLANNED.campaigns);
 export const REPORTS_ROUTES = stub('reports.view', PLANNED.reports);
 export const DEVELOPER_ROUTES = stub('developer.manage', PLANNED.developer);
-export const BILLING_ROUTES = stub('billing.view', PLANNED.billing);
-export const AUDIT_ROUTES = stub('audit.view', PLANNED.audit);

@@ -1,0 +1,61 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="WORKSPACE"
+    title="Workspace settings"
+    description="Everything configured once by an administrator: the business identity, the WhatsApp connection, and the routing that decides who answers."
+  />
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Business profile</span>
+      <span class="metric__value">{{ profile()?.displayName ?? 'Not set' }}</span>
+      <span class="metric__hint">{{ profile()?.timezone ?? 'No timezone configured' }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">WhatsApp</span>
+      <span class="metric__value">{{ connected() ? 'Connected' : 'Not connected' }}</span>
+      <span class="metric__hint">{{ tenant()?.phoneNumber ?? 'No number attached yet' }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Teams</span>
+      <span class="metric__value">{{ teamCount() }}</span>
+      <span class="metric__hint">Routing groups in this workspace</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Quick replies</span>
+      <span class="metric__value">{{ replyCount() }}</span>
+      <span class="metric__hint">`/` snippets the inbox expands</span>
+    </div>
+  </div>
+
+  <section class="settings-hub" aria-label="Settings areas">
+    @for (card of cards(); track card.path) {
+      <article class="settings-card surface" [attr.data-locked]="card.locked">
+        <header class="settings-card__head">
+          <span class="settings-card__icon" aria-hidden="true">{{ card.icon }}</span>
+          <div>
+            <h2>{{ card.title }}</h2>
+            <p class="text-muted">{{ card.description }}</p>
+          </div>
+        </header>
+
+        <p class="settings-card__status">
+          <span class="badge" [class]="'badge badge-' + card.tone">{{ card.status }}</span>
+        </p>
+
+        @if (card.locked) {
+          <p class="settings-card__locked text-muted">
+            Your role can open this workspace but not this area.
+          </p>
+        } @else {
+          <a class="button button-secondary button-sm" [routerLink]="card.path">{{ card.action }}</a>
+        }
+      </article>
+    }
+  </section>
+
+  <p class="planned-note text-muted">
+    The WhatsApp connection runs through Meta Embedded Signup — connecting a number is what turns
+    a trial workspace into a live one.
+  </p>
+</div>

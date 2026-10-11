@@ -1,0 +1,169 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PLATFORM"
+    title="Platform settings"
+    description="Identity, domains, onboarding defaults and the switches that decide what workspaces may do for themselves."
+  >
+    <a class="button button-secondary" pageActions routerLink="/audit">Audit log</a>
+  </app-page-header>
+
+  @if (notice(); as message) {
+    <div class="ops-notice" role="status">
+      <span>{{ message }}</span>
+      <button class="button button-secondary button-sm" type="button" (click)="dismissNotice()">
+        Dismiss
+      </button>
+    </div>
+  }
+
+  @if (error(); as message) {
+    <div class="ops-notice ops-notice--error" role="alert">{{ message }}</div>
+  }
+
+  <div class="settings-form">
+    <section class="surface admin-panel" aria-label="Platform identity">
+      <header class="admin-panel__head">
+        <div>
+          <p class="eyebrow">IDENTITY</p>
+          <h2>How the platform introduces itself</h2>
+        </div>
+      </header>
+
+      <div class="settings-form__grid">
+        <div class="form-field">
+          <label for="platform-name">Platform name</label>
+          <input id="platform-name" name="platformName" class="form-control" [(ngModel)]="draft.platformName" />
+        </div>
+        <div class="form-field">
+          <label for="support-email">Support email</label>
+          <input id="support-email" name="supportEmail" type="email" class="form-control" [(ngModel)]="draft.supportEmail" />
+        </div>
+        <div class="form-field">
+          <label for="support-phone">Support phone</label>
+          <input id="support-phone" name="supportPhone" class="form-control" [(ngModel)]="draft.supportPhone" />
+        </div>
+      </div>
+      <p class="admin-panel__note text-muted">
+        The support details are what a suspended workspace sees on its lock screen — the address is
+        the one place a tenant is told to go.
+      </p>
+    </section>
+
+    <section class="surface admin-panel" aria-label="Domains">
+      <header class="admin-panel__head">
+        <div>
+          <p class="eyebrow">DOMAINS</p>
+          <h2>Hosts the resolver accepts</h2>
+        </div>
+      </header>
+
+      <div class="settings-form__grid">
+        <div class="form-field">
+          <label for="apex-domain">Apex domain</label>
+          <input id="apex-domain" name="apexDomain" class="form-control" [(ngModel)]="draft.apexDomain" />
+        </div>
+        <div class="form-field">
+          <label for="tenant-suffix">Tenant suffix</label>
+          <input id="tenant-suffix" name="tenantSuffix" class="form-control" [(ngModel)]="draft.tenantSuffix" />
+        </div>
+        <div class="form-field">
+          <label for="admin-subdomain">Admin subdomain</label>
+          <input id="admin-subdomain" name="adminSubdomain" class="form-control" [(ngModel)]="draft.adminSubdomain" />
+        </div>
+      </div>
+
+      <p class="admin-panel__note text-muted">
+        In this build the allowlist is enforced by SSR (<code>src/server.ts</code>) and the dev
+        server (<code>angular.json</code>): <code>localhost</code>, <code>*.localhost</code>,
+        <code>127.0.0.1</code> and <code>*.e2b.app</code>. A production deploy adds the apex and
+        tenant suffix above to the same list.
+      </p>
+    </section>
+
+    <section class="surface admin-panel" aria-label="Onboarding defaults">
+      <header class="admin-panel__head">
+        <div>
+          <p class="eyebrow">ONBOARDING</p>
+          <h2>What a new workspace starts with</h2>
+        </div>
+      </header>
+
+      <div class="settings-form__grid">
+        <div class="form-field">
+          <label for="default-tier">Default tier</label>
+          <select id="default-tier" name="defaultTier" class="form-control" [(ngModel)]="draft.defaultTier">
+            @for (tier of tiers; track tier) {
+              <option [ngValue]="tier">{{ tier }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="trial-days">Trial length (days)</label>
+          <input id="trial-days" name="trialDays" type="number" min="1" max="90" class="form-control" [(ngModel)]="draft.trialDays" />
+        </div>
+        <div class="form-field">
+          <label for="session-timeout">Session timeout (minutes)</label>
+          <input id="session-timeout" name="sessionTimeoutMinutes" type="number" min="15" max="2880" class="form-control" [(ngModel)]="draft.sessionTimeoutMinutes" />
+        </div>
+      </div>
+      <p class="admin-panel__note text-muted">
+        The onboard wizard provisions a workspace as <em>onboarding</em> and stamps this trial
+        length into the subscription trail's first event.
+      </p>
+    </section>
+
+    <section class="surface admin-panel" aria-label="Feature switches">
+      <header class="admin-panel__head">
+        <div>
+          <p class="eyebrow">SWITCHES</p>
+          <h2>What tenants may do without us</h2>
+        </div>
+      </header>
+
+      <div class="settings-switches">
+        <label class="settings-switch">
+          <input type="checkbox" name="allowSelfServiceSignup" [(ngModel)]="draft.allowSelfServiceSignup" />
+          <span>
+            <strong>Self-service signup</strong>
+            <small>Let a business create its own workspace from the marketing site.</small>
+          </span>
+        </label>
+
+        <label class="settings-switch">
+          <input type="checkbox" name="allowWhatsAppSelfConnect" [(ngModel)]="draft.allowWhatsAppSelfConnect" />
+          <span>
+            <strong>WhatsApp self-connection</strong>
+            <small>Offer Meta Embedded Signup inside a workspace's settings.</small>
+          </span>
+        </label>
+
+        <label class="settings-switch">
+          <input type="checkbox" name="maintenanceMode" [(ngModel)]="draft.maintenanceMode" />
+          <span>
+            <strong>Maintenance mode</strong>
+            <small>Show a maintenance notice instead of starting new conversations.</small>
+          </span>
+        </label>
+      </div>
+    </section>
+  </div>
+
+  <footer class="settings-save">
+    <div>
+      <p class="settings-save__stamp">
+        @if (savedAt(); as stamp) {
+          Saved {{ stamp }} by {{ savedBy() }}
+        } @else {
+          Not changed since the seed
+        }
+      </p>
+      <p class="text-muted">
+        Saving writes an audit row under <em>Platform</em> — the platform audit log reads the same
+        trail.
+      </p>
+    </div>
+    <button class="button button-primary" type="button" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Saving…' : 'Save platform settings' }}
+    </button>
+  </footer>
+</div>

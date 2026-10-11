@@ -8,8 +8,8 @@ import type { PlannedConfig } from '../client/later/planned-module-page';
  * Platform stubs, kept out of admin.routes.ts so a wave can replace one module
  * without touching the route table.
  *
- * Wave 4 landed plans, subscriptions, meta-config and health as real modules;
- * what remains here is genuinely later-wave work.
+ * Wave 4 landed plans, subscriptions, meta-config and health as real modules and
+ * wave 5 took audit; what remains here is genuinely later-wave work.
  */
 const ADMIN_PLANNED: Record<string, { capability: Capability | null; config: PlannedConfig }> = {
   analytics: {
@@ -39,21 +39,6 @@ const ADMIN_PLANNED: Record<string, { capability: Capability | null; config: Pla
       includes: ['Target by plan, industry or single tenant', 'Expiry and read receipts'],
     },
   },
-  audit: {
-    capability: 'audit.view',
-    config: {
-      eyebrow: 'PLATFORM',
-      title: 'Platform audit',
-      phase: 'Built in wave 5',
-      icon: '☰',
-      description: 'Every administrative action across tenants, including support impersonation.',
-      includes: [
-        'Actor, target workspace, action, timestamp',
-        'Impersonation events',
-        'Exportable history',
-      ],
-    },
-  },
 };
 
 function adminStub(key: keyof typeof ADMIN_PLANNED): Routes {
@@ -73,4 +58,3 @@ function adminStub(key: keyof typeof ADMIN_PLANNED): Routes {
 
 export const ANALYTICS_ROUTES = adminStub('analytics');
 export const ANNOUNCEMENTS_ROUTES = adminStub('announcements');
-export const PLATFORM_AUDIT_ROUTES = adminStub('audit');

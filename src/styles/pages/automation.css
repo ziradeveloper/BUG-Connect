@@ -1,0 +1,432 @@
+/*
+ * Wave 6 — automation surfaces: the flow canvas and the flow simulator.
+ *
+ * The canvas is a plain positioned surface rather than a canvas element: node
+ * cards are DOM (so they keep their focus order and text selection) and the SVG
+ * layer underneath draws only the connectors.
+ */
+
+/* ── Canvas + properties panel ───────────────────────────────── */
+
+.flow-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.flow-canvas-panel {
+  padding: 1rem;
+  min-width: 0;
+}
+
+.flow-canvas__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+}
+
+.flow-canvas__hint {
+  margin: 0;
+  max-width: 32rem;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.flow-canvas__scroll {
+  overflow: auto;
+  max-height: 32rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface-sunken);
+  background-image:
+    linear-gradient(var(--theme-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--theme-border) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.flow-canvas {
+  position: relative;
+}
+
+.flow-canvas__wires {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.flow-wire {
+  fill: none;
+  stroke: var(--theme-brand);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.flow-wire--auto {
+  stroke-dasharray: 6 5;
+  stroke: var(--theme-text-secondary);
+  opacity: 0.7;
+}
+
+.flow-wire__label {
+  font-size: 0.6875rem;
+  fill: var(--theme-text-secondary);
+}
+
+.flow-node {
+  position: absolute;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--theme-border);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface);
+  box-shadow: var(--theme-shadow-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-base) ease,
+    box-shadow var(--duration-base) ease;
+}
+
+.flow-node:hover {
+  border-color: var(--theme-border-strong);
+}
+
+.flow-node--selected {
+  border-color: var(--theme-brand);
+  box-shadow: var(--theme-shadow-md);
+}
+
+.flow-node--inbound {
+  border-left-color: var(--theme-brand);
+}
+
+.flow-node--menu {
+  border-left-color: var(--theme-info);
+}
+
+.flow-node--selection {
+  border-left-color: var(--theme-success);
+}
+
+.flow-node--router {
+  border-left-color: var(--theme-warning);
+}
+
+.flow-node--close {
+  border-left-color: var(--theme-text-secondary);
+}
+
+.flow-node__head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.flow-node__glyph {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.6rem;
+  block-size: 1.6rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--theme-surface-raised);
+  font-size: 0.9rem;
+}
+
+.flow-node__kind {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--theme-text-secondary);
+}
+
+.flow-node__title {
+  margin: 0;
+  font-weight: 650;
+  font-size: 0.9rem;
+}
+
+.flow-node__message {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.flow-node__options {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.flow-node__foot {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.flow-node__nudge {
+  inline-size: 1.6rem;
+  block-size: 1.6rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--theme-surface-raised);
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.flow-node__nudge:hover {
+  background-color: var(--theme-surface-hover);
+  color: var(--theme-text-primary);
+}
+
+.flow-panel {
+  padding: 1.25rem;
+  display: grid;
+  gap: 1rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.flow-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.flow-panel__head h2 {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+}
+
+.flow-panel__options {
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--theme-border);
+}
+
+.flow-panel__options-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.flow-panel__options-head h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.flow-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.flow-panel__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.flow-publish {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--theme-border);
+}
+
+.flow-publish__state {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.flow-publish__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+/* ── Simulator phone frame ───────────────────────────────────── */
+
+.sim-layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.sim-phone {
+  display: grid;
+  grid-template-rows: auto minmax(16rem, 1fr) auto;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--theme-surface-sunken);
+  overflow: hidden;
+  box-shadow: var(--theme-shadow-sm);
+}
+
+.sim-phone__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  background-color: var(--theme-surface);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.sim-phone__avatar {
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--radius-full, 999px);
+  background-color: var(--theme-brand);
+  color: var(--theme-brand-contrast, #fff);
+  font-weight: 700;
+}
+
+.sim-phone__who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.sim-phone__status {
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.sim-phone__thread {
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+  padding: 1rem 0.9rem;
+  overflow-y: auto;
+  max-height: 26rem;
+}
+
+.sim-note {
+  margin: 0;
+  justify-self: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-full, 999px);
+  background-color: var(--theme-surface-raised);
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+  text-align: center;
+}
+
+.sim-phone__composer {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem 0.9rem 1rem;
+  background-color: var(--theme-surface);
+  border-top: 1px solid var(--theme-border);
+}
+
+.sim-phone__prompt {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--theme-text-secondary);
+}
+
+.sim-choice-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sim-choice {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface-raised);
+  color: var(--theme-brand);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sim-choice:hover {
+  background-color: var(--theme-surface-hover);
+}
+
+.sim-phone__terminal {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.sim-phone__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sim-side {
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sim-side h2,
+.sim-side h3 {
+  margin: 0;
+}
+
+.sim-side__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+/* ── Narrow screens ──────────────────────────────────────────── */
+
+@media (max-width: 60rem) {
+  .flow-layout,
+  .sim-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 40rem) {
+  .flow-option {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-canvas__bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sim-phone__thread {
+    max-height: 20rem;
+  }
+
+  .sim-phone__actions .button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

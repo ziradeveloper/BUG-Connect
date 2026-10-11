@@ -1,0 +1,215 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="WORKSPACE"
+    title="Subscription"
+    description="The plan this workspace is on, what it consumes against each limit, and the invoices behind it."
+  >
+    <a class="button button-secondary" pageActions routerLink="/audit">Audit log</a>
+  </app-page-header>
+
+  @if (notice(); as message) {
+    <div class="ops-notice" role="status">
+      <span>{{ message }}</span>
+      <button class="button button-secondary button-sm" type="button" (click)="dismissNotice()">
+        Dismiss
+      </button>
+    </div>
+  }
+
+  @if (error(); as message) {
+    <div class="ops-notice ops-notice--error" role="alert">{{ message }}</div>
+  }
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Current plan</span>
+      <span class="metric__value">{{ plan()?.tier ?? '—' }}</span>
+      <span class="metric__hint">{{ plan()?.tagline ?? 'No plan resolved for this host' }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Subscription state</span>
+      <span class="metric__value">{{ stateLabel() }}</span>
+      <span class="metric__hint">Since {{ stateSince() }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Seats</span>
+      <span class="metric__value">{{ usage().seats }}<small> / {{ limitLabel(seatLimit()) }}</small></span>
+      <span class="metric__hint">Active staff in this workspace</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Next invoice</span>
+      <span class="metric__value">{{ nextInvoiceLabel() }}</span>
+      <span class="metric__hint">Billing is simulated — no card is charged</span>
+    </div>
+  </div>
+
+  <div class="ops-split">
+    <section class="surface admin-panel" aria-label="Usage against plan limits">
+      <header class="admin-panel__head">
+        <div>
+          <p class="eyebrow">USAGE</p>
+          <h2>Against the {{ plan()?.tier ?? 'current' }} limits</h2>
+        </div>
+        @if (overLimit()) {
+          <span class="badge badge-warning">{{ overLimit() }} over limit</span>
+        }
+      </header>
+
+      <ul class="usage-list">
+        @for (row of usageRows(); track row.key) {
+          <li class="usage-list__item">
+            <span class="usage-list__label">{{ row.label }}</span>
+            <span class="usage-list__bar">
+              <span class="usage-list__fill" [attr.data-tone]="row.tone" [style.width.%]="row.percent"></span>
+            </span>
+            <span class="usage-list__numbers">{{ row.used }} / {{ row.limitLabel }}</span>
+          </li>
+        }
+      </ul>
+
+      <p class="admin-panel__note text-muted">
+        Limits come from the plan the platform team maintains at <code>/plans/edit</code>. Crossing a
+        limit does not stop conversations — it flags the workspace for a plan conversation.
+      </p>
+    </section>
+
+    <section class="surface admin-panel" aria-label="Payment method">
+      <header class="admin-panel__head">
+        <div>
+          <p class="eyebrow">PAYMENT</p>
+          <h2>Payment method</h2>
+        </div>
+        <span class="badge badge-neutral">Test mode</span>
+      </header>
+
+      <div class="checkout-card">
+        <p class="checkout-card__brand">VISA</p>
+        <p class="checkout-card__number">•••• •••• •••• 4242</p>
+        <p class="checkout-card__meta">Test card · expires 04/29 · {{ tenant()?.businessName }}</p>
+      </div>
+
+      <p class="admin-panel__note text-muted">
+        BUGConnect runs its Stripe integration in test mode for this build: no real charge is made
+        and no card details are stored. Card management arrives with the live billing account.
+      </p>
+    </section>
+  </div>
+
+  <section class="surface admin-panel" aria-label="Change plan">
+    <header class="admin-panel__head">
+      <div>
+        <p class="eyebrow">PLAN</p>
+        <h2>Move between plans</h2>
+      </div>
+      @if (!canManage()) {
+        <span class="badge badge-neutral">View only for your role</span>
+      }
+    </header>
+
+    <div class="tier-grid">
+      @for (tier of tiers(); track tier.tier) {
+        <article class="tier-card" [class.tier-card--current]="tier.tier === plan()?.tier">
+          <header class="tier-card__head">
+            <h3>{{ tier.tier }}</h3>
+            @if (tier.tier === plan()?.tier) {
+              <span class="badge badge-success">Current</span>
+            }
+          </header>
+          <p class="text-muted">{{ tier.tagline }}</p>
+          <p class="tier-card__price">{{ priceLabel(tier) }}</p>
+          <ul class="tier-card__limits">
+            <li>Seats: {{ limitLabel(tier.limits.seats) }}</li>
+            <li>Contacts: {{ limitLabel(tier.limits.contacts) }}</li>
+            <li>Messages / month: {{ limitLabel(tier.limits.messagesPerMonth) }}</li>
+            <li>Modules: {{ tier.modules.length }}</li>
+          </ul>
+          <p class="tier-card__support">{{ tier.supportSla }}</p>
+          <button
+            class="button button-secondary button-sm"
+            type="button"
+            [disabled]="tier.tier === plan()?.tier || !canManage()"
+            (click)="openCheckout(tier.tier)"
+          >
+            {{ tier.tier === plan()?.tier ? 'On this plan' : 'Move to ' + tier.tier }}
+          </button>
+        </article>
+      }
+    </div>
+
+    @if (checkoutTier(); as target) {
+      <div class="checkout-sheet" role="dialog" aria-label="Simulated checkout" aria-modal="false">
+        <div class="checkout-sheet__head">
+          <div>
+            <p class="eyebrow">SIMULATED CHECKOUT</p>
+            <h3>Move to {{ target }} · {{ priceLabel(tierFor(target)) }}</h3>
+          </div>
+          <span class="badge badge-info">Test mode</span>
+        </div>
+
+        <ul class="checkout-sheet__lines">
+          <li>
+            <span>Card</span>
+            <strong>VISA •••• 4242</strong>
+          </li>
+          <li>
+            <span>Billing cycle</span>
+            <strong>Monthly · starts today</strong>
+          </li>
+          <li>
+            <span>{{ target === 'Pilot' ? 'Downgrade' : 'Upgrade' }} effect</span>
+            <strong>Limits and modules apply immediately</strong>
+          </li>
+        </ul>
+
+        <p class="text-muted">
+          Confirming records a plan change on the workspace, appends a lifecycle event to the
+          subscription trail, and writes an audit row — the same trail the platform console reads.
+        </p>
+
+        <div class="checkout-sheet__actions">
+          <button class="button button-secondary" type="button" (click)="closeCheckout()">
+            Cancel
+          </button>
+          <button class="button button-primary" type="button" [disabled]="saving()" (click)="confirmCheckout()">
+            {{ saving() ? 'Applying…' : 'Confirm plan change' }}
+          </button>
+        </div>
+      </div>
+    }
+  </section>
+
+  <section class="surface admin-panel" aria-label="Invoice history">
+    <header class="admin-panel__head">
+      <div>
+        <p class="eyebrow">BILLING HISTORY</p>
+        <h2>Invoices</h2>
+      </div>
+    </header>
+
+    <app-data-table
+      [columns]="invoiceColumns"
+      [rows]="invoices()"
+      caption="Workspace invoices"
+      exportName="bugconnect-workspace-invoices"
+      searchPlaceholder="Search by invoice or period"
+      emptyTitle="No invoices yet"
+      emptyDescription="Invoices appear from the first billing cycle."
+    >
+      <ng-template appCell="amountInr" let-row>{{ inr(row.amountInr) }}</ng-template>
+
+      <ng-template appCell="status" let-row>
+        <app-status-pill [label]="row.status" [tone]="statusTone(row.status)" />
+      </ng-template>
+
+      <ng-template appCell="dueAt" let-row>{{ row.paidAt ? 'Paid' : row.dueAt.slice(0, 10) }}</ng-template>
+
+      <ng-template appCell="actions" let-row>
+        <span class="data-table__actions">
+          <button class="data-table__action" type="button" (click)="downloadInvoice(row)">
+            Download
+          </button>
+        </span>
+      </ng-template>
+    </app-data-table>
+  </section>
+</div>

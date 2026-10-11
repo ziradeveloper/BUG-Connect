@@ -1,0 +1,114 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="AUTOMATION"
+    [title]="(flow()?.name ?? 'Flow') + ' — versions'"
+    description="Append-only changelog for this flow. Restoring an older snapshot publishes it as a new version, so nothing is ever rewritten."
+  >
+    <a class="button button-secondary" pageActions routerLink="/flows">All flows</a>
+    @if (flow(); as current) {
+      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'edit']">
+        Canvas
+      </a>
+      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'simulate']">
+        Simulate
+      </a>
+    }
+  </app-page-header>
+
+  @if (!flow()) {
+    <section class="surface planned-state">
+      <h2>Flow not found</h2>
+      <p class="text-muted">Pick a flow from the list to read its publish history.</p>
+      <a class="button button-primary" routerLink="/flows">Back to the list</a>
+    </section>
+  } @else {
+    @if (notice(); as message) {
+      <p class="login-status" role="status">
+        {{ message }}
+        <button class="form-link" type="button" (click)="dismissNotice()">Dismiss</button>
+      </p>
+    }
+
+    <div class="metric-grid">
+      <div class="metric metric--brand">
+        <span class="metric__label">Current version</span>
+        <span class="metric__value">v{{ summary().current }}</span>
+        <span class="metric__hint">What customers are running</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Published versions</span>
+        <span class="metric__value">{{ summary().total }}</span>
+        <span class="metric__hint">v{{ summary().oldest }} is the oldest on record</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Authors</span>
+        <span class="metric__value">{{ summary().authors }}</span>
+        <span class="metric__hint">People who published</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Nodes now</span>
+        <span class="metric__value">{{ rows()[0]?.nodeCount ?? 0 }}</span>
+        <span class="metric__hint">In the current graph</span>
+      </div>
+    </div>
+
+    <app-data-table
+      [columns]="columns"
+      [rows]="rows()"
+      [loading]="loading()"
+      caption="Published flow versions"
+      exportName="bugconnect-flow-versions"
+      searchPlaceholder="Search by note or author"
+      emptyTitle="No versions published yet"
+      emptyDescription="Publish the canvas once and the first snapshot lands here."
+      [initialSort]="{ key: 'version', direction: 'desc' }"
+    >
+      <ng-template appCell="version" let-version>
+        <span class="data-table__primary">v{{ version.version }}</span>
+        @if (isCurrent(version)) {
+          <span class="badge">Current</span>
+        }
+      </ng-template>
+
+      <ng-template appCell="note" let-version>
+        <strong class="data-table__primary">{{ version.note }}</strong>
+        <span class="data-table__subdued"> · {{ publishedLabel(version) }}</span>
+      </ng-template>
+
+      <ng-template appCell="actions" let-version>
+        <span class="data-table__actions">
+          @if (canManage() && !isCurrent(version)) {
+            <button class="data-table__action" type="button" (click)="askRestore(version, $event)">
+              Restore
+            </button>
+          }
+          <a class="data-table__action" [routerLink]="['/flows', version.flowId, 'edit']">Canvas</a>
+        </span>
+      </ng-template>
+    </app-data-table>
+
+    <p class="data-table__subdued">
+      Snapshots carry their own copy of the nodes, which is why a restore is a real rollback: the
+      graph that replaces the current one is exactly the one that shipped at that version.
+    </p>
+  }
+
+  <app-confirm-dialog
+    [open]="pendingRestore() !== null"
+    title="Restore this version?"
+    [description]="
+      pendingRestore()
+        ? 'v' +
+          pendingRestore()?.version +
+          ' (' +
+          pendingRestore()?.note +
+          ') is published as a new version and the canvas adopts its ' +
+          pendingRestore()?.nodeCount +
+          ' nodes. Customers keep the current version until then.'
+        : ''
+    "
+    confirmLabel="Restore version"
+    (cancel)="pendingRestore.set(null)"
+    (confirm)="confirmRestore()"
+  />
+</div>

@@ -3,28 +3,38 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { WorkspaceContext } from '../workspace/workspace-context';
 import { buildDataset, type Dataset } from './mock-data';
 import type {
+  AuditArea,
+  AuditEvent,
+  AuditLevel,
   BusinessProfile,
   Campaign,
   ChatFlow,
   Contact,
   ContactSegment,
   Conversation,
+  FlowGraph,
+  FlowNode,
+  FlowVersion,
+  InviteToken,
   Invoice,
   Message,
   MessageTemplate,
   MetaAppConfig,
+  PasswordResetToken,
   Plan,
   PlanLimits,
+  PlatformSettings,
   PlatformStaffUser,
   QuickReply,
   SegmentRule,
   SubscriptionEvent,
+  SubscriptionState,
   Team,
   Tenant,
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
-import { SEED_META_CONFIG, SEED_PLANS } from './plan.seed';
+import { SEED_META_CONFIG, SEED_PLANS, SEED_PLATFORM_SETTINGS } from './plan.seed';
 import {
   payloadPreview,
   type MessagePayload,
@@ -68,6 +78,28 @@ export class MockDataService {
   readonly plans = signal<Plan[]>(structuredClone(SEED_PLANS));
   readonly metaConfig = signal<MetaAppConfig>({ ...SEED_META_CONFIG });
 
+  /** Platform-wide configuration, edited at `/settings` on the admin console. */
+  readonly platformSettings = signal<PlatformSettings>({ ...SEED_PLATFORM_SETTINGS });
+
+  /**
+   * Who is acting, stamped onto every audit row. SessionService keeps it in
+   * step with the session; `System` covers seeding and background work.
+   */
+  readonly actor = signal<{ name: string; role: string; scope: 'client' | 'platform' | null }>({
+    name: 'System',
+    role: 'Automation',
+    scope: null,
+  });
+
+  /**
+   * Pending invitations, seeded from the users flagged `invited` and kept in
+   * step when a seat is added or accepted.
+   */
+  readonly invites = signal<InviteToken[]>(this.buildInvites());
+
+  /** Self-service reset requests — dummy email, real expiry and single use. */
+  readonly resetRequests = signal<PasswordResetToken[]>([]);
+
   /** 120–260 ms, deterministic per call index so tests can fake timers. */
   private tick = 0;
 
@@ -103,6 +135,15 @@ export class MockDataService {
 
   readonly campaigns = computed(() =>
     this.dataset().campaigns.filter((campaign) => campaign.tenantId === this.tenantId()),
+  );
+
+  /** Wave 6: graph + published snapshots for this workspace's flows. */
+  readonly flowGraphs = computed(() =>
+    this.dataset().flowGraphs.filter((graph) => graph.tenantId === this.tenantId()),
+  );
+
+  readonly flowVersions = computed(() =>
+    this.dataset().flowVersions.filter((version) => version.tenantId === this.tenantId()),
   );
 
   readonly users = computed(() =>
@@ -172,6 +213,11 @@ export class MockDataService {
 
   async listCampaigns(): Promise<Page<Campaign>> {
     const items = await this.latency(this.campaigns());
+    return { items, total: items.length };
+  }
+
+  async listFlowVersions(flowId: string): Promise<Page<FlowVersion>> {
+    const items = await this.latency(this.versionsFor(flowId));
     return { items, total: items.length };
   }
 
@@ -297,21 +343,52 @@ export class MockDataService {
     }
 
     this.dataset.set({ ...dataset, workspaceUsers });
+    this.recordAudit({
+      area: 'users',
+      action:
+        existingIndex >= 0
+          ? `Updated the staff profile for ${saved.fullName}`
+          : `Added ${saved.fullName} (${saved.email}) to the workspace`,
+      target: saved.email,
+      level: 'info',
+      tenantId: saved.tenantId,
+    });
     await this.sleep(200);
     return saved;
   }
 
   async deleteUser(id: string): Promise<void> {
     const dataset = this.dataset();
+    const removed = dataset.workspaceUsers.find((user) => user.id === id);
     this.dataset.set({
       ...dataset,
       workspaceUsers: dataset.workspaceUsers.filter((user) => user.id !== id),
     });
+    this.invites.update((list) => list.filter((invite) => invite.userId !== id));
+
+    if (removed) {
+      this.recordAudit({
+        area: 'users',
+        action: `Removed ${removed.fullName} from the workspace`,
+        target: removed.email,
+        level: 'warning',
+        tenantId: removed.tenantId,
+      });
+    }
+
     await this.sleep(160);
   }
 
+  /**
+   * Suspending or reactivating a workspace. The lifecycle trail gets the
+   * transition (subscription state is derived from it) and the audit log gets
+   * the row — that pair is what `/suspended` and the platform log read.
+   */
   async setTenantStatus(tenantId: string, status: Tenant['status']): Promise<void> {
     const dataset = this.dataset();
+    const target = dataset.tenants.find((tenant) => tenant.id === tenantId) ?? null;
+    const now = new Date().toISOString();
+
     this.dataset.set({
       ...dataset,
       tenants: dataset.tenants.map((tenant) =>
@@ -324,6 +401,46 @@ export class MockDataService {
           : tenant,
       ),
     });
+
+    if (target) {
+      const state = status === 'suspended' ? 'suspended' : 'active';
+      const events = this.subscriptionEventsForTenant(tenantId);
+      const from =
+        target.status === 'suspended'
+          ? ('suspended' as SubscriptionState)
+          : ((events[events.length - 1]?.to ?? 'trial') as SubscriptionState);
+
+      this.dataset.update((current) => ({
+        ...current,
+        subscriptionEvents: [
+          ...current.subscriptionEvents,
+          {
+            id: `${tenantId}-sub-${events.length + 1}`,
+            tenantId,
+            from,
+            to: state,
+            reason:
+              status === 'suspended'
+                ? 'Suspended by the platform team pending account review.'
+                : 'Reactivated after the account review cleared.',
+            actor: this.actor().name,
+            createdAt: now,
+          },
+        ],
+      }));
+
+      this.recordAudit({
+        area: 'clients',
+        action:
+          status === 'suspended'
+            ? `Suspended ${target.businessName}`
+            : `Set ${target.businessName} to ${status}`,
+        target: `${target.businessName} · ${target.subdomain}`,
+        level: status === 'suspended' ? 'critical' : 'warning',
+        tenantId,
+      });
+    }
+
     await this.sleep(180);
   }
 
@@ -374,19 +491,60 @@ export class MockDataService {
       tenants: [...dataset.tenants, tenant],
       subscriptionEvents,
     });
+    this.recordAudit({
+      area: 'clients',
+      action: `Provisioned ${tenant.businessName} on the ${tenant.subscriptionTier} trial`,
+      target: `${tenant.businessName} · ${tenant.subdomain}`,
+      level: 'critical',
+      tenantId: tenant.id,
+    });
     await this.sleep(220);
     return tenant;
   }
 
-  /** Moves a tenant between tiers; the client sidebar re-gates immediately. */
+  /**
+   * Moves a tenant between tiers. Two records come out of it: a lifecycle event
+   * (the History tab and the subscription log read that trail) and an audit row.
+   */
   async changeTenantTier(tenantId: string, tier: string): Promise<void> {
     const dataset = this.dataset();
-    this.dataset.set({
-      ...dataset,
-      tenants: dataset.tenants.map((tenant) =>
+    const target = dataset.tenants.find((tenant) => tenant.id === tenantId) ?? null;
+    if (!target || target.subscriptionTier === tier) {
+      await this.sleep(120);
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const events = this.subscriptionEventsForTenant(tenantId);
+    const currentState = (events[events.length - 1]?.to ?? 'trial') as SubscriptionState;
+
+    this.dataset.update((current) => ({
+      ...current,
+      tenants: current.tenants.map((tenant) =>
         tenant.id === tenantId ? { ...tenant, subscriptionTier: tier } : tenant,
       ),
+      subscriptionEvents: [
+        ...current.subscriptionEvents,
+        {
+          id: `${tenantId}-sub-${events.length + 1}`,
+          tenantId,
+          from: currentState,
+          to: currentState,
+          reason: `Plan changed from ${target.subscriptionTier} to ${tier} — limits and modules update immediately.`,
+          actor: this.actor().name,
+          createdAt: now,
+        },
+      ],
+    }));
+
+    this.recordAudit({
+      area: 'billing',
+      action: `Moved ${target.businessName} from the ${target.subscriptionTier} plan to ${tier}`,
+      target: `${target.businessName} · ${tier}`,
+      level: 'warning',
+      tenantId,
     });
+
     await this.sleep(160);
   }
 
@@ -436,6 +594,13 @@ export class MockDataService {
       tenants: dataset.tenants.map((tenant) => (tenant.id === tenantId ? updated : tenant)),
       subscriptionEvents,
     });
+    this.recordAudit({
+      area: 'connections',
+      action: `Connected WhatsApp Business Account ${connection.wabaId} to ${target.businessName}`,
+      target: connection.phoneNumber,
+      level: 'critical',
+      tenantId,
+    });
     await this.sleep(200);
     return updated;
   }
@@ -445,6 +610,13 @@ export class MockDataService {
     this.plans.update((plans) =>
       plans.map((plan) => (plan.tier === tier ? { ...plan, limits: { ...limits } } : plan)),
     );
+    this.recordAudit({
+      area: 'plans',
+      action: `Saved the ${tier} plan limits`,
+      target: `${tier} plan`,
+      level: 'warning',
+      tenantId: null,
+    });
     await this.sleep(160);
   }
 
@@ -461,6 +633,13 @@ export class MockDataService {
         return { ...plan, modules };
       }),
     );
+    this.recordAudit({
+      area: 'plans',
+      action: `${enabled ? 'Enabled' : 'Disabled'} the ${module} module on the ${tier} plan`,
+      target: `${tier} plan · ${module}`,
+      level: 'warning',
+      tenantId: null,
+    });
   }
 
   async saveMetaConfig(patch: Partial<MetaAppConfig>, updatedBy: string): Promise<MetaAppConfig> {
@@ -471,6 +650,13 @@ export class MockDataService {
       updatedBy,
     };
     this.metaConfig.set(updated);
+    this.recordAudit({
+      area: 'meta',
+      action: `Updated the Meta app reference (${Object.keys(patch).join(', ')})`,
+      target: 'Meta app · webhook',
+      level: 'warning',
+      tenantId: null,
+    });
     await this.sleep(180);
     return updated;
   }
@@ -483,6 +669,13 @@ export class MockDataService {
       webhookEvents: dataset.webhookEvents.map((event) =>
         event.id === id ? { ...event, outcome: 'queued' as const, error: null } : event,
       ),
+    });
+    this.recordAudit({
+      area: 'platform',
+      action: `Re-queued the failed webhook event ${id}`,
+      target: `Webhook event · ${id}`,
+      level: 'warning',
+      tenantId: null,
     });
     await this.sleep(120);
   }
@@ -905,6 +1098,12 @@ export class MockDataService {
             saved,
           ],
     });
+    this.recordAudit({
+      area: 'settings',
+      action: existing ? `Updated the ${saved.name} team` : `Created the ${saved.name} team`,
+      target: `${saved.name} · weight ${saved.weight}`,
+      level: 'info',
+    });
     await this.sleep(180);
     return saved;
   }
@@ -921,6 +1120,14 @@ export class MockDataService {
           : team,
       ),
     });
+    if (target) {
+      this.recordAudit({
+        area: 'settings',
+        action: `Deleted the ${target.name} team`,
+        target: target.name,
+        level: 'warning',
+      });
+    }
     await this.sleep(160);
   }
 
@@ -948,16 +1155,33 @@ export class MockDataService {
       : [...dataset.quickReplies, saved];
 
     this.dataset.set({ ...dataset, quickReplies });
+    this.recordAudit({
+      area: 'settings',
+      action: existing
+        ? `Updated the quick reply ${saved.trigger}`
+        : `Created the quick reply ${saved.trigger}`,
+      target: saved.trigger,
+      level: 'info',
+    });
     await this.sleep(160);
     return saved;
   }
 
   async deleteQuickReply(id: string): Promise<void> {
     const dataset = this.dataset();
+    const removed = dataset.quickReplies.find((reply) => reply.id === id);
     this.dataset.set({
       ...dataset,
       quickReplies: dataset.quickReplies.filter((reply) => reply.id !== id),
     });
+    if (removed) {
+      this.recordAudit({
+        area: 'settings',
+        action: `Deleted the quick reply ${removed.trigger}`,
+        target: removed.trigger,
+        level: 'warning',
+      });
+    }
     await this.sleep(160);
   }
 
@@ -986,16 +1210,33 @@ export class MockDataService {
       : [...dataset.segments, saved];
 
     this.dataset.set({ ...dataset, segments });
+    this.recordAudit({
+      area: 'settings',
+      action: existing
+        ? `Updated the ${saved.name} segment`
+        : `Created the ${saved.name} segment`,
+      target: `${saved.name} · ${saved.rules.length} rule(s)`,
+      level: 'info',
+    });
     await this.sleep(180);
     return saved;
   }
 
   async deleteSegment(id: string): Promise<void> {
     const dataset = this.dataset();
+    const removed = dataset.segments.find((segment) => segment.id === id);
     this.dataset.set({
       ...dataset,
       segments: dataset.segments.filter((segment) => segment.id !== id),
     });
+    if (removed) {
+      this.recordAudit({
+        area: 'settings',
+        action: `Deleted the ${removed.name} segment`,
+        target: removed.name,
+        level: 'warning',
+      });
+    }
     await this.sleep(160);
   }
 
@@ -1013,6 +1254,12 @@ export class MockDataService {
       businessProfiles: dataset.businessProfiles.map((profile) =>
         profile.tenantId === saved.tenantId ? saved : profile,
       ),
+    });
+    this.recordAudit({
+      area: 'settings',
+      action: `Updated the business profile for ${saved.displayName}`,
+      target: `${saved.displayName} · ${saved.timezone}`,
+      level: 'info',
     });
     await this.sleep(180);
     return saved;
@@ -1054,6 +1301,14 @@ export class MockDataService {
       : [...dataset.templates, saved];
 
     this.dataset.set({ ...dataset, templates });
+    this.recordAudit({
+      area: 'templates',
+      action: existing
+        ? `Updated the ${saved.name} template draft`
+        : `Created the ${saved.name} template draft`,
+      target: `${saved.name} · ${saved.language}`,
+      level: 'info',
+    });
     await this.sleep(180);
     return saved;
   }
@@ -1076,9 +1331,518 @@ export class MockDataService {
       ...dataset,
       templates: dataset.templates.map((template) => (template.id === id ? saved : template)),
     });
+    this.recordAudit({
+      area: 'templates',
+      action: `Submitted the ${saved.name} template to Meta for approval`,
+      target: `${saved.name} · ${saved.category}`,
+      level: 'info',
+    });
     await this.sleep(200);
     return saved;
   }
+
+  // ── Wave 5: lifecycle, audit and self-service ────────────────────
+
+  /** Every audit row, oldest first — the order the dataset stores them in. */
+  readonly auditEvents = computed(() => this.dataset().auditEvents);
+
+  /** Newest first; every audit surface reads this order. */
+  readonly auditLog = computed(() =>
+    [...this.dataset().auditEvents].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+  );
+
+  auditForTenant(tenantId: string | null | undefined): AuditEvent[] {
+    if (!tenantId) {
+      return [];
+    }
+    return this.auditLog().filter((event) => event.tenantId === tenantId);
+  }
+
+  /** Actions that belong to no single workspace — plan edits, Meta app, domains. */
+  platformAudit(): AuditEvent[] {
+    return this.auditLog().filter((event) => event.tenantId === null);
+  }
+
+  /**
+   * The single write path for the log. Called by the mutations themselves, so
+   * anything that changes state leaves a row without a page remembering to ask.
+   */
+  recordAudit(entry: {
+    area: AuditArea;
+    action: string;
+    target: string;
+    level?: AuditLevel;
+    tenantId?: string | null;
+    actorName?: string;
+    actorRole?: string;
+  }): AuditEvent {
+    const actor = this.actor();
+    const dataset = this.dataset();
+    const event: AuditEvent = {
+      id: `audit-${Date.now().toString(36)}-${this.auditSeq}`,
+      tenantId:
+        entry.tenantId === undefined ? (this.currentTenant()?.id ?? null) : entry.tenantId,
+      actor: entry.actorName ?? actor.name,
+      actorRole: entry.actorRole ?? actor.role,
+      area: entry.area,
+      action: entry.action,
+      target: entry.target,
+      level: entry.level ?? 'info',
+      createdAt: new Date().toISOString(),
+    };
+
+    this.auditSeq += 1;
+    this.dataset.set({ ...dataset, auditEvents: [...dataset.auditEvents, event] });
+    return event;
+  }
+
+  // ── Flow builder (wave 6) ────────────────────────────────────────
+
+  flowById(flowId: string | null | undefined): ChatFlow | null {
+    if (!flowId) {
+      return null;
+    }
+    return this.flows().find((flow) => flow.id === flowId) ?? null;
+  }
+
+  graphFor(flowId: string | null | undefined): FlowGraph | null {
+    if (!flowId) {
+      return null;
+    }
+    return this.flowGraphs().find((graph) => graph.flowId === flowId) ?? null;
+  }
+
+  /** Newest-first published snapshots for one flow. */
+  versionsFor(flowId: string | null | undefined): FlowVersion[] {
+    if (!flowId) {
+      return [];
+    }
+    return this.flowVersions()
+      .filter((version) => version.flowId === flowId)
+      .sort((a, b) => b.version - a.version);
+  }
+
+  /**
+   * Commit a canvas edit: persists the graph, bumps the flow's version, appends
+   * a published snapshot and records what changed. One write path so the list,
+   * the canvas and the history can never disagree.
+   */
+  async saveFlowGraph(
+    flowId: string,
+    nodes: FlowNode[],
+    note: string,
+  ): Promise<{ flow: ChatFlow; version: FlowVersion } | null> {
+    const flow = this.flowById(flowId);
+    const graph = this.graphFor(flowId);
+    if (!flow || !graph) {
+      return null;
+    }
+
+    await this.latency([]);
+
+    const actor = this.actor();
+    const now = new Date().toISOString();
+    const nextVersion = flow.version + 1;
+    const copy = nodes.map((node) => ({
+      ...node,
+      options: node.options.map((option) => ({ ...option })),
+    }));
+
+    const version: FlowVersion = {
+      id: `${flow.id}-v${nextVersion}`,
+      tenantId: flow.tenantId,
+      flowId: flow.id,
+      version: nextVersion,
+      note: note.trim() || 'Published from the canvas',
+      author: actor.name,
+      nodeCount: copy.length,
+      publishedAt: now,
+      nodes: copy,
+    };
+
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      flows: dataset.flows.map((row) =>
+        row.id === flow.id ? { ...row, version: nextVersion, updatedAt: now } : row,
+      ),
+      flowGraphs: dataset.flowGraphs.map((row) =>
+        row.id === graph.id ? { ...row, nodes: copy, updatedAt: now } : row,
+      ),
+      flowVersions: [...dataset.flowVersions, version],
+    });
+
+    this.recordAudit({
+      area: 'flows',
+      action: `Published ${flow.name} v${nextVersion}: ${version.note}`,
+      target: `${flow.name} · ${copy.length} nodes`,
+      level: 'info',
+    });
+
+    return { flow: this.flowById(flowId) as ChatFlow, version };
+  }
+
+  /** Take a flow live, or pull it back to draft. Audited either way. */
+  async setFlowActive(flowId: string, isActive: boolean): Promise<void> {
+    const flow = this.flowById(flowId);
+    if (!flow) {
+      return;
+    }
+
+    await this.latency([]);
+
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      flows: dataset.flows.map((row) => (row.id === flow.id ? { ...row, isActive } : row)),
+    });
+
+    this.recordAudit({
+      area: 'flows',
+      action: isActive ? `Took ${flow.name} live` : `Moved ${flow.name} back to draft`,
+      target: `${flow.name} · ${flow.triggerKeyword ? `/${flow.triggerKeyword}` : 'no keyword'}`,
+      level: isActive ? 'info' : 'warning',
+    });
+  }
+
+  /**
+   * Roll a flow back to an earlier published snapshot. The restore publishes a
+   * new version rather than rewriting history, so the trail stays append-only.
+   */
+  async restoreFlowVersion(flowId: string, versionId: string): Promise<FlowVersion | null> {
+    const version = this.versionsFor(flowId).find((row) => row.id === versionId);
+    if (!version) {
+      return null;
+    }
+
+    const outcome = await this.saveFlowGraph(
+      flowId,
+      version.nodes,
+      `Restored v${version.version} (${version.note})`,
+    );
+
+    return outcome?.version ?? null;
+  }
+
+  // ── Invitations ──────────────────────────────────────────────────
+
+  private buildInvites(): InviteToken[] {
+    // Seeded invites are dated a few days back so every demo link still opens.
+    return this.dataset()
+      .workspaceUsers.filter((user) => user.invited)
+      .map((user, index) => makeInvite(user, Date.now() - (index + 1) * 36 * 3_600_000));
+  }
+
+  /** The open invitation for a seat, if one exists. */
+  inviteFor(userId: string): InviteToken | null {
+    return (
+      this.invites().find((invite) => invite.userId === userId && !invite.acceptedAt) ?? null
+    );
+  }
+
+  /** Reuses the open invite or issues a new one for a seat that is still pending. */
+  ensureInvite(userId: string): InviteToken | null {
+    const existing = this.inviteFor(userId);
+    if (existing) {
+      return existing;
+    }
+
+    const user = this.dataset().workspaceUsers.find((candidate) => candidate.id === userId);
+    if (!user || !user.invited) {
+      return null;
+    }
+
+    const invite = makeInvite(user, Date.now());
+    this.invites.update((list) => [...list, invite]);
+    return invite;
+  }
+
+  inviteByToken(token: string | null | undefined): InviteToken | null {
+    if (!token) {
+      return null;
+    }
+    return this.invites().find((invite) => invite.token === token) ?? null;
+  }
+
+  /** The seat an invitation points at, whatever state the invite is in. */
+  inviteDetails(token: string | null | undefined): {
+    invite: InviteToken;
+    user: WorkspaceUser | null;
+    tenant: Tenant | null;
+    expired: boolean;
+    accepted: boolean;
+  } | null {
+    const invite = this.inviteByToken(token);
+    if (!invite) {
+      return null;
+    }
+
+    return {
+      invite,
+      user: this.dataset().workspaceUsers.find((user) => user.id === invite.userId) ?? null,
+      tenant: this.tenantById(invite.tenantId),
+      expired: Date.parse(invite.expiresAt) < Date.now(),
+      accepted: invite.acceptedAt !== null,
+    };
+  }
+
+  /**
+   * Accepting an invitation activates the seat: the `invited` flag clears, the
+   * account is stamped and the invite is spent. The password itself is held by
+   * SessionService, which is the only thing that checks credentials.
+   */
+  async acceptInvite(token: string): Promise<{ ok: boolean; message?: string; user?: WorkspaceUser }> {
+    const details = this.inviteDetails(token);
+
+    if (!details) {
+      return { ok: false, message: 'That invitation link is not valid. Ask your admin to resend it.' };
+    }
+    if (details.accepted) {
+      return { ok: false, message: 'That invitation has already been accepted. Sign in instead.' };
+    }
+    if (details.expired) {
+      return { ok: false, message: 'That invitation has expired. Ask your admin to send a new one.' };
+    }
+    if (!details.user) {
+      return { ok: false, message: 'The seat behind this invitation no longer exists.' };
+    }
+
+    const now = new Date().toISOString();
+    const dataset = this.dataset();
+    const user: WorkspaceUser = {
+      ...details.user,
+      invited: false,
+      lastLoginAt: now,
+    };
+
+    this.dataset.set({
+      ...dataset,
+      workspaceUsers: dataset.workspaceUsers.map((candidate) =>
+        candidate.id === user.id ? user : candidate,
+      ),
+    });
+    this.invites.update((list) =>
+      list.map((invite) => (invite.token === token ? { ...invite, acceptedAt: now } : invite)),
+    );
+
+    this.recordAudit({
+      area: 'auth',
+      action: 'Accepted the invitation and set a password',
+      target: user.email,
+      level: 'info',
+      tenantId: user.tenantId,
+      actorName: user.fullName,
+      actorRole: this.roleLabelFor(user.role),
+    });
+
+    await this.sleep(220);
+    return { ok: true, user };
+  }
+
+  // ── Password recovery ────────────────────────────────────────────
+
+  /**
+   * Looks the address up across workspaces and platform staff. Nothing is
+   * emailed, so the result carries the simulated link the page shows instead —
+   * the same honesty the demo login uses for its credentials.
+   */
+  async requestPasswordReset(email: string): Promise<{
+    found: boolean;
+    token: string | null;
+    name: string | null;
+    scope: 'client' | 'platform' | null;
+  }> {
+    const wanted = email.trim().toLowerCase();
+    const staff = this.dataset().platformStaff.find(
+      (member) => member.email.toLowerCase() === wanted,
+    );
+    const workspaceUser = this.dataset().workspaceUsers.find(
+      (user) => user.email.toLowerCase() === wanted,
+    );
+
+    if (!staff && !workspaceUser) {
+      await this.sleep(200);
+      return { found: false, token: null, name: null, scope: null };
+    }
+
+    const scope: 'client' | 'platform' = staff ? 'platform' : 'client';
+    const now = new Date();
+    const token: PasswordResetToken = {
+      token: `reset-${scope}-${now.getTime().toString(36)}`,
+      email: (staff ?? workspaceUser)!.email,
+      scope,
+      issuedAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 30 * 60_000).toISOString(),
+      usedAt: null,
+    };
+
+    this.resetRequests.update((list) => [...list, token]);
+    this.recordAudit({
+      area: 'auth',
+      action: `Requested a password reset for ${token.email}`,
+      target: token.email,
+      level: 'warning',
+      tenantId: workspaceUser?.tenantId ?? null,
+      actorName: token.email,
+      actorRole: scope === 'platform' ? 'Platform staff' : 'Workspace staff',
+    });
+
+    await this.sleep(220);
+    return {
+      found: true,
+      token: token.token,
+      name: (staff ?? workspaceUser)!.fullName,
+      scope,
+    };
+  }
+
+  /** An unused, unexpired reset request. Anything else reads as invalid. */
+  resetRequestFor(token: string | null | undefined): PasswordResetToken | null {
+    if (!token) {
+      return null;
+    }
+
+    const request = this.resetRequests().find((candidate) => candidate.token === token);
+    if (!request || request.usedAt || Date.parse(request.expiresAt) < Date.now()) {
+      return null;
+    }
+
+    return request;
+  }
+
+  async completePasswordReset(
+    token: string,
+  ): Promise<{ ok: boolean; message?: string; request?: PasswordResetToken }> {
+    const request = this.resetRequestFor(token);
+    if (!request) {
+      return { ok: false, message: 'That reset link is invalid or has expired. Request a new one.' };
+    }
+
+    const usedAt = new Date().toISOString();
+    this.resetRequests.update((list) =>
+      list.map((candidate) => (candidate.token === token ? { ...candidate, usedAt } : candidate)),
+    );
+
+    this.recordAudit({
+      area: 'auth',
+      action: `Completed a password reset for ${request.email}`,
+      target: request.email,
+      level: 'warning',
+      tenantId: this.currentTenant()?.id ?? null,
+      actorName: request.email,
+      actorRole: request.scope === 'platform' ? 'Platform staff' : 'Workspace staff',
+    });
+
+    await this.sleep(200);
+    return { ok: true, request };
+  }
+
+  // ── Billing, platform settings, lifecycle ────────────────────────
+
+  /** The plan behind the resolved workspace. */
+  readonly currentPlan = computed<Plan | null>(() => {
+    const tenant = this.currentTenant();
+    return tenant ? this.planForTier(tenant.subscriptionTier) : null;
+  });
+
+  /** What the workspace consumes against each metered dimension. */
+  readonly planUsage = computed(() => {
+    const tenant = this.currentTenant();
+    return {
+      seats: this.users().length,
+      whatsappNumbers: tenant?.metaPhoneNumberId ? 1 : 0,
+      contacts: this.contacts().length,
+      messagesPerMonth: tenant?.monthlyMessages ?? 0,
+      campaignsPerMonth: this.campaigns().filter((campaign) => campaign.status !== 'draft').length,
+      flows: this.flows().length,
+    };
+  });
+
+  /**
+   * The workspace's subscription state, derived exactly like the platform
+   * console derives it: suspension wins, otherwise the newest event decides.
+   */
+  readonly subscriptionState = computed<{ state: SubscriptionState; since: string; reason: string } | null>(
+    () => {
+      const tenant = this.currentTenant();
+      if (!tenant) {
+        return null;
+      }
+
+      const trail = this.subscriptionEventsForTenant(tenant.id).sort((a, b) =>
+        a.createdAt.localeCompare(b.createdAt),
+      );
+      const latest = trail[trail.length - 1];
+
+      return {
+        state: tenant.status === 'suspended' ? 'suspended' : (latest?.to ?? 'trial'),
+        since: latest?.createdAt ?? tenant.createdAt,
+        reason: latest?.reason ?? 'Workspace provisioned with a 14-day trial.',
+      };
+    },
+  );
+
+  /** The workspace's invoices, newest first. */
+  readonly tenantInvoices = computed<Invoice[]>(() => {
+    const tenant = this.currentTenant();
+    if (!tenant) {
+      return [];
+    }
+    return [...this.invoicesForTenant(tenant.id)].sort((a, b) =>
+      b.issuedAt.localeCompare(a.issuedAt),
+    );
+  });
+
+  /** Why a suspended workspace is locked, straight from the lifecycle trail. */
+  readonly suspensionReason = computed(() => {
+    const tenant = this.currentTenant();
+    if (!tenant) {
+      return null;
+    }
+
+    const suspension = [...this.subscriptionEventsForTenant(tenant.id)]
+      .filter((event) => event.to === 'suspended')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+
+    return suspension?.reason ?? 'This workspace was suspended by the platform team.';
+  });
+
+  async savePlatformSettings(patch: Partial<PlatformSettings>): Promise<PlatformSettings> {
+    const actor = this.actor();
+    const updated: PlatformSettings = {
+      ...this.platformSettings(),
+      ...patch,
+      updatedAt: new Date().toISOString(),
+      updatedBy: actor.name,
+    };
+
+    this.platformSettings.set(updated);
+    this.recordAudit({
+      area: 'platform',
+      action: `Updated platform settings (${Object.keys(patch).join(', ')})`,
+      target: 'Platform settings',
+      level: 'warning',
+      tenantId: null,
+    });
+
+    await this.sleep(180);
+    return updated;
+  }
+
+  private roleLabelFor(role: WorkspaceUser['role']): string {
+    switch (role) {
+      case 'admin':
+        return 'Workspace Administrator';
+      case 'supervisor':
+        return 'Supervisor';
+      case 'developer':
+        return 'Integration User';
+      default:
+        return 'Support Agent';
+    }
+  }
+
+  private auditSeq = 0;
 
   private async latency<T>(items: T[]): Promise<T[]> {
     await this.sleep(140);
@@ -1090,4 +1854,21 @@ export class MockDataService {
     const ms = baseMs + (this.tick % 7) * 20;
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+}
+
+/** Invitation links last a fortnight; the seeded ones are dated a few days back. */
+const INVITE_TTL_MS = 14 * 24 * 3_600_000;
+
+function makeInvite(user: WorkspaceUser, issuedAtMs: number): InviteToken {
+  const issuedAt = new Date(issuedAtMs).toISOString();
+  return {
+    token: `invite-${user.id}`,
+    userId: user.id,
+    tenantId: user.tenantId,
+    email: user.email,
+    roleId: user.roleId,
+    issuedAt,
+    expiresAt: new Date(issuedAtMs + INVITE_TTL_MS).toISOString(),
+    acceptedAt: null,
+  };
 }

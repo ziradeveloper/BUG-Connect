@@ -61,6 +61,14 @@
           @if (canManage()) {
           <ng-template appCell="actions" let-user>
                <span class="data-table__actions">
+                    @if (inviteToken(user); as token) {
+                    <a class="data-table__action" [routerLink]="['/accept-invite']"
+                         [queryParams]="{ token }" title="Open the invite the member receives">Invite link</a>
+                    <button class="data-table__action" type="button" [title]="'Copy the invite link for ' + user.fullName"
+                         (click)="copyInviteLink($event, user)">
+                         Copy
+                    </button>
+                    }
                     <a class="data-table__action" [routerLink]="['/users', user.id, 'edit']">Edit</a>
                     <button class="data-table__action data-table__action--danger" type="button"
                          (click)="pendingDelete.set(user); $event.stopPropagation()">

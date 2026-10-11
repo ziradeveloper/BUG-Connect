@@ -337,14 +337,14 @@ the .NET API means replacing `MockDataService` only — no component imports the
 - **Queue & Webhook Monitor** (`/health/monitor`): Ack p50/p95/max, latency distribution, dead-letter acknowledgement.
 - **WhatsApp Connection** (`/settings/whatsapp`, `/settings/whatsapp/callback`): Embedded-Signup handoff and OAuth callback exchange (client-side entries in the W4 list).
 
-### Wave 5: Lifecycle & Self-Service (`[ ]`)
-- **Billing & Subscriptions** (`/billing`): Payment method management, usage invoice downloads.
-- **Audit Logging** (`/audit`): System activity log for security events, user changes, and administrative actions.
-- **Self-Service Auth** (`/forgot-password`, `/reset-password`, `/accept-invite`).
-- **Suspended Workspace State** (`/suspended`): Graceful lock screen for suspended tenants.
+### Wave 5: Lifecycle & Self-Service (`[x]` — shipped 2026-10-11)
+- **Billing & Subscriptions** (`/billing`): Payment method management, usage invoice downloads. (Shipped as tier-vs-usage meters, a simulated Stripe checkout for upgrades and tenant invoice downloads — the dummy layer has no payment-method store.)
+- **Audit Logging** (`/audit`): System activity log for security events, user changes, and administrative actions. (Two readers over one trail: the tenant-scoped log and the platform-wide log, both with area/severity filters.)
+- **Self-Service Auth** (`/forgot-password`, `/reset-password`, `/accept-invite`). (Single-use tokens, 30-minute reset TTL, 14-day invite TTL; invite links are reachable from the workspace Users list.)
+- **Suspended Workspace State** (`/suspended`): Graceful lock screen for suspended tenants. (Shell pages redirect into it via `tenantSuspendedGuard`; the lock screen itself sits outside the shell behind `activeTenantGuard`.)
 
-### Wave 6: Advanced Automation & Analytics (`[ ]`)
-- **Flow Builder Canvas** (`/flows`): Visual canvas for designing greeting flows, menu choices, and human handoff nodes.
+### Wave 6: Advanced Automation & Analytics (`[~]` — Flow Builder shipped 2026-10-11)
+- **Flow Builder Canvas** (`/flows`, `/flows/:id/edit`, `/flows/:id/simulate`, `/flows/:id/versions`): Visual canvas for designing greeting flows, menu choices, and human handoff nodes. (Shipped as a pure HTML/SVG visualiser over `FlowGraph`: five node kinds, option edges plus an automatic-continuation edge, append-only `FlowVersion` snapshots, an in-browser simulator and a rollback that republishes rather than rewrites.)
 - **WhatsApp Flows Studio** (`/whatsapp-flows`): Visual form builder for multi-screen native WhatsApp forms.
 - **Campaign Manager** (`/campaigns`): Broadcast wizard, audience segment picker, delivery rate monitor.
 - **Executive Analytics** (`/reports`): Resolution time metrics, campaign conversion rates, agent performance reports.

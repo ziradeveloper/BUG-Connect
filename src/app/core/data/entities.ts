@@ -340,3 +340,162 @@ export interface BusinessProfile {
   autoResponderText: string;
   updatedAt: string;
 }
+
+/**
+ * Which part of the product an audited action belongs to. The log filters on
+ * this, and the platform view adds a tenant column on top.
+ */
+export type AuditArea =
+  | 'auth'
+  | 'users'
+  | 'roles'
+  | 'settings'
+  | 'billing'
+  | 'platform'
+  | 'clients'
+  | 'plans'
+  | 'meta'
+  | 'templates'
+  | 'inbox'
+  | 'connections'
+  | 'flows'
+  | 'campaigns'
+  | 'developer';
+
+export type AuditLevel = 'info' | 'warning' | 'critical';
+
+/**
+ * One recorded administrative action (wave 5). Written by the same mutations
+ * that change state — a role edit, a suspension, a plan change — so the log is
+ * a by-product of doing the work rather than a hand-maintained list.
+ */
+export interface AuditEvent {
+  id: string;
+  /** Null for platform-wide actions; set when the action targets a workspace. */
+  tenantId: string | null;
+  actor: string;
+  actorRole: string;
+  area: AuditArea;
+  action: string;
+  /** What was acted on, in human terms: a user, a tier, a workspace. */
+  target: string;
+  level: AuditLevel;
+  createdAt: string;
+}
+
+/**
+ * A pending seat invitation. `token` is what an invite link carries to
+ * `/accept-invite`; accepting it clears `WorkspaceUser.invited` and stamps the
+ * account so it can sign in.
+ */
+export interface InviteToken {
+  token: string;
+  userId: string;
+  tenantId: string;
+  email: string;
+  roleId: string;
+  issuedAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+}
+
+/**
+ * A self-service password reset request. Dummy layer: nothing is emailed, the
+ * page surfaces the simulated link so the flow stays walkable end to end.
+ */
+export interface PasswordResetToken {
+  token: string;
+  email: string;
+  /** Which console the account belongs to. */
+  scope: 'client' | 'platform';
+  issuedAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+}
+
+/**
+ * Platform-wide configuration edited at `/settings` on the admin console:
+ * identity, domains, onboarding defaults and the feature switches.
+ */
+export interface PlatformSettings {
+  platformName: string;
+  supportEmail: string;
+  supportPhone: string;
+  defaultTier: PlanTier;
+  trialDays: number;
+  sessionTimeoutMinutes: number;
+  apexDomain: string;
+  tenantSuffix: string;
+  adminSubdomain: string;
+  allowSelfServiceSignup: boolean;
+  allowWhatsAppSelfConnect: boolean;
+  maintenanceMode: boolean;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+/* ── Wave 6: Flow Builder ──────────────────────────────────────── */
+
+/**
+ * The five node kinds the flow engine runs, in the order a conversation walks
+ * them. `inbound` opens on a keyword, `menu` shows choices, `selection` records
+ * what was chosen, `router` decides between an agent and automation, and
+ * `close` ends the journey with a handoff or a resolution.
+ */
+export type FlowNodeKind = 'inbound' | 'menu' | 'selection' | 'router' | 'close';
+
+/** One choice on a `menu` node. `nextNodeId` null ends the conversation. */
+export interface FlowOption {
+  id: string;
+  label: string;
+  nextNodeId: string | null;
+}
+
+export interface FlowNode {
+  id: string;
+  kind: FlowNodeKind;
+  title: string;
+  /** The message the contact sees when the engine reaches this node. */
+  message: string;
+  options: FlowOption[];
+  /**
+   * Where the engine goes when the contact has nothing to pick — the trigger
+   * continues into the menu, a router continues into the handoff. Null ends the
+   * journey once the node has run.
+   */
+  nextNodeId: string | null;
+  /** Human-readable rule for `router` nodes, e.g. "outside 09:00–21:00". */
+  condition: string | null;
+  /** Canvas position in the visualiser's grid, in pixels. */
+  x: number;
+  y: number;
+}
+
+/**
+ * The editable graph behind a `ChatFlow`. Kept beside the flow summary rather
+ * than on it so list screens stay cheap and the canvas owns the heavy record.
+ */
+export interface FlowGraph {
+  id: string;
+  tenantId: string;
+  flowId: string;
+  nodes: FlowNode[];
+  updatedAt: string;
+}
+
+/**
+ * A published snapshot of a flow. Versions carry their own copy of the nodes, so
+ * restoring one is a real rollback rather than a pointer swap into a graph that
+ * has since been edited.
+ */
+export interface FlowVersion {
+  id: string;
+  tenantId: string;
+  flowId: string;
+  version: number;
+  note: string;
+  author: string;
+  nodeCount: number;
+  publishedAt: string;
+  nodes: FlowNode[];
+}

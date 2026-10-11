@@ -1,5 +1,5 @@
 import { PLAN_MODULES } from '../authorization/role.seed';
-import type { MetaAppConfig, Plan, PlanTier } from './entities';
+import type { MetaAppConfig, Plan, PlanTier, PlatformSettings } from './entities';
 
 /**
  * The commercial model, seeded. Limits are editable at `/plans/edit` and the
@@ -67,6 +67,28 @@ export const SEED_META_CONFIG: MetaAppConfig = {
   callbackUrl: 'https://console.bugconnect.example/webhooks/meta',
   verifyToken: 'BUGCONNECT-VERIFY-SEED',
   testNumber: '',
+  updatedAt: null,
+  updatedBy: null,
+};
+
+/**
+ * Platform-wide configuration, seeded at `/settings` (wave 5). The domains
+ * mirror `allowedHosts` in angular.json and the SSR allowlist in src/server.ts,
+ * so what the operator reads here is what the resolver actually accepts.
+ */
+export const SEED_PLATFORM_SETTINGS: PlatformSettings = {
+  platformName: 'BUGConnect',
+  supportEmail: 'support@bugconnect.example',
+  supportPhone: '+91 94431 00000',
+  defaultTier: 'Pilot',
+  trialDays: 14,
+  sessionTimeoutMinutes: 480,
+  apexDomain: 'bugconnect.example',
+  tenantSuffix: 'bugconnect.example',
+  adminSubdomain: 'admin',
+  allowSelfServiceSignup: false,
+  allowWhatsAppSelfConnect: true,
+  maintenanceMode: false,
   updatedAt: null,
   updatedBy: null,
 };

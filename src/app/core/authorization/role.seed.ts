@@ -32,6 +32,7 @@ const PLATFORM_ALL_MENUS: MenuKey[] = [
   'health',
   'announcements',
   'audit',
+  'platformSettings',
   'profile',
 ];
 
@@ -184,6 +185,7 @@ export const SEED_ROLES: Role[] = [
       ['health.view', 'full'],
       ['announcements.manage', 'full'],
       ['audit.view', 'full'],
+      ['platform.configure', 'full'],
       ['profile.manage', 'full'],
       ['settings.manage', 'full'],
     ]),

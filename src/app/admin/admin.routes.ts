@@ -112,8 +112,13 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'audit',
         title: 'Platform audit',
+        loadChildren: () => import('./audit/audit.routes').then((routes) => routes.PLATFORM_AUDIT_ROUTES),
+      },
+      {
+        path: 'settings',
+        title: 'Platform settings',
         loadChildren: () =>
-          import('./admin-later.routes').then((routes) => routes.PLATFORM_AUDIT_ROUTES),
+          import('./settings/settings.routes').then((routes) => routes.PLATFORM_SETTINGS_ROUTES),
       },
     ],
   },

@@ -1,0 +1,100 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="AUTOMATION"
+    title="Flow Builder"
+    description="Every saved journey with its trigger, live state and the last thirty days of traffic. Rows open the canvas; the canvas publishes a new version on every save."
+  >
+    <a class="button button-secondary" pageActions routerLink="/templates">Templates</a>
+  </app-page-header>
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Saved flows</span>
+      <span class="metric__value">{{ summary().total }}</span>
+      <span class="metric__hint">Drafts included</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Live</span>
+      <span class="metric__value">{{ summary().live }}</span>
+      <span class="metric__hint">Answering customers now</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Sessions (30d)</span>
+      <span class="metric__value">{{ summary().sessions }}</span>
+      <span class="metric__hint">Across every flow</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Avg handoff</span>
+      <span class="metric__value">{{ summary().handoff }}%</span>
+      <span class="metric__hint">{{ summary().versions }} published versions on record</span>
+    </div>
+  </div>
+
+  @if (notice(); as message) {
+    <p class="login-status" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismissNotice()">Dismiss</button>
+    </p>
+  }
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="loading()"
+    caption="Saved WhatsApp flows"
+    exportName="bugconnect-flows"
+    searchPlaceholder="Search by name, trigger or status"
+    emptyTitle="No flows yet"
+    emptyDescription="Flows arrive with the workspace seed; build one from the canvas next."
+    [activatable]="true"
+    (rowClick)="openCanvas($event)"
+  >
+    <ng-template appCell="name" let-flow>
+      <strong class="data-table__primary">{{ flow.name }}</strong>
+      <span class="data-table__subdued"> · {{ nodeCount(flow) }} nodes · {{ conditionLabel(flow) }}</span>
+    </ng-template>
+
+    <ng-template appCell="isActive" let-flow>
+      <app-status-pill
+        [label]="statusLabel(flow)"
+        [tone]="flow.isActive ? 'success' : 'neutral'"
+      />
+    </ng-template>
+
+    <ng-template appCell="actions" let-flow>
+      <span class="data-table__actions">
+        <a class="data-table__action" [routerLink]="['/flows', flow.id, 'edit']">Canvas</a>
+        <a class="data-table__action" [routerLink]="['/flows', flow.id, 'simulate']">Simulate</a>
+        <a class="data-table__action" [routerLink]="['/flows', flow.id, 'versions']">Versions</a>
+        @if (canManage()) {
+          <button
+            class="data-table__action"
+            type="button"
+            (click)="pendingToggle.set(flow); $event.stopPropagation()"
+          >
+            {{ toggleLabel(flow) }}
+          </button>
+        }
+      </span>
+    </ng-template>
+  </app-data-table>
+
+  <p class="data-table__subdued">
+    Node types follow the flow engine: inbound trigger, interactive menu, selection, weighted
+    router and close. A node with a condition hands the conversation to the router instead of
+    answering it automatically.
+  </p>
+
+  <app-confirm-dialog
+    [open]="pendingToggle() !== null"
+    [title]="pendingToggle()?.isActive ? 'Move this flow back to draft?' : 'Take this flow live?'"
+    [description]="
+      pendingToggle()?.isActive
+        ? 'Customers will stop being greeted automatically and the inbound keyword falls through to a person.'
+        : 'The flow starts answering its trigger keyword immediately, using the version published on the canvas.'
+    "
+    [confirmLabel]="pendingToggle()?.isActive ? 'Move to draft' : 'Take live'"
+    (cancel)="pendingToggle.set(null)"
+    (confirm)="confirmToggle()"
+  />
+</div>

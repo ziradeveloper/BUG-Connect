@@ -45,8 +45,8 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 | **2** | **Team Inbox**: Split-pane inbox, active conversation view, weighted router, internal notes, resolution handoff, full Meta Cloud API send support, fixed-pane layout | 4 | `[x]` |
 | **3** | **Client Operations**: Contacts hub, contact detail, segments, opt-outs, templates manager, teams, quick replies, settings | 9 | `[x]` |
 | **4** | **Platform Admin**: Onboard client wizard, client detail tabs, plans feature matrix, subscriptions, invoices, Meta app config, webhook health monitor, WhatsApp connection | 10 | `[x]` |
-| **5** | **Lifecycle & Self-Service**: Billing, audit logging, onboarding wizard, suspended state, password reset, invite acceptance | 7 | `[ ]` |
-| **6** | **Advanced Automation**: Visual Flow Builder canvas, WhatsApp Flows form studio, Campaign broadcast wizard, Executive analytics | 12 | `[ ]` |
+| **5** | **Lifecycle & Self-Service**: Billing, audit logging, onboarding wizard, suspended state, password reset, invite acceptance | 7 + suspended | `[x]` |
+| **6** | **Advanced Automation**: Visual Flow Builder canvas, WhatsApp Flows form studio, Campaign broadcast wizard, Executive analytics | 12 | `[~]` 4/12 |
 
 ---
 
@@ -60,9 +60,12 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[x]` `W1` **Profile Page** (`/profile`) — User identity, resolved host/source, granted capability chips, theme toggle, sign out.
 - `[x]` `W1` **No Access Page** (`/no-access`) — Access denied error screen displaying required capability level.
 - `[x]` `W1` **Not Found Page** (`/404`) — Host-aware 404 page with navigation fallbacks.
-- `[ ]` `W5` **Forgot Password** (`/forgot-password`) — Self-service password recovery email request form.
-- `[ ]` `W5` **Reset Password** (`/reset-password`) — Password reset token handler and form.
-- `[ ]` `W5` **Accept Invite** (`/accept-invite`) — Team member invitation acceptance and initial password setup.
+- `[x]` `W5` **Forgot Password** (`/forgot-password`) — Self-service password recovery email request form.
+  » Built: `pages/forgot-password-page`. Email lookup against the seeded directory, a sealed "check your inbox" panel that reveals the simulated single-use link (30-minute TTL), an explicit unknown-address state that mints nothing, and a seeded-accounts shortcut row so the flow is walkable without reading the data layer.
+- `[x]` `W5` **Reset Password** (`/reset-password`, `?token=`) — Password reset token handler and form.
+  » Built: `pages/reset-password-page`. Reads the token through `input()` (component input binding), rejects unknown/spent/expired links before rendering a form, live strength rules, then `completePasswordReset()` + `session.registerCredential()` so the new password signs in immediately.
+- `[x]` `W5` **Accept Invite** (`/accept-invite`, `?token=`) — Team member invitation acceptance and initial password setup.
+  » Built: `pages/accept-invite-page`. Shows the invited person, role, workspace and expiry; explicit expired / already-accepted states; accepting spends the single-use token, activates the seat and registers the password. Reachable from the Users list — every pending row now carries **Invite link** (opens the screen on the invitee's token) and **Copy** (clipboard).
 
 ### Platform Admin Module — `admin.localhost:4200` (19 Pages)
 - `[x]` `W1` **Platform Dashboard** (`/`) — Platform tenant counts, active seats, webhook events ingestion queue monitor.
@@ -79,8 +82,10 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[x]` `W4` **Meta App Configuration** (`/meta-config`) — App ID, secret (masked + reveal), API version, callback URL + verify token (copy + rotate), test number, save stamp, and the connected-numbers-per-workspace list. (Ledger originally wrote `/config`; the route has always been `/meta-config`.)
 - `[x]` `W4` **Queue Health Monitor** (`/health/monitor`, `/health` redirects) — Ack p50/p95/max, dead-letter + backlog metrics, latency distribution bars, outcome filter chips, and failed-event acknowledgement back into the retry queue.
 - `[ ]` `W6` **Announcements** (`/announcements/new`) — System-wide operational broadcast announcements.
-- `[ ]` `W5` **Platform Audit Log** (`/audit`) — Global administrative action audit log.
-- `[ ]` `W5` **Platform Settings** (`/settings`) — System configuration and domain settings.
+- `[x]` `W5` **Platform Audit Log** (`/audit`) — Global administrative action audit log.
+  » Built: `admin/audit/` (`PLATFORM_AUDIT_ROUTES`, `audit.view`). Metric grid (total / critical / actors / tenants), area + severity chips and an impersonation-only toggle over the whole trail, workspace column linking into `/clients/:id` (null tenant renders a "Platform" badge), severity pills, CSV export `bugconnect-platform-audit`.
+- `[x]` `W5` **Platform Settings** (`/settings`) — System configuration and domain settings.
+  » Built: `admin/settings/` (`PLATFORM_SETTINGS_ROUTES`, `platform.configure` edit). Identity, domain (apex / tenant suffix / admin subdomain), onboarding (default tier, trial days, session timeout) and switches (self-service signup, WhatsApp self-connect, maintenance mode); `validate()` gates save, the record stamps `updatedBy`, every save writes an audit row and the page links into `/audit`.
 
 ### Client Tenant Module — `nazeel.localhost:4200` (32 Pages)
 - `[x]` `W1` **Client Dashboard** (`/`) — Workspace KPIs (Unassigned, With Agent, In Automation, Capacity), Needs Attention list, Available Modules directory.
@@ -107,12 +112,18 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 - `[x]` `W3` **Business Settings** (`/settings/business`) — Business identity, 7-day operating-hours grid, greeting and out-of-hours auto-responder. (Template-driven per codebase convention; no logo upload — dummy layer has no asset store.)
 - `[x]` `W4` **WhatsApp Settings** (`/settings/whatsapp`) — WABA status card (IDs, customer-facing number, connected date, recent failures), last-5 sync health list, and `Connect via Meta` (needs `settings.manage`) simulating the Embedded Signup handoff. New `client/settings/settings.routes.ts`; `/settings` home stays a stub for W3's business profile.
 - `[x]` `W4` **WhatsApp Callback Handler** (`/settings/whatsapp/callback`) — Parses `?code=&state=`, exchanges the code via `MockDataService.connectWaba()` (stamps WABA IDs, sets `connectedAt`, flips pending workspaces to active, appends the trial→active subscription event), with explicit failed states for missing codes and unresolved hosts.
-- `[ ]` `W5` **Workspace Billing** (`/billing`) — Display current tier limits vs usage (e.g., active seats, monthly campaigns). Stripe checkout simulation for upgrades.
-- `[ ]` `W5` **Workspace Audit Log** (`/audit`) — Simple chronological table of `MockDataService.auditEvents()` filtered by `tenantId`.
-- `[ ]` `W6` **Flow Builder List** (`/flows`) — Table of saved flows. Columns: Name, Trigger, Status (Draft, Live), Last Edited.
-- `[ ]` `W6` **Flow Visual Canvas** (`/flows/:id/edit`) — Drag-and-drop canvas (recommend checking if we can build a pure HTML/SVG custom visualizer or a tree-based builder) with Node property side-panel.
-- `[ ]` `W6` **Flow Simulator** (`/flows/:id/simulate`) — Re-use `ConversationDetailPage` styles to render an interactive mock WhatsApp chat based on flow JSON.
-- `[ ]` `W6` **Flow Version History** (`/flows/:id/versions`) — Table of published commits for a flow.
+- `[x]` `W5` **Workspace Billing** (`/billing`) — Display current tier limits vs usage (e.g., active seats, monthly campaigns). Stripe checkout simulation for upgrades.
+  » Built: `client/billing/` (`BILLING_ROUTES`, `billing.view`). Metric row, tier cards with the current one flagged and every other tier open to a simulated Stripe checkout sheet (confirms → `changeTenantTier()`, writes a billing audit row), usage-vs-limits meters from `planUsage()`, and the tenant invoice table with client-side download. Prices stay `null` in the seed, so the UI reads "Custom pricing".
+- `[x]` `W5` **Workspace Audit Log** (`/audit`) — Simple chronological table of `MockDataService.auditEvents()` filtered by `tenantId`.
+  » Built: `client/audit/` (`AUDIT_ROUTES`, `audit.view`). Area and severity filters plus summary metrics over `auditForTenant()`, newest-first, with the acting member and target for every row.
+- `[x]` `W6` **Flow Builder List** (`/flows`) — Table of saved flows. Columns: Name, Trigger, Status (Draft, Live), Last Edited.
+  » Built: `client/flows/flows-page` + `flows.routes.ts` (new module, `flows.view`; the stub in `later.routes.ts` is gone and the menu flag is cleared). Metric row (saved / live / sessions 30d / avg handoff), rows over `MockDataService.flows()` with graph size and routing rule in the name cell, Live/Draft pills, per-row Canvas · Simulate · Versions actions and a confirm-gated live↔draft toggle for `flows.manage`. Rows activate into the canvas.
+- `[x]` `W6` **Flow Visual Canvas** (`/flows/:id/edit`) — Drag-and-drop canvas (recommend checking if we can build a pure HTML/SVG custom visualizer or a tree-based builder) with Node property side-panel.
+  » Built: `client/flows/flow-canvas-page`. Chose the **pure HTML/SVG visualiser**: node cards are DOM positioned from their saved coordinates and one SVG layer draws the connectors (solid per option, dashed for the automatic continuation), so no diagramming dependency and no direct DOM mutation. Palette adds any of the five node kinds, arrow nudges move a node by one grid step (Shift = four), the side panel edits title/message/condition/options/continuation, delete clears every reference. Publishing calls `saveFlowGraph()` → bumps `version`, appends a snapshot, writes a `flows` audit row; drafts discard back to the published graph.
+- `[x]` `W6` **Flow Simulator** (`/flows/:id/simulate`) — Re-use `ConversationDetailPage` styles to render an interactive mock WhatsApp chat based on flow JSON.
+  » Built: `client/flows/flow-simulator-page`. Phone frame reusing the inbox `.bubble` styles: the opening message renders server-side (no client-side seeding), the automatic continuation has a "Run the next step" control, options render as quick replies, choices walk the real connectors, the close node reports the handoff. Restart / replay-as-customer / back-a-step included; bubble times derive from the graph's own timestamp so SSR and hydration agree. Nothing is written back (spec-pinned).
+- `[x]` `W6` **Flow Version History** (`/flows/:id/versions`) — Table of published commits for a flow.
+  » Built: `client/flows/flow-versions-page`. Metric row (current / total / authors / nodes now) plus the publish log over `versionsFor()`, newest first, current version badged. Restore is confirm-gated and **append-only**: `restoreFlowVersion()` republishes the old nodes as a new version rather than rewriting the trail, and the notice names the version it came from.
 - `[ ]` `W6` **WhatsApp Flows List** (`/whatsapp-flows`) — Table for native Meta forms.
 - `[ ]` `W6` **WhatsApp Form Studio** (`/whatsapp-flows/new`) — Multi-screen form designer. Needs JSON schema generator mapped to Meta's flow JSON spec.
 - `[ ]` `W6` **Campaign Manager List** (`/campaigns`) — Dashboard of recent campaigns, progress bars for delivery status.
@@ -124,6 +135,24 @@ Living master ledger for BUGConnect development. Newest entries on top. Nothing 
 ---
 
 ## 📜 History & Updates Log
+
+### 2026-10-11 — Wave 6 started: Flow Builder module shipped (4 of 12 pages)
+- Built the whole Flow Builder: `/flows` list, `/flows/:id/edit` canvas, `/flows/:id/simulate` simulator and `/flows/:id/versions` history, behind `flows.view` / `flows.manage`. New `client/flows/flows.routes.ts`; the flow stub left `later.routes.ts`, and `flows` no longer carries the `planned` flag in the menu catalogue.
+- Data layer: `FlowNodeKind`/`FlowOption`/`FlowNode`/`FlowGraph`/`FlowVersion` entities and two new collections. Each flow gets a five-node graph (inbound trigger → interactive menu → selection → weighted router → close) with an automatic-continuation pointer per node alongside the option edges, plus one published snapshot per version — all post-processed on a private RNG (`SEED + 4000 + flow`), so every existing tenant seed keeps its exact draws. Service: `flowById`, `graphFor`, `versionsFor`, `listFlowVersions`, and the write path `saveFlowGraph` / `setFlowActive` / `restoreFlowVersion`, each with a `flows` audit row. `AuditArea` gained `flows`, `campaigns` and `developer`.
+- Canvas decision: the ledger asked whether to build a pure HTML/SVG visualiser or a tree builder — HTML/SVG won, because node cards keep their text, focus order and edit-in-place fields, and only the connectors belong in SVG. Positioning is keyboard nudges rather than pointer drag (the repo forbids direct DOM manipulation), which also keeps the canvas usable without a mouse.
+- Styling: new `styles/pages/automation.css` (canvas surface, node kind accents, wires incl. the dashed auto edge, properties panel, publish block, phone frame and quick replies), imported after `auth.css`; folds to one column at 60rem and to a stacked option editor at 40rem.
+- Verification: `npx ng build` clean; **307/307 tests across 75 files** (was 277/277). New coverage: `mock-data.flows.spec.ts` (graph wiring per flow, tenant isolation, one snapshot per version with the newest matching the canvas, publish/audit, live↔draft, rollback-is-append-only, unknown ids), page specs for all four screens (publish from the canvas, grid nudges, reference cleanup on delete, simulator walk incl. "never writes to the workspace", restore flow) and `wave6-styling.spec.ts`.
+- Render: SSR-verified `/flows` (rows, metrics, triggers), the canvas (all five node labels), the simulator (opening bubble + "Run the next step") and the history (snapshots, Current badge) on `nazeel.localhost`, plus the not-found state on an unknown id; `/audit`, `/billing`, client `/`, platform `/clients` and platform `/audit` stayed green.
+- W6 remaining: WhatsApp Flows list + studio, the three campaign screens, `/reports`, `/developer` and the platform `/announcements/new`.
+
+### 2026-10-11 — Wave 5 shipped (Lifecycle & Self-Service) + W1–W5 integrity pass
+- Built all 7 W5 ledger pages plus the roadmap's extra surface: `/forgot-password`, `/reset-password`, `/accept-invite` (shared across hosts), admin `/audit`, admin `/settings`, client `/billing`, client `/audit`, and the `/suspended` lock screen from ARCHITECTURE §6. Ledger row counts W5 as 7 pages; the suspended state is the 8th route and is tracked here, not renumbered.
+- Data layer: `AuditEvent`/`InviteToken`/`PasswordResetToken`/`PlatformSettings` entities; a single `recordAudit()` write path (id `audit-<ts36>-<seq>`, oldest-first storage, `auditLog` newest-first, `auditForTenant()`, `platformAudit()`); 32 seeded tenant rows + 7 platform rows on private RNG streams (zero impact on the existing per-tenant streams); invites (14-day TTL, single-use, one pending seat per tenant) and reset requests (30-minute TTL, single-use); `currentPlan`/`planUsage`/`subscriptionState`/`tenantInvoices`/`suspensionReason` computeds; `platformSettings` + `savePlatformSettings()`. Roughly twenty mutations now write a row, including role/menu and platform-settings edits.
+- Guards & routing: `tenantSuspendedGuard` wraps the client shell and `activeTenantGuard` keeps healthy workspaces out of `/suspended`; billing/audit/audit-platform/announcements stubs in `later.routes.ts` were replaced by real modules and the `planned` flags dropped from the menu catalogue. New `platformSettings` menu key → `platform.configure`; the platform-owner seed role holds it.
+- W1–W4 integrity pass (the request that opened this wave): deleted 8 unreferenced component templates, an empty `demo-auth.ts` and a stray root script; removed the dead `PLANNED.inbox` / `INBOX_ROUTES` stub pair; replaced the `/settings` stub with a real directory page; added the fifth demo login (`developer`) and pointed "Forgot password" at the new self-service route; fixed digit-ending names seeding invalid addresses (`sangeetha.pillai.@…`) in `emailFor()`.
+- Verification: `npx ng build` clean; **277/277 tests across 69 files** (was 236/236). New coverage: `mock-data.lifecycle.spec.ts` (audit seeding/isolation, actor attribution, single-use reset + invite tokens, expiry, usage vs collections, suspension trail, tier moves, platform-settings merge), page specs for billing, both audit pages, platform settings, suspended, the auth trio and the Users invite actions, plus `wave5-styling.spec.ts` (every wave-5 class resolves in the global tree; the fixed-width rows have ≤40rem rules).
+- Render: SSR-verified every wave-5 route on both hosts (`/forgot-password`, `/reset-password?token=…`, `/accept-invite?token=…`, client `/billing`, client `/audit`, admin `/audit`, admin `/settings` all 200 with real seeded content, zero server errors). The suspended path was exercised end-to-end by temporarily seeding a suspended tenant: `/`, `/inbox`, `/billing` → 302 → `/suspended`, and `/suspended` renders the workspace name, the suspension reason and support contacts; healthy tenants still bounce off `/suspended` → `/`. The temporary seed was reverted before the final build.
+- Still open (unchanged conventions): no real browser in this sandbox — the Desktop/Mobile bar is met with jsdom render specs, SSR content checks and the new styling contract; server-side pagination simulation remains deferred (datasets <100 rows, `Page<T>` already models it).
 
 ### 2026-10-10 — Wave 3 finished (Client Operations, remaining 8 pages)
 - Built all 8 remaining W3 entries: contact detail, segments builder, opt-out list, template manager + editor, teams, quick replies, business settings. W3 is now 9/9 `[x]`.
