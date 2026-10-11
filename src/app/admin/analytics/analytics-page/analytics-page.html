@@ -1,0 +1,313 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PLATFORM"
+    title="Cross-tenant analytics"
+    description="Adoption and usage across every workspace, kept apart from any single tenant's reporting. Everything here is measured from the workspaces' own rows — there is no revenue projection, because the plan prices are unpublished; the billing card reports invoices that were actually issued."
+  >
+    <div class="rep-ranges" pageActions role="group" aria-label="Reporting window">
+      @for (option of ranges; track option) {
+        <button
+          type="button"
+          class="rep-ranges__option"
+          [class.rep-ranges__option--now]="range() === option"
+          [attr.aria-pressed]="range() === option"
+          (click)="setRange(option)"
+        >
+          {{ option }} days
+        </button>
+      }
+    </div>
+  </app-page-header>
+
+  <p class="ana-summary" role="status">
+    {{ snapshot().tenants.total }} workspaces · {{ formatNumber(snapshot().messagesTotal) }}
+    messages in the last {{ range() }} days · peak {{ snapshot().peakLabel }}
+  </p>
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Workspaces</span>
+      <span class="metric__value">{{ snapshot().tenants.total }}</span>
+      <span class="metric__hint">
+        {{ snapshot().tenants.active }} active
+        @if (snapshot().tenants.suspended) {
+          · {{ snapshot().tenants.suspended }} suspended
+        }
+      </span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Seats</span>
+      <span class="metric__value">{{ formatNumber(snapshot().seats) }}</span>
+      <span class="metric__hint">
+        {{ snapshot().agentsOnline }} of {{ snapshot().agents }} agents online
+      </span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Messages</span>
+      <span class="metric__value">{{ formatNumber(snapshot().messagesTotal) }}</span>
+      <span class="metric__hint">
+        {{ formatNumber(snapshot().inboundTotal) }} in ·
+        {{ formatNumber(snapshot().outboundTotal) }} out
+      </span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Open conversations</span>
+      <span class="metric__value">{{ formatNumber(snapshot().openConversations) }}</span>
+      <span class="metric__hint">
+        {{ snapshot().automationPct }}% still inside a flow
+      </span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Contacts</span>
+      <span class="metric__value">{{ formatNumber(snapshot().contacts) }}</span>
+      <span class="metric__hint">Across every workspace</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Invoiced</span>
+      <span class="metric__value">{{ inr(snapshot().billing.collectedInr) }}</span>
+      <span class="metric__hint">
+        {{ inr(snapshot().billing.outstandingInr) }} outstanding ·
+        {{ snapshot().billing.open }} open
+      </span>
+    </div>
+  </div>
+
+  <div class="ana-grid">
+    <section class="surface ana-panel" aria-labelledby="ana-volume">
+      <header class="rep-panel__head">
+        <h2 class="rep-panel__title" id="ana-volume">Message volume</h2>
+        <span class="rep-panel__hint">Peak {{ snapshot().peakLabel }}</span>
+      </header>
+
+      @if (snapshot().messagesTotal === 0) {
+        <p class="rep-empty">No traffic in the last {{ range() }} days.</p>
+      } @else {
+        <svg
+          class="rep-chart"
+          [attr.viewBox]="`0 0 ${chart().width} ${chart().height}`"
+          role="img"
+          [attr.aria-label]="`Platform-wide message volume for the last ${snapshot().range} days. Peak ${snapshot().peakLabel}.`"
+        >
+          @for (line of chart().gridlines; track line.label) {
+            <line
+              class="rep-chart__grid"
+              [attr.x1]="chart().left"
+              [attr.x2]="chart().right"
+              [attr.y1]="line.y"
+              [attr.y2]="line.y"
+            />
+            <text class="rep-chart__axis" [attr.x]="chart().left - 6" [attr.y]="line.y + 4" text-anchor="end">
+              {{ line.label }}
+            </text>
+          }
+          <path class="rep-chart__area" [attr.d]="chart().area" />
+          <path class="rep-chart__line rep-chart__line--outbound" [attr.d]="chart().outbound" />
+          <path class="rep-chart__line rep-chart__line--inbound" [attr.d]="chart().inbound" />
+          @for (entry of chart().points; track entry.point.date) {
+            <circle
+              class="rep-chart__dot"
+              [attr.cx]="entry.x"
+              [attr.cy]="entry.y"
+              r="3.5"
+              tabindex="0"
+              role="img"
+              [attr.aria-label]="`${entry.point.label}: ${entry.point.inbound} inbound, ${entry.point.outbound} outbound`"
+            >
+              <title>
+                {{ entry.point.label }} — {{ entry.point.inbound }} inbound,
+                {{ entry.point.outbound }} outbound
+              </title>
+            </circle>
+          }
+        </svg>
+
+        <div class="rep-chart__days" aria-hidden="true">
+          @for (label of chart().labels; track $index) {
+            <span>{{ label }}</span>
+          }
+        </div>
+
+        <p class="rep-legend">
+          <span class="rep-legend__key">
+            <span class="rep-legend__swatch rep-legend__swatch--inbound"></span>
+            From contacts
+          </span>
+          <span class="rep-legend__key">
+            <span class="rep-legend__swatch rep-legend__swatch--outbound"></span>
+            Sent by teams
+          </span>
+        </p>
+
+        <table class="sr-only">
+          <caption>Platform-wide daily message volume</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col">Inbound</th>
+              <th scope="col">Outbound</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (point of snapshot().volume; track point.date) {
+              <tr>
+                <th scope="row">{{ point.label }}</th>
+                <td>{{ point.inbound }}</td>
+                <td>{{ point.outbound }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+
+    <section class="surface ana-panel" aria-labelledby="ana-tiers">
+      <header class="rep-panel__head">
+        <h2 class="rep-panel__title" id="ana-tiers">Adoption by plan</h2>
+        <span class="rep-panel__hint">Workspaces and their share of traffic</span>
+      </header>
+
+      <ul class="ana-tiers">
+        @for (tier of snapshot().tiers; track tier.tier) {
+          <li class="ana-tier">
+            <span class="ana-tier__name">{{ tier.tier }}</span>
+            <span class="ana-tier__track">
+              <span [class]="tierClass(tier)" [style.width.%]="tier.sharePct"></span>
+            </span>
+            <span class="ana-tier__value">
+              {{ tier.workspaces }}
+              <em>{{ tier.sharePct }}%</em>
+            </span>
+          </li>
+        }
+      </ul>
+
+      <dl class="rep-facts">
+        @for (tier of snapshot().tiers; track tier.tier) {
+          <div>
+            <dt>{{ tier.tier }} seats</dt>
+            <dd>{{ tier.seats }}</dd>
+          </div>
+        }
+        <div>
+          <dt>Messages, 30d</dt>
+          <dd>
+            @for (tier of snapshot().tiers; track tier.tier) {
+              {{ tier.tier }} {{ tier.messageSharePct }}%{{ $last ? '' : ' ·' }}
+            }
+          </dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="surface ana-panel" aria-labelledby="ana-funnel">
+    <header class="rep-panel__head">
+      <h2 class="rep-panel__title" id="ana-funnel">Onboarding funnel</h2>
+      <span class="rep-panel__hint">{{ funnelNote() }}</span>
+    </header>
+
+    <ol class="ana-funnel">
+      @for (stage of snapshot().activation; track stage.key) {
+        <li class="ana-funnel__row">
+          <span class="ana-funnel__label">{{ stage.label }}</span>
+          <span class="ana-funnel__track">
+            <span [class]="stageClass(stage)" [style.width.%]="stage.pctOfPrevious"></span>
+          </span>
+          <span class="ana-funnel__value">
+            {{ stage.count }}
+            @if (!$first) {
+              <em>{{ stage.pctOfPrevious }}% of the step before</em>
+            }
+          </span>
+        </li>
+      }
+    </ol>
+  </section>
+
+  <div class="ana-grid">
+    <section class="surface ana-panel" aria-labelledby="ana-activation">
+      <header class="rep-panel__head">
+        <h2 class="rep-panel__title" id="ana-activation">Signup to first conversation</h2>
+        <span class="rep-panel__hint">
+          Median {{ days(snapshot().medianActivationDays) }}
+        </span>
+      </header>
+
+      <h3 class="ana-panel__sub">Fastest</h3>
+      <ul class="ana-activation">
+        @for (entry of snapshot().fastest; track entry.tenantId) {
+          <li>
+            <strong>{{ entry.name }}</strong>
+            <span>{{ entry.tier }} · {{ days(entry.days) }}</span>
+          </li>
+        }
+      </ul>
+
+      <h3 class="ana-panel__sub">Slowest</h3>
+      <ul class="ana-activation">
+        @for (entry of snapshot().slowest; track entry.tenantId) {
+          <li>
+            <strong>{{ entry.name }}</strong>
+            <span>{{ entry.tier }} · {{ days(entry.days) }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="surface ana-panel" aria-labelledby="ana-industries">
+      <header class="rep-panel__head">
+        <h2 class="rep-panel__title" id="ana-industries">Workspaces by industry</h2>
+        <span class="rep-panel__hint">{{ snapshot().industries.length }} industries</span>
+      </header>
+
+      <ul class="ana-tiers">
+        @for (row of snapshot().industries; track row.industry) {
+          <li class="ana-tier">
+            <span class="ana-tier__name">{{ row.industry }}</span>
+            <span class="ana-tier__track">
+              <span class="ana-tier__fill ana-tier__fill--neutral" [style.width.%]="row.sharePct"></span>
+            </span>
+            <span class="ana-tier__value">
+              {{ row.workspaces }}
+              <em>{{ row.sharePct }}%</em>
+            </span>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <section class="surface ana-panel" aria-labelledby="ana-usage">
+    <header class="rep-panel__head">
+      <h2 class="rep-panel__title" id="ana-usage">Workspace usage</h2>
+      <span class="rep-panel__hint">Messages counted over the last 30 days</span>
+    </header>
+
+    <app-data-table
+      [columns]="columns"
+      [rows]="snapshot().topWorkspaces"
+      caption="Usage per workspace"
+      [rowKey]="rowKey"
+      searchPlaceholder="Search workspaces"
+      exportName="bugconnect-workspace-usage"
+      emptyTitle="No workspaces yet"
+      emptyDescription="Onboard a client to see its usage here."
+    >
+      <ng-template appCell="name" let-row>
+        <span class="ana-workspace">
+          <a class="ana-workspace__name" [routerLink]="['/clients', row.tenantId]">
+            {{ row.name }}
+          </a>
+          <span class="data-table__subdued">{{ row.subdomain }}.localhost</span>
+          <span class="ana-workspace__bar">
+            <span class="ana-workspace__bar-fill" [style.width.%]="row.sharePct"></span>
+          </span>
+        </span>
+      </ng-template>
+
+      <ng-template appCell="status" let-row>
+        <app-status-pill [label]="statusLabel(row.status)" [tone]="statusTone(row.status)" />
+      </ng-template>
+    </app-data-table>
+  </section>
+</div>

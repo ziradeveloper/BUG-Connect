@@ -1,0 +1,257 @@
+/*
+ * Platform cross-tenant analytics (`/analytics`).
+ *
+ * The volume chart reuses the report chart classes from insights.css on purpose:
+ * one SVG geometry, one stylesheet, and the platform page only adds what is
+ * genuinely its own — the plan and industry bars, the onboarding funnel and the
+ * usage rows. Everything folds to a single column on a phone.
+ */
+
+.ana-summary {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.ana-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.ana-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.ana-panel__sub {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- plan and industry bars ------------------------------------------- */
+
+.ana-tiers {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ana-tier {
+  display: grid;
+  grid-template-columns: minmax(7rem, 13rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.ana-tier__name {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ana-tier__track {
+  block-size: 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-hover);
+  overflow: hidden;
+}
+
+.ana-tier__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--duration-base) var(--ease-out);
+}
+
+.ana-tier__fill--pilot {
+  background: var(--theme-info);
+}
+
+.ana-tier__fill--growth {
+  background: var(--theme-brand);
+}
+
+.ana-tier__fill--scale {
+  background: var(--theme-success);
+}
+
+.ana-tier__fill--neutral {
+  background: var(--theme-border-strong);
+}
+
+.ana-tier__value {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+  white-space: nowrap;
+}
+
+.ana-tier__value em {
+  margin-inline-start: 0.35rem;
+  color: var(--theme-text-secondary);
+  font-style: normal;
+}
+
+/* ---- onboarding funnel ------------------------------------------------ */
+
+.ana-funnel {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ana-funnel__row {
+  display: grid;
+  grid-template-columns: minmax(9rem, 15rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ana-funnel__label {
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.ana-funnel__track {
+  block-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-hover);
+  overflow: hidden;
+}
+
+.ana-funnel__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--duration-base) var(--ease-out);
+}
+
+.ana-funnel__fill--signup {
+  background: var(--theme-border-strong);
+}
+
+.ana-funnel__fill--connected {
+  background: var(--theme-info);
+}
+
+.ana-funnel__fill--firstConversation {
+  background: var(--theme-brand);
+}
+
+.ana-funnel__fill--firstBroadcast {
+  background: var(--theme-warning);
+}
+
+.ana-funnel__fill--publishedForm {
+  background: var(--theme-success);
+}
+
+.ana-funnel__value {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+  white-space: nowrap;
+}
+
+.ana-funnel__value em {
+  margin-inline-start: 0.4rem;
+  color: var(--theme-text-secondary);
+  font-style: normal;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+}
+
+/* ---- activation and usage --------------------------------------------- */
+
+.ana-activation {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ana-activation li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding-block: 0.2rem;
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.ana-activation li:last-child {
+  border-bottom: 0;
+}
+
+.ana-activation strong {
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+}
+
+.ana-activation span {
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.ana-workspace {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ana-workspace__name {
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.ana-workspace__bar {
+  block-size: 0.3rem;
+  border-radius: var(--radius-full);
+  background: var(--theme-surface-hover);
+  overflow: hidden;
+}
+
+.ana-workspace__bar-fill {
+  display: block;
+  block-size: 100%;
+  background: var(--theme-brand);
+}
+
+/* ---- folding ---------------------------------------------------------- */
+
+@media (max-width: 70rem) {
+  .ana-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .ana-tier,
+  .ana-funnel__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.2rem;
+  }
+
+  .ana-tier__name,
+  .ana-funnel__label {
+    grid-column: 1 / -1;
+  }
+
+  .ana-summary {
+    font-size: 0.75rem;
+  }
+}

@@ -101,7 +101,9 @@ export const ADMIN_ROUTES: Routes = [
         path: 'analytics',
         title: 'Cross-tenant analytics',
         loadChildren: () =>
-          import('./admin-later.routes').then((routes) => routes.ANALYTICS_ROUTES),
+          import('./analytics/analytics.routes').then(
+            (routes) => routes.PLATFORM_ANALYTICS_ROUTES,
+          ),
       },
       {
         path: 'announcements',
