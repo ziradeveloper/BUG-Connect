@@ -1,0 +1,134 @@
+<div class="workspace-page">
+  @if (!workspace.isWorkspace()) {
+    <app-site-header [showMarketingLinks]="false" />
+  }
+
+  <main class="auth-page app-container">
+    <section class="auth-card surface" aria-labelledby="invite-heading">
+      @if (status() === 'done') {
+        <header class="auth-card__header">
+          <p class="eyebrow">INVITATION ACCEPTED</p>
+          <h1 id="invite-heading">Welcome aboard{{ inviteName() ? ', ' + inviteName() : '' }}</h1>
+          <p class="text-muted">
+            Your seat is active. Sign in with your email address and the password you just chose.
+          </p>
+        </header>
+
+        <div class="auth-result auth-result--success" role="status">
+          <p>
+            <strong>{{ details()?.tenant?.businessName ?? 'The workspace' }}</strong> is ready for
+            you.
+          </p>
+          <a class="button button-primary" routerLink="/login">Go to sign in</a>
+        </div>
+      } @else if (details(); as invite) {
+        <header class="auth-card__header">
+          <p class="eyebrow">TEAM INVITATION</p>
+          <h1 id="invite-heading">Join {{ invite.tenant?.businessName ?? 'the workspace' }}</h1>
+          <p class="text-muted">
+            Set a password to activate the seat
+            {{ permissions.labelFor(invite.invite.roleId) }} created for
+            <strong>{{ invite.invite.email }}</strong>.
+          </p>
+        </header>
+
+        @if (invite.accepted || invite.expired) {
+          <div class="auth-result auth-result--error" role="alert">
+            <p>
+              <strong>
+                {{ invite.accepted ? 'This invitation has already been accepted.' : 'This invitation has expired.' }}
+              </strong>
+            </p>
+            <p class="text-muted">
+              Ask a workspace administrator to resend it — the invite link on the Users page
+              issues a fresh one.
+            </p>
+            <a class="button button-primary" routerLink="/login">Back to sign in</a>
+          </div>
+        } @else {
+          @if (error(); as message) {
+            <div class="auth-result auth-result--error" role="alert">{{ message }}</div>
+          }
+
+          <form #inviteForm="ngForm" (ngSubmit)="onSubmit(inviteForm)" novalidate>
+            <div class="form-field">
+              <label for="invite-name">Your name</label>
+              <input
+                id="invite-name"
+                name="fullName"
+                type="text"
+                class="form-control"
+                [value]="invite.user?.fullName ?? ''"
+                readonly
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="invite-password">Choose a password</label>
+              <div class="password-control">
+                <input
+                  id="invite-password"
+                  name="password"
+                  [type]="visible() ? 'text' : 'password'"
+                  class="form-control"
+                  [(ngModel)]="password"
+                  #passwordModel="ngModel"
+                  required
+                  minlength="8"
+                  placeholder="At least 8 characters"
+                />
+                <button type="button" class="password-control__toggle" (click)="toggleVisible()">
+                  {{ visible() ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              <p class="auth-rule" [class.auth-rule--met]="ruleLength()">
+                {{ ruleLength() ? '✓' : '·' }} At least 8 characters
+              </p>
+              <p class="auth-rule" [class.auth-rule--met]="ruleMix()">
+                {{ ruleMix() ? '✓' : '·' }} A letter and a number
+              </p>
+            </div>
+
+            <div class="form-field">
+              <label for="invite-confirm">Confirm password</label>
+              <input
+                id="invite-confirm"
+                name="confirm"
+                [type]="visible() ? 'text' : 'password'"
+                class="form-control"
+                [(ngModel)]="confirmation"
+                #confirmModel="ngModel"
+                required
+              />
+              @if (confirmation && confirmation !== password) {
+                <div class="field-error">The two passwords do not match</div>
+              }
+            </div>
+
+            <button class="button button-primary auth-submit" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Activating your seat…' : 'Accept invitation' }}
+            </button>
+          </form>
+        }
+      } @else {
+        <header class="auth-card__header">
+          <p class="eyebrow">TEAM INVITATION</p>
+          <h1 id="invite-heading">This invitation link is not valid</h1>
+          <p class="text-muted">
+            Invite links are single use and expire after a fortnight. Ask your workspace
+            administrator to resend it.
+          </p>
+        </header>
+
+        <div class="auth-result auth-result--error" role="alert">
+          <p><strong>No seat is waiting behind this link.</strong></p>
+          <a class="button button-primary" routerLink="/login">Back to sign in</a>
+        </div>
+      }
+
+      <p class="auth-card__foot">
+        <a routerLink="/login">Back to sign in</a>
+      </p>
+    </section>
+  </main>
+</div>

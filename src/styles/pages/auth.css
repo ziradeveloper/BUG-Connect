@@ -1,0 +1,204 @@
+/*
+ * Wave 5 — self-service and lifecycle surfaces.
+ *
+ * The auth screens (forgot / reset / accept invite) share one centred card so
+ * they read as siblings of the login page without copying its split layout.
+ * The suspended lock screen lives here too: it is the only client surface that
+ * renders outside the workspace shell.
+ */
+
+/* ── Self-service auth cards ─────────────────────────────────── */
+
+.auth-page {
+  display: grid;
+  place-items: center;
+  min-height: calc(100svh - 5rem);
+  padding-block: clamp(2rem, 6vw, 4.5rem);
+}
+
+.auth-card {
+  display: grid;
+  gap: 1.25rem;
+  width: min(30rem, 100%);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.auth-card__header {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.auth-card__header h1 {
+  font-size: clamp(1.5rem, 2.4vw, 1.9rem);
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.auth-card__header p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.auth-card .form-field {
+  margin-bottom: 1rem;
+}
+
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+}
+
+.auth-card__foot {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.auth-result {
+  display: grid;
+  gap: 0.6rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+}
+
+.auth-result p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.auth-result .button {
+  justify-self: start;
+}
+
+.auth-result--success {
+  background-color: var(--theme-success-surface);
+  border-color: var(--theme-border);
+}
+
+.auth-result--info {
+  background-color: var(--theme-info-surface);
+}
+
+.auth-result--error {
+  background-color: var(--theme-danger-surface);
+}
+
+.auth-rule {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.auth-rule--met {
+  color: var(--theme-success);
+  font-weight: 600;
+}
+
+.auth-directory {
+  border-top: 1px solid var(--theme-border);
+  padding-top: 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.auth-directory p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.auth-directory__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* ── Suspended workspace lock screen ─────────────────────────── */
+
+.suspended-page {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+  background: var(--theme-surface-sunken);
+}
+
+.suspended-card {
+  display: grid;
+  gap: 1.25rem;
+  width: min(34rem, 100%);
+  padding: clamp(1.75rem, 4vw, 2.75rem);
+  text-align: left;
+}
+
+.suspended-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+}
+
+.suspended-card__icon {
+  display: grid;
+  place-items: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  border-radius: var(--radius-full, 999px);
+  background-color: var(--theme-danger-surface);
+  font-size: 1.4rem;
+}
+
+.suspended-card h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  letter-spacing: -0.03em;
+}
+
+.suspended-card__reason {
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface-sunken);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.suspended-card__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.9rem 1.25rem;
+  margin: 0;
+}
+
+.suspended-card__facts dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--theme-text-secondary);
+}
+
+.suspended-card__facts dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.92rem;
+}
+
+.suspended-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.suspended-card__dev {
+  border-top: 1px dashed var(--theme-border);
+  padding-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.suspended-card__dev p {
+  margin: 0;
+  font-size: 0.8125rem;
+}

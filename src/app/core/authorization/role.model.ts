@@ -23,7 +23,8 @@ export type MenuKey =
   | 'metaConfig'
   | 'health'
   | 'announcements'
-  | 'analytics';
+  | 'analytics'
+  | 'platformSettings';
 
 /** A specific action. Guarded by routes and used to enable/disable controls. */
 export type Capability =
@@ -59,7 +60,8 @@ export type Capability =
   | 'meta.manage'
   | 'health.view'
   | 'announcements.manage'
-  | 'analytics.view';
+  | 'analytics.view'
+  | 'platform.configure';
 
 export type AccessLevel = 'none' | 'view' | 'edit' | 'full';
 
@@ -105,6 +107,7 @@ export const MENU_CAPABILITY: Record<MenuKey, Capability> = {
   health: 'health.view',
   announcements: 'announcements.manage',
   analytics: 'analytics.view',
+  platformSettings: 'platform.configure',
 };
 
 /**

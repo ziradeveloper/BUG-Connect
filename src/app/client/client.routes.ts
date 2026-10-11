@@ -1,6 +1,11 @@
 import type { Routes } from '@angular/router';
 
-import { authGuard, permissionGuard } from '../core/auth/guards';
+import {
+  activeTenantGuard,
+  authGuard,
+  permissionGuard,
+  tenantSuspendedGuard,
+} from '../core/auth/guards';
 
 /**
  * The tenant console tree. Mounted only when the host resolves to a client
@@ -12,10 +17,19 @@ import { authGuard, permissionGuard } from '../core/auth/guards';
  */
 export const CLIENT_ROUTES: Routes = [
   {
+    // The lock screen sits outside the shell on purpose: a suspended workspace
+    // must not render a console that every request would be denied inside.
+    path: 'suspended',
+    title: 'Workspace suspended',
+    loadComponent: () =>
+      import('./suspended/suspended-page').then((page) => page.SuspendedPage),
+    canActivate: [authGuard, activeTenantGuard],
+  },
+  {
     path: '',
     loadComponent: () =>
       import('../layout/client-shell/client-shell').then((shell) => shell.ClientShell),
-    canActivate: [authGuard],
+    canActivate: [authGuard, tenantSuspendedGuard],
     children: [
       {
         path: '',
@@ -78,8 +92,7 @@ export const CLIENT_ROUTES: Routes = [
       },
       {
         path: 'flows',
-        title: 'Flow Builder',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.FLOW_ROUTES),
+        loadChildren: () => import('./flows/flows.routes').then((routes) => routes.FLOW_ROUTES),
       },
       {
         path: 'campaigns',
@@ -100,12 +113,12 @@ export const CLIENT_ROUTES: Routes = [
       {
         path: 'billing',
         title: 'Subscription',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.BILLING_ROUTES),
+        loadChildren: () => import('./billing/billing.routes').then((routes) => routes.BILLING_ROUTES),
       },
       {
         path: 'audit',
         title: 'Audit log',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.AUDIT_ROUTES),
+        loadChildren: () => import('./audit/audit.routes').then((routes) => routes.AUDIT_ROUTES),
       },
       {
         path: 'quick-replies',

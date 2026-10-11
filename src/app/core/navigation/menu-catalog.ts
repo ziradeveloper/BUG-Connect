@@ -53,7 +53,6 @@ export const CLIENT_MENU: MenuEntry[] = [
     icon: '⇄',
     group: 'automation',
     capability: 'flows.view',
-    planned: true,
   },
   {
     key: 'templates',
@@ -137,7 +136,6 @@ export const CLIENT_MENU: MenuEntry[] = [
     icon: '▤',
     group: 'workspace',
     capability: 'billing.view',
-    planned: true,
   },
   {
     key: 'audit',
@@ -146,7 +144,6 @@ export const CLIENT_MENU: MenuEntry[] = [
     icon: '☰',
     group: 'insights',
     capability: 'audit.view',
-    planned: true,
   },
   {
     key: 'profile',
@@ -257,7 +254,14 @@ export const PLATFORM_MENU: MenuEntry[] = [
     icon: '☰',
     group: 'platform',
     capability: 'audit.view',
-    planned: true,
+  },
+  {
+    key: 'platformSettings',
+    label: 'Platform Settings',
+    path: 'settings',
+    icon: '⚙',
+    group: 'platform',
+    capability: 'platform.configure',
   },
   {
     key: 'profile',

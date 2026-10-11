@@ -4,6 +4,7 @@ import type { CanActivateFn, CanMatchFn } from '@angular/router';
 import { Router } from '@angular/router';
 
 import { PermissionService } from '../authorization/permission.service';
+import { MockDataService } from '../data/mock-data.service';
 import type { AccessLevel, Capability } from '../authorization/role.model';
 import { SessionService } from './session.service';
 import { WorkspaceContext } from '../workspace/workspace-context';
@@ -80,3 +81,30 @@ export function workspaceGuard(...kinds: WorkspaceKind[]): CanMatchFn {
 
 /** Marketing hosts (apex, www, preview default) keep the public site. */
 export const marketingGuard: CanMatchFn = () => inject(WorkspaceContext).isMarketing();
+
+/**
+ * Suspended (or archived) workspaces are locked out of the console: every page
+ * inside the shell redirects to `/suspended`, which is the one client route the
+ * shell does not wrap. The check reads tenant state, not the session, so it
+ * behaves identically on the server and in the browser.
+ */
+export const tenantSuspendedGuard: CanActivateFn = () => {
+  const data = inject(MockDataService);
+  const router = inject(Router);
+
+  return isLocked(data.currentTenant()?.status)
+    ? router.createUrlTree(['/suspended'])
+    : true;
+};
+
+/** Keeps a healthy workspace out of the lock screen. */
+export const activeTenantGuard: CanActivateFn = () => {
+  const data = inject(MockDataService);
+  const router = inject(Router);
+
+  return isLocked(data.currentTenant()?.status) ? true : router.createUrlTree(['/']);
+};
+
+function isLocked(status: string | undefined | null): boolean {
+  return status === 'suspended' || status === 'archived';
+}

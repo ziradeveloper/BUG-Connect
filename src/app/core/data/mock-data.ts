@@ -1,4 +1,7 @@
 import type {
+  AuditArea,
+  AuditEvent,
+  AuditLevel,
   TenantStatus,
   BusinessProfile,
   Campaign,
@@ -6,6 +9,10 @@ import type {
   Contact,
   ContactSegment,
   Conversation,
+  FlowGraph,
+  FlowNode,
+  FlowNodeKind,
+  FlowVersion,
   Invoice,
   Message,
   MessageTemplate,
@@ -355,7 +362,12 @@ function nameFor(rng: Rng): string {
 }
 
 function emailFor(name: string, tenant: { subdomain: string }): string {
-  const local = name.toLowerCase().replace(/[^a-z]+/g, '.');
+  // Digits and spaces collapse into dots; the trim keeps the address valid when
+  // the name ends in a number (`…pillai4` used to seed `…pillai.@…`).
+  const local = name
+    .toLowerCase()
+    .replace(/[^a-z]+/g, '.')
+    .replace(/^\.+|\.+$/g, '');
   return `${local}@${tenant.subdomain.replace(/[^a-z0-9]/g, '')}.example`;
 }
 
@@ -631,7 +643,137 @@ export type Dataset = {
   quickReplies: QuickReply[];
   segments: ContactSegment[];
   businessProfiles: BusinessProfile[];
+  /** Wave 5 audit trail: per-tenant and platform-wide, oldest first. */
+  auditEvents: AuditEvent[];
+  /** Wave 6: the editable graph behind each flow, plus its published snapshots. */
+  flowGraphs: FlowGraph[];
+  flowVersions: FlowVersion[];
 };
+
+/** The node set a freshly seeded flow starts from, keyed to its position. */
+const FLOW_VERSION_NOTES = [
+  'Published from the canvas',
+  'Menu copy reworked after the beta review',
+  'Added the after-hours branch',
+  'Split the topic menu into two steps',
+  'Router weights tuned to the team rota',
+  'Trimmed the greeting to one line',
+  'Second option added to the first menu',
+];
+
+/**
+ * One flow's starter graph: the five engine nodes wired left to right, with the
+ * menu handing off to the router and the close node ending the trip.
+ *
+ * Positions are canvas pixels — the visualiser renders them absolutely rather
+ * than laying the graph out, so a saved node keeps the spot the author put it.
+ */
+function buildFlowNodes(flow: ChatFlow, flowIndex: number): FlowNode[] {
+  const prefix = `${flow.id}-node`;
+  const selection: FlowNode = {
+    id: `${prefix}-selection`,
+    kind: 'selection',
+    title: 'Selection · topic',
+    message: 'Open the topic you need and I will pull up the details.',
+    options: [
+      { id: `${prefix}-selection-a`, label: 'Show me the details', nextNodeId: `${prefix}-close` },
+      { id: `${prefix}-selection-b`, label: 'Something else', nextNodeId: `${prefix}-router` },
+    ],
+    nextNodeId: `${prefix}-close`,
+    condition: null,
+    x: 720,
+    y: 70,
+  };
+  const router: FlowNode = {
+    id: `${prefix}-router`,
+    kind: 'router',
+    title: 'Weighted router',
+    message: 'Finding the right team member for you…',
+    options: [],
+    nextNodeId: `${prefix}-close`,
+    condition: flowIndex % 2 === 0 ? 'Outside 09:00–21:00 or no agent online' : 'No agent free within 3 minutes',
+    x: 720,
+    y: 310,
+  };
+  const close: FlowNode = {
+    id: `${prefix}-close`,
+    kind: 'close',
+    title: 'Close · handoff',
+    message: 'Thanks! A team member has the context and will continue here.',
+    options: [],
+    nextNodeId: null,
+    condition: null,
+    x: 1060,
+    y: 190,
+  };
+
+  return [
+    {
+      id: `${prefix}-inbound`,
+      kind: 'inbound',
+      title: 'Inbound trigger',
+      message: 'Hi! Welcome — I can help with orders, appointments and delivery updates.',
+      options: [],
+      nextNodeId: `${prefix}-menu`,
+      condition: null,
+      x: 40,
+      y: 190,
+    },
+    {
+      id: `${prefix}-menu`,
+      kind: 'menu',
+      title: 'Interactive menu',
+      message: 'What would you like to do?',
+      options: [
+        { id: `${prefix}-menu-a`, label: 'Track my order', nextNodeId: `${prefix}-selection` },
+        { id: `${prefix}-menu-b`, label: 'Talk to a human', nextNodeId: `${prefix}-router` },
+        { id: `${prefix}-menu-c`, label: 'See our hours', nextNodeId: `${prefix}-close` },
+      ],
+      nextNodeId: `${prefix}-close`,
+      condition: null,
+      x: 380,
+      y: 190,
+    },
+    selection,
+    router,
+    close,
+  ];
+}
+
+/**
+ * An older snapshot of the same graph. Dropping the newest branch first keeps the
+ * history legible in the versions table: fewer nodes, and the menu rewired to
+ * the node that still exists.
+ */
+function snapshotNodes(nodes: FlowNode[], ageInVersions: number): FlowNode[] {
+  let copy = nodes.map((node) => ({
+    ...node,
+    options: node.options.map((option) => ({ ...option })),
+  }));
+
+  const dropOrder: FlowNodeKind[] = ['router', 'selection'];
+  for (let step = 0; step < ageInVersions && step < dropOrder.length; step += 1) {
+    const kind = dropOrder[step] as FlowNodeKind;
+    copy = copy.filter((node) => node.kind !== kind);
+  }
+
+  const close = copy.find((node) => node.kind === 'close');
+  if (close) {
+    copy = copy.map((node) => ({
+      ...node,
+      options: node.options.map((option) =>
+        copy.some((candidate) => candidate.id === option.nextNodeId)
+          ? option
+          : { ...option, nextNodeId: close.id },
+      ),
+      nextNodeId: copy.some((candidate) => candidate.id === node.nextNodeId)
+        ? node.nextNodeId
+        : close.id,
+    }));
+  }
+
+  return copy;
+}
 
 export function buildDataset(seed = SEED): Dataset {
   const rng = new Rng(seed);
@@ -650,6 +792,9 @@ export function buildDataset(seed = SEED): Dataset {
   const quickReplies: QuickReply[] = [];
   const segments: ContactSegment[] = [];
   const businessProfiles: BusinessProfile[] = [];
+  const auditEvents: AuditEvent[] = [];
+  const flowGraphs: FlowGraph[] = [];
+  const flowVersions: FlowVersion[] = [];
 
   TENANT_SEEDS.forEach((seedTenant, tenantIndex) => {
     const tenantId = `tenant-${tenantIndex + 1}`;
@@ -726,6 +871,13 @@ export function buildDataset(seed = SEED): Dataset {
       };
       tenantUsers.push(user);
       workspaceUsers.push(user);
+    }
+
+    // Wave 5: at least one seat per tenant is always waiting on an invitation,
+    // so the accept-invite flow is walkable in every demo workspace. Pure
+    // post-processing — no extra draws, so earlier tenants stay byte-identical.
+    if (!tenantUsers.some((user) => user.invited) && tenantUsers.length > 3) {
+      (tenantUsers[tenantUsers.length - 1] as WorkspaceUser).invited = true;
     }
 
     const agents = tenantUsers.filter(
@@ -1139,6 +1291,183 @@ export function buildDataset(seed = SEED): Dataset {
     for (const contact of tenantContacts) {
       contact.conversationCount = threadsPerContact.get(contact.id) ?? 0;
     }
+
+    // ---- wave 5: the audit trail. Rolled on a private stream per tenant
+    // (SEED + 2000 + index), so the shared sequence — and every earlier
+    // tenant's story — stays byte-identical to builds that predate the log.
+    const recentAuditRng = new Rng(SEED + 2000 + tenantIndex);
+    const admin = tenantUsers.find((user) => user.role === 'admin') ?? tenantUsers[0];
+    const adminName = admin?.fullName ?? 'Workspace Administrator';
+    const invitedUser = tenantUsers.find((user) => user.invited);
+    const namedTemplate =
+      templates.find((template) => template.tenantId === tenantId)?.name ?? 'Order update';
+
+    const tenantAudit: {
+      area: AuditArea;
+      action: string;
+      target: string;
+      level: AuditLevel;
+    }[] = [
+      {
+        area: 'auth',
+        action: 'Signed in to the workspace console',
+        target: `${adminName} · password`,
+        level: 'info',
+      },
+      {
+        area: 'users',
+        action: invitedUser
+          ? `Invited ${invitedUser.fullName} to the workspace`
+          : 'Resent an invitation that had expired',
+        target: invitedUser?.email ?? `${seedTenant.subdomain}.admin@example.com`,
+        level: 'info',
+      },
+      {
+        area: 'templates',
+        action: `Submitted the “${namedTemplate}” template to Meta for approval`,
+        target: namedTemplate,
+        level: 'info',
+      },
+      {
+        area: 'settings',
+        action: 'Updated operating hours and the out-of-hours auto-responder',
+        target: `${seedTenant.businessName} · business profile`,
+        level: 'info',
+      },
+      {
+        area: 'connections',
+        action: tenant.metaWabaId
+          ? `Connected WhatsApp Business Account ${tenant.metaWabaId}`
+          : 'Started the WhatsApp connection through Embedded Signup',
+        target: tenant.phoneNumber ?? `${seedTenant.subdomain} · WABA`,
+        level: tenant.metaWabaId ? 'critical' : 'warning',
+      },
+      {
+        area: 'roles',
+        action: 'Changed a role capability: campaigns.manage → view',
+        target: 'Supervisor',
+        level: 'warning',
+      },
+      {
+        area: 'billing',
+        action: `Moved the workspace to the ${seedTenant.tier} plan`,
+        target: `${seedTenant.tier} plan`,
+        level: 'warning',
+      },
+      {
+        area: 'inbox',
+        action: 'Reassigned the open queue after an agent went offline',
+        target: 'Support Desk team',
+        level: 'info',
+      },
+    ];
+
+    tenantAudit.forEach((entry, index) => {
+      auditEvents.push({
+        id: `${tenantId}-audit-${index + 1}`,
+        tenantId,
+        actor: adminName,
+        actorRole: 'Workspace Administrator',
+        area: entry.area,
+        action: entry.action,
+        target: entry.target,
+        level: entry.level,
+        createdAt: isoAt(-recentAuditRng.int(1 + index * 2, 3 + index * 3) * 24 * HOUR),
+      });
+    });
+  });
+
+  // ---- wave 5: platform-wide audit entries. A private stream again, and they
+  // land after the per-tenant rows so every tenant's ids stay stable.
+  const platformAuditRng = new Rng(SEED + 3000);
+  const owner = 'Zira Developer';
+
+  const platformAudit: {
+    area: AuditArea;
+    action: string;
+    target: string;
+    level: AuditLevel;
+    actor: string;
+    actorRole: string;
+    tenantId: string | null;
+  }[] = [
+    {
+      area: 'auth',
+      action: 'Signed in to the platform console',
+      target: 'admin console · password',
+      level: 'info',
+      actor: owner,
+      actorRole: 'Platform Owner',
+      tenantId: null,
+    },
+    {
+      area: 'clients',
+      action: `Provisioned ${tenants[0]?.businessName ?? 'a workspace'} on trial`,
+      target: `${tenants[0]?.businessName ?? 'Workspace'} · ${tenants[0]?.subscriptionTier ?? 'Pilot'}`,
+      level: 'critical',
+      actor: owner,
+      actorRole: 'Platform Owner',
+      tenantId: tenants[0]?.id ?? null,
+    },
+    {
+      area: 'platform',
+      action: `Opened support view-as for ${tenants[1]?.businessName ?? 'a workspace'}`,
+      target: `${tenants[1]?.businessName ?? 'Workspace'} · impersonation`,
+      level: 'critical',
+      actor: 'Platform Operations',
+      actorRole: 'Platform Operations',
+      tenantId: tenants[1]?.id ?? null,
+    },
+    {
+      area: 'meta',
+      action: 'Rotated the webhook verify token',
+      target: 'Meta app · callback verification',
+      level: 'warning',
+      actor: owner,
+      actorRole: 'Platform Owner',
+      tenantId: null,
+    },
+    {
+      area: 'plans',
+      action: 'Saved Pilot limits: 5 seats, 5,000 messages / month',
+      target: 'Pilot plan',
+      level: 'warning',
+      actor: owner,
+      actorRole: 'Platform Owner',
+      tenantId: null,
+    },
+    {
+      area: 'clients',
+      action: `Re-activated ${tenants[1]?.businessName ?? 'a workspace'} after the invoice cleared`,
+      target: `${tenants[1]?.businessName ?? 'Workspace'} · suspended → active`,
+      level: 'warning',
+      actor: 'Platform Operations',
+      actorRole: 'Platform Operations',
+      tenantId: tenants[1]?.id ?? null,
+    },
+    {
+      area: 'platform',
+      action: 'Updated platform settings: 14-day trial, maintenance mode off',
+      target: 'Platform settings',
+      level: 'info',
+      actor: owner,
+      actorRole: 'Platform Owner',
+      tenantId: null,
+    },
+  ];
+
+  platformAudit.forEach((entry, index) => {
+    auditEvents.push({
+      id: `audit-platform-${index + 1}`,
+      tenantId: entry.tenantId,
+      actor: entry.actor,
+      actorRole: entry.actorRole,
+      area: entry.area,
+      action: entry.action,
+      target: entry.target,
+      level: entry.level,
+      createdAt: isoAt(-platformAuditRng.int(1 + index, 4 + index * 3) * 24 * HOUR),
+    });
   });
 
   const platformStaff: PlatformStaffUser[] = [
@@ -1168,6 +1497,59 @@ export function buildDataset(seed = SEED): Dataset {
     });
   }
 
+  // ---- wave 6: flow graphs + published versions. Post-processed from the flow
+  // rows with a private stream per flow, so every earlier seed keeps its exact
+  // draws and the demo story does not shift.
+  const userById = new Map(workspaceUsers.map((user) => [user.id, user]));
+
+  flows.forEach((flow, flowIndex) => {
+    const graphRng = new Rng(SEED + 4000 + flowIndex);
+    const nodes = buildFlowNodes(flow, flowIndex);
+    const updatedAt = flow.updatedAt;
+
+    flowGraphs.push({
+      id: `${flow.id}-graph`,
+      tenantId: flow.tenantId,
+      flowId: flow.id,
+      nodes,
+      updatedAt,
+    });
+
+    const authors = workspaceUsers.filter((user) => user.tenantId === flow.tenantId);
+
+    for (let version = 1; version <= flow.version; version += 1) {
+      const ageInVersions = flow.version - version;
+      const author = authors.length
+        ? (userById.get((authors[graphRng.int(0, authors.length - 1)] as WorkspaceUser).id)?.fullName ??
+          'Workspace admin')
+        : 'Workspace admin';
+
+      flowVersions.push({
+        id: `${flow.id}-v${version}`,
+        tenantId: flow.tenantId,
+        flowId: flow.id,
+        version,
+        note: version === flow.version
+          ? FLOW_VERSION_NOTES[0] as string
+          : (FLOW_VERSION_NOTES[version % FLOW_VERSION_NOTES.length] as string),
+        author,
+        nodeCount: snapshotNodes(nodes, ageInVersions).length,
+        publishedAt: isoAt(-(ageInVersions * graphRng.int(2, 9) + graphRng.int(0, 3)) * 24 * HOUR),
+        nodes: snapshotNodes(nodes, ageInVersions),
+      });
+    }
+
+    // The newest snapshot must match what the canvas shows.
+    const newest = flowVersions
+      .filter((version) => version.flowId === flow.id)
+      .sort((a, b) => b.version - a.version)[0];
+    if (newest) {
+      newest.nodes = nodes.map((node) => ({ ...node, options: node.options.map((option) => ({ ...option })) }));
+      newest.nodeCount = nodes.length;
+      newest.publishedAt = updatedAt;
+    }
+  });
+
   messages.sort((a, b) => a.sentAt.localeCompare(b.sentAt));
 
   return {
@@ -1187,5 +1569,8 @@ export function buildDataset(seed = SEED): Dataset {
     quickReplies,
     segments,
     businessProfiles,
+    auditEvents,
+    flowGraphs,
+    flowVersions,
   };
 }

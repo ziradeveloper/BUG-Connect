@@ -1,0 +1,64 @@
+<main class="suspended-page">
+  <section class="suspended-card surface" aria-labelledby="suspended-heading">
+    <p class="suspended-card__brand">
+      <span class="site-brand__mark" aria-hidden="true">B</span>
+      <span>BUG<span class="text-brand">Connect</span></span>
+    </p>
+
+    <span class="suspended-card__icon" aria-hidden="true">⏸</span>
+
+    <div>
+      <p class="eyebrow">WORKSPACE LOCKED</p>
+      <h1 id="suspended-heading">
+        {{ tenant()?.businessName ?? 'This workspace' }} is suspended
+      </h1>
+    </div>
+
+    <p class="suspended-card__reason">{{ reason() }}</p>
+
+    <dl class="suspended-card__facts">
+      <div>
+        <dt>Workspace</dt>
+        <dd>{{ tenant()?.subdomain ?? '—' }}.{{ host() }}</dd>
+      </div>
+      <div>
+        <dt>Plan</dt>
+        <dd>{{ tenant()?.subscriptionTier ?? '—' }}</dd>
+      </div>
+      <div>
+        <dt>Support</dt>
+        <dd>{{ support().email }}</dd>
+      </div>
+      <div>
+        <dt>Phone</dt>
+        <dd>{{ support().phone }}</dd>
+      </div>
+    </dl>
+
+    <div class="suspended-card__actions">
+      <a class="button button-primary" [href]="'mailto:' + support().email">Contact support</a>
+      <button class="button button-secondary" type="button" (click)="signOut()">Sign out</button>
+    </div>
+
+    @if (notice(); as message) {
+      <div class="auth-result auth-result--success" role="status">{{ message }}</div>
+    }
+
+    @if (workspace.canOverride()) {
+      <div class="suspended-card__dev">
+        <p class="text-muted">
+          Dev shortcut — suspension is a platform action, so the console that can lift it is
+          <code>/clients</code> on the admin host. This button does the same thing here.
+        </p>
+        <button
+          class="button button-secondary button-sm"
+          type="button"
+          [disabled]="reactivating()"
+          (click)="reactivate()"
+        >
+          {{ reactivating() ? 'Reactivating…' : 'Reactivate this workspace (dev)' }}
+        </button>
+      </div>
+    }
+  </section>
+</main>

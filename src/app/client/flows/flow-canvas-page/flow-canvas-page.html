@@ -1,0 +1,356 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="AUTOMATION"
+    [title]="flow()?.name ?? 'Flow not found'"
+    [description]="
+      flow()
+        ? 'Canvas for the flow engine: nodes keep the position you give them, and publishing records a new version. Last edited ' +
+          updatedLabel() +
+          '.'
+        : 'This flow id is not part of the workspace seed.'
+    "
+  >
+    <a class="button button-secondary" pageActions routerLink="/flows">All flows</a>
+    @if (flow(); as current) {
+      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'simulate']">
+        Simulate
+      </a>
+      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'versions']">
+        Versions
+      </a>
+    }
+  </app-page-header>
+
+  @if (!flow()) {
+    <section class="surface planned-state">
+      <h2>Flow not found</h2>
+      <p class="text-muted">
+        Flows are seeded per workspace. Pick one from the Flow Builder list to open its canvas.
+      </p>
+      <a class="button button-primary" routerLink="/flows">Back to the list</a>
+    </section>
+  } @else {
+    @if (notice(); as message) {
+      <p class="login-status" role="status">
+        {{ message }}
+        <button class="form-link" type="button" (click)="notice.set(null)">Dismiss</button>
+      </p>
+    }
+    @if (error(); as message) {
+      <p class="field-error" role="alert">{{ message }}</p>
+    }
+
+    <div class="flow-layout">
+      <section class="flow-canvas-panel surface" aria-label="Flow nodes">
+        <header class="flow-canvas__bar">
+          <div class="contact-filters" role="group" aria-label="Add a node">
+            @if (canManage()) {
+              @for (kind of kinds; track kind) {
+                <button
+                  type="button"
+                  class="contact-filter"
+                  [title]="meta[kind].blurb"
+                  (click)="addNode(kind)"
+                >
+                  {{ kindGlyph(kind) }} {{ kindLabel(kind) }}
+                </button>
+              }
+            } @else {
+              <p class="data-table__subdued">
+                Your role can read this graph; editing needs <code>flows.manage</code>.
+              </p>
+            }
+          </div>
+          <p class="flow-canvas__hint">
+            Nudge a node with the arrows (hold Shift for four steps). Connectors follow each
+            option, so a menu with no target ends the journey.
+          </p>
+        </header>
+
+        <div class="flow-canvas__scroll">
+          <div
+            class="flow-canvas"
+            [style.width.px]="canvas().width"
+            [style.height.px]="canvas().height"
+          >
+            <svg
+              class="flow-canvas__wires"
+              [attr.width]="canvas().width"
+              [attr.height]="canvas().height"
+              aria-hidden="true"
+            >
+              @for (link of connections(); track link.id) {
+                <path
+                  class="flow-wire"
+                  [class.flow-wire--auto]="link.auto"
+                  [attr.d]="link.path"
+                />
+                <text class="flow-wire__label" [attr.x]="link.labelX" [attr.y]="link.labelY">
+                  {{ link.label }}
+                </text>
+              }
+            </svg>
+
+            @for (node of nodes(); track node.id) {
+              <article
+                class="flow-node"
+                [class.flow-node--selected]="node.id === selectedId()"
+                [class]="'flow-node flow-node--' + node.kind"
+                [style.left.px]="node.x"
+                [style.top.px]="node.y"
+                [style.width.px]="nodeWidth"
+                [style.min-height.px]="nodeHeight"
+                (click)="select(node.id)"
+              >
+                <header class="flow-node__head">
+                  <span class="flow-node__glyph" aria-hidden="true">{{ kindGlyph(node.kind) }}</span>
+                  <span class="flow-node__kind">{{ kindLabel(node.kind) }}</span>
+                  @if (node.condition) {
+                    <span class="badge">Rule</span>
+                  }
+                </header>
+                <p class="flow-node__title">{{ node.title }}</p>
+                <p class="flow-node__message">{{ node.message }}</p>
+                @if (node.options.length) {
+                  <p class="flow-node__options">{{ node.options.length }} option(s)</p>
+                }
+
+                @if (canManage()) {
+                  <footer class="flow-node__foot">
+                    <button
+                      class="flow-node__nudge"
+                      type="button"
+                      aria-label="Move left"
+                      (click)="nudge(node.id, -1, 0, $event)"
+                    >
+                      ←
+                    </button>
+                    <button
+                      class="flow-node__nudge"
+                      type="button"
+                      aria-label="Move up"
+                      (click)="nudge(node.id, 0, -1, $event)"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      class="flow-node__nudge"
+                      type="button"
+                      aria-label="Move down"
+                      (click)="nudge(node.id, 0, 1, $event)"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      class="flow-node__nudge"
+                      type="button"
+                      aria-label="Move right"
+                      (click)="nudge(node.id, 1, 0, $event)"
+                    >
+                      →
+                    </button>
+                  </footer>
+                }
+              </article>
+            }
+          </div>
+        </div>
+      </section>
+
+      <aside class="flow-panel surface" aria-label="Node properties">
+        @if (selected(); as node) {
+          <header class="flow-panel__head">
+            <span class="flow-node__glyph" aria-hidden="true">{{ kindGlyph(node.kind) }}</span>
+            <div>
+              <p class="data-table__subdued">{{ kindLabel(node.kind) }}</p>
+              <h2>{{ node.title }}</h2>
+            </div>
+          </header>
+
+          <p class="data-table__subdued">{{ meta[node.kind].blurb }}</p>
+
+          <label class="form-field">
+            <span>Title</span>
+            <input
+              class="form-control"
+              type="text"
+              [value]="node.title"
+              [readOnly]="!canManage()"
+              (input)="updateTitle($any($event.target).value)"
+            />
+          </label>
+
+          <label class="form-field">
+            <span>Message</span>
+            <textarea
+              class="form-control"
+              rows="3"
+              [value]="node.message"
+              [readOnly]="!canManage()"
+              (input)="updateMessage($any($event.target).value)"
+            ></textarea>
+          </label>
+
+          <label class="form-field">
+            <span>Continues automatically to</span>
+            <select
+              class="form-control"
+              [value]="node.nextNodeId ?? ''"
+              [disabled]="!canManage()"
+              (change)="updateNextNode($any($event.target).value)"
+            >
+              <option value="">Ends the journey</option>
+              @for (candidate of nodes(); track candidate.id) {
+                @if (candidate.id !== node.id) {
+                  <option [value]="candidate.id">{{ candidate.title }}</option>
+                }
+              }
+            </select>
+          </label>
+
+          @if (node.kind === 'router') {
+            <label class="form-field">
+              <span>Routing rule</span>
+              <input
+                class="form-control"
+                type="text"
+                [value]="node.condition ?? ''"
+                [readOnly]="!canManage()"
+                (input)="updateCondition($any($event.target).value)"
+              />
+            </label>
+          }
+
+          <div class="flow-panel__options">
+            <div class="flow-panel__options-head">
+              <h3>Options</h3>
+              @if (canManage() && node.options.length < 10) {
+                <button class="form-link" type="button" (click)="addOption()">Add option</button>
+              }
+            </div>
+
+            @if (!node.options.length) {
+              <p class="data-table__subdued">
+                This node has no choices — the conversation continues straight through it.
+              </p>
+            }
+
+            @for (option of node.options; track option.id; let index = $index) {
+              <div class="flow-option">
+                <input
+                  class="form-control"
+                  type="text"
+                  aria-label="Option label"
+                  [value]="option.label"
+                  [readOnly]="!canManage()"
+                  (input)="updateOptionLabel(index, $any($event.target).value)"
+                />
+                <select
+                  class="form-control"
+                  aria-label="Option target"
+                  [value]="option.nextNodeId ?? ''"
+                  [disabled]="!canManage()"
+                  (change)="updateOptionTarget(index, $any($event.target).value)"
+                >
+                  <option value="">Ends the journey</option>
+                  @for (candidate of nodes(); track candidate.id) {
+                    @if (candidate.id !== node.id) {
+                      <option [value]="candidate.id">{{ candidate.title }}</option>
+                    }
+                  }
+                </select>
+                @if (canManage()) {
+                  <button
+                    class="form-link"
+                    type="button"
+                    aria-label="Remove option"
+                    (click)="removeOption(index)"
+                  >
+                    Remove
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          @if (canManage()) {
+            <div class="flow-panel__actions">
+              <button
+                class="button button-secondary"
+                type="button"
+                (click)="pendingDelete.set(node)"
+              >
+                Delete node
+              </button>
+            </div>
+          }
+        } @else {
+          <h2>Node properties</h2>
+          <p class="data-table__subdued">
+            Select a card on the canvas to edit its message, its options and where each option
+            goes. The palette above adds nodes; arrows move them.
+          </p>
+        }
+
+        <div class="flow-publish">
+          <div class="flow-publish__state">
+            <app-status-pill
+              [label]="dirty() ? 'Unpublished changes' : 'Matches published version'"
+              [tone]="dirty() ? 'warning' : 'success'"
+            />
+            @if (latestVersion(); as version) {
+              <span class="data-table__subdued">
+                Current: v{{ version.version }} · {{ version.author }} · {{ version.nodeCount }} nodes
+              </span>
+            }
+          </div>
+
+          @if (canManage()) {
+            <label class="form-field">
+              <span>Version note</span>
+              <input
+                class="form-control"
+                type="text"
+                placeholder="What changed?"
+                [value]="note()"
+                (input)="note.set($any($event.target).value)"
+              />
+            </label>
+            <div class="flow-publish__actions">
+              <button
+                class="button button-primary"
+                type="button"
+                [disabled]="publishing() || !dirty()"
+                (click)="publish()"
+              >
+                {{ publishing() ? 'Publishing…' : 'Publish version' }}
+              </button>
+              <button
+                class="button button-secondary"
+                type="button"
+                [disabled]="!dirty()"
+                (click)="discard()"
+              >
+                Discard draft
+              </button>
+            </div>
+          }
+        </div>
+      </aside>
+    </div>
+  }
+
+  <app-confirm-dialog
+    [open]="pendingDelete() !== null"
+    title="Delete this node?"
+    [description]="
+      pendingDelete()
+        ? pendingDelete()?.title +
+          ' is removed from the draft and any option pointing at it is set to end the journey.'
+        : ''
+    "
+    confirmLabel="Delete node"
+    (cancel)="pendingDelete.set(null)"
+    (confirm)="removeNode()"
+  />
+</div>

@@ -1,0 +1,123 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="AUTOMATION"
+    [title]="(flow()?.name ?? 'Flow') + ' — simulator'"
+    description="Rehearse the published graph on a virtual handset. Picking an option walks the same connectors the canvas draws; nothing here writes back to the workspace."
+  >
+    <a class="button button-secondary" pageActions routerLink="/flows">All flows</a>
+    @if (flow(); as current) {
+      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'edit']">
+        Canvas
+      </a>
+      <a class="button button-secondary" pageActions [routerLink]="['/flows', current.id, 'versions']">
+        Versions
+      </a>
+    }
+  </app-page-header>
+
+  @if (!flow() || !graph()) {
+    <section class="surface planned-state">
+      <h2>Flow not found</h2>
+      <p class="text-muted">Pick a flow from the list and open its simulator from there.</p>
+      <a class="button button-primary" routerLink="/flows">Back to the list</a>
+    </section>
+  } @else {
+    <div class="sim-layout">
+      <section class="sim-phone" aria-label="Simulated WhatsApp conversation">
+        <header class="sim-phone__bar">
+          <span class="sim-phone__avatar" aria-hidden="true">B</span>
+          <div class="sim-phone__who">
+            <strong>{{ flow()?.name }}</strong>
+            <span class="sim-phone__status">
+              {{ flow()?.triggerKeyword ? 'opens on /' + flow()?.triggerKeyword : 'opens on any message' }}
+            </span>
+          </div>
+          <app-status-pill [label]="status().label" [tone]="status().tone" />
+        </header>
+
+        <div class="sim-phone__thread" role="log" aria-live="polite">
+          @for (turn of transcript(); track turn.id) {
+            @if (turn.role === 'note') {
+              <p class="sim-note">{{ turn.text }}</p>
+            } @else {
+              <p class="bubble" [class]="turn.role === 'bot' ? 'bubble bubble--inbound' : 'bubble bubble--outbound'">
+                <span class="bubble__text">{{ turn.text }}</span>
+                <span class="bubble__meta">
+                  {{ time(turn.id) }}
+                  @if (turn.role === 'user') {
+                    <span class="bubble__ticks bubble__ticks--read" aria-hidden="true">✓✓</span>
+                  }
+                </span>
+              </p>
+            }
+          }
+        </div>
+
+        <footer class="sim-phone__composer">
+          @if (current(); as node) {
+            @if (node.options.length) {
+              <p class="sim-phone__prompt">Quick replies</p>
+              <div class="sim-choice-list" role="group" aria-label="Available choices">
+                @for (option of node.options; track option.id) {
+                  <button type="button" class="sim-choice" (click)="choose(option.id)">
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+            } @else if (node.kind === 'close') {
+              <p class="sim-phone__terminal">Journey complete — restart to run it again.</p>
+            } @else {
+              <p class="sim-phone__prompt">Continues automatically</p>
+              <button class="sim-choice" type="button" (click)="advance()">
+                Run the next step →
+              </button>
+            }
+          } @else {
+            <p class="sim-phone__terminal">The conversation has ended.</p>
+          }
+
+          <div class="sim-phone__actions">
+            <button class="button button-secondary" type="button" (click)="restart()">Restart</button>
+            <button
+              class="button button-secondary"
+              type="button"
+              [disabled]="!flow()?.triggerKeyword"
+              (click)="restartWithKeyword()"
+            >
+              Replay as customer
+            </button>
+            <button class="button button-secondary" type="button" (click)="back()">Back a step</button>
+          </div>
+        </footer>
+      </section>
+
+      <aside class="sim-side surface">
+        <h2>What this run proves</h2>
+        <ul class="sim-side__list">
+          <li><strong>{{ nodes().length }}</strong> nodes in the published graph</li>
+          <li><strong>{{ visitedCount() }}</strong> reached in this run</li>
+          <li>
+            <strong>{{ current()?.title ?? 'End of flow' }}</strong> is where the contact stands now
+          </li>
+        </ul>
+
+        <h3>Engine notes</h3>
+        <p class="text-muted">
+          The menu nodes cap at three buttons or a ten-option list, the router applies its rule
+          before a person is paged, and the close node attaches the transcript to the assignment.
+        </p>
+
+        @if (flow()?.isActive) {
+          <p class="data-table__subdued">
+            This flow is live, so the simulator reads exactly what customers are getting today.
+          </p>
+        } @else {
+          <p class="data-table__subdued">
+            This flow is a draft: the simulator reads the published version, while the canvas holds
+            any unpublished edits.
+          </p>
+        }
+      </aside>
+    </div>
+  }
+</div>

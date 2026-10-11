@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -32,13 +33,25 @@ import { formatRelative } from '../../../shared/format';
 })
 export class UsersPage {
   private readonly data = inject(MockDataService);
+  private readonly document = inject(DOCUMENT);
   protected readonly permissions = inject(PermissionService);
+
+  private get clipboard(): Clipboard {
+    return this.document.defaultView?.navigator.clipboard as Clipboard;
+  }
 
   protected readonly rows = signal<WorkspaceUser[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly pendingDelete = signal<WorkspaceUser | null>(null);
   protected readonly notice = signal<string | null>(null);
+
+  /**
+   * Invite tokens per pending seat, built on load rather than in the template:
+   * `ensureInvite()` writes to the data layer, and a write during change
+   * detection would fight the render it is feeding.
+   */
+  private readonly inviteTokens = signal<ReadonlyMap<string, string>>(new Map());
 
   protected readonly canManage = computed(() => this.permissions.can('users.manage', 'edit'));
 
@@ -102,6 +115,7 @@ export class UsersPage {
     this.data.listUsers().then(
       (page) => {
         this.rows.set(page.items);
+        this.inviteTokens.set(this.tokensFor(page.items));
         this.loading.set(false);
       },
       () => {
@@ -126,6 +140,47 @@ export class UsersPage {
 
   protected roleLabel(roleId: string): string {
     return this.permissions.labelFor(roleId);
+  }
+
+  /** The acceptance link behind a pending seat, if that seat is still pending. */
+  protected inviteToken(user: WorkspaceUser): string | null {
+    return this.inviteTokens().get(user.id) ?? null;
+  }
+
+  protected async copyInviteLink(event: Event, user: WorkspaceUser): Promise<void> {
+    event.stopPropagation();
+
+    const token = this.inviteToken(user);
+    if (!token) {
+      return;
+    }
+
+    const url = `${this.document.location.origin}/accept-invite?token=${token}`;
+
+    try {
+      await this.clipboard.writeText(url);
+      this.notice.set(`Invite link for ${user.fullName} copied — it opens the accept-invite screen.`);
+    } catch {
+      // Clipboard blocked (insecure context, denied permission): the link is
+      // still reachable from the row's Invite link action.
+      this.notice.set(`Copy blocked by the browser — open the invite with the Invite link action.`);
+    }
+  }
+
+  private tokensFor(users: WorkspaceUser[]): ReadonlyMap<string, string> {
+    const tokens = new Map<string, string>();
+
+    for (const user of users) {
+      if (!user.invited) {
+        continue;
+      }
+      const invite = this.data.ensureInvite(user.id);
+      if (invite) {
+        tokens.set(user.id, invite.token);
+      }
+    }
+
+    return tokens;
   }
 
   protected toneFor(user: WorkspaceUser): 'success' | 'warning' | 'info' | 'neutral' {

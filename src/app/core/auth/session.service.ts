@@ -42,6 +42,20 @@ export class SessionService {
   readonly user = signal<SessionUser | null>(null);
   readonly isAuthenticated = computed(() => this.user() !== null);
 
+  /**
+   * Passwords set through `/accept-invite` and `/reset-password`, kept beside
+   * the demo password rather than replacing it: whoever walks the flow can sign
+   * in with what they chose, and the shared demo accounts keep working.
+   * In-memory on purpose — this is still a dummy layer with no backend.
+   */
+  private readonly credentialOverrides = signal<ReadonlyMap<string, string>>(new Map());
+
+  /** Registers the password a user chose on an invite or reset screen. */
+  registerCredential(identifier: string, password: string): void {
+    const key = identifier.trim().toLowerCase();
+    this.credentialOverrides.update((map) => new Map(map).set(key, password));
+  }
+
   constructor() {
     // Only restore from storage in the browser — localStorage does not exist on
     // the SSR server, and calling it there would throw or silently return null.
@@ -63,11 +77,23 @@ export class SessionService {
 
     this.user.set(user);
     this.persist(user);
+    this.data.actor.set({ name: user.fullName, role: user.roleLabel, scope: user.scope });
+    this.data.recordAudit({
+      area: 'auth',
+      action: `Signed in to the ${user.scope === 'platform' ? 'platform' : 'workspace'} console`,
+      target: `${user.email} · password`,
+      level: 'info',
+      tenantId: user.scope === 'platform' ? null : (this.data.currentTenant()?.id ?? null),
+      actorName: user.fullName,
+      actorRole: user.roleLabel,
+    });
     return { ok: true };
   }
 
   login(username: string, password: string): { ok: boolean; message?: string } {
-    if (password !== DEMO_PASSWORD) {
+    const override = this.credentialOverrides().get(username.trim().toLowerCase());
+
+    if (password !== DEMO_PASSWORD && password !== override) {
       return {
         ok: false,
         message: 'Username or password is incorrect. Check your details and try again.',
@@ -82,7 +108,21 @@ export class SessionService {
   }
 
   logout(): void {
+    const leaving = this.user();
     this.user.set(null);
+    this.data.actor.set({ name: 'System', role: 'Automation', scope: null });
+
+    if (leaving) {
+      this.data.recordAudit({
+        area: 'auth',
+        action: 'Signed out',
+        target: `${leaving.email} · session ended`,
+        level: 'info',
+        tenantId: leaving.scope === 'platform' ? null : (this.data.currentTenant()?.id ?? null),
+        actorName: leaving.fullName,
+        actorRole: leaving.roleLabel,
+      });
+    }
 
     try {
       this.window?.localStorage.removeItem(SESSION_KEY);
@@ -213,7 +253,15 @@ export class SessionService {
     try {
       const raw = this.window?.localStorage.getItem(SESSION_KEY);
       if (raw) {
-        this.user.set(JSON.parse(raw) as SessionUser);
+        const restored = JSON.parse(raw) as SessionUser;
+        this.user.set(restored);
+        // The audit stamp follows a restored session too, otherwise the first
+        // action after a refresh would be attributed to "System".
+        this.data.actor.set({
+          name: restored.fullName,
+          role: restored.roleLabel,
+          scope: restored.scope,
+        });
       }
     } catch {
       // Corrupted / blocked storage — start with no session.

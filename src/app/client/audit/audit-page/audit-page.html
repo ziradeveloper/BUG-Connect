@@ -1,0 +1,100 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="INSIGHTS"
+    title="Audit log"
+    description="Administrative actions recorded against this workspace: who changed what, and when. Rows are written by the actions themselves, not by hand."
+  />
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Events</span>
+      <span class="metric__value">{{ summary().total }}</span>
+      <span class="metric__hint">Recorded for this workspace</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Security relevant</span>
+      <span class="metric__value">{{ summary().critical }}</span>
+      <span class="metric__hint">Connections, suspensions, impersonation</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Actors</span>
+      <span class="metric__value">{{ summary().actors }}</span>
+      <span class="metric__hint">People behind the changes</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Areas touched</span>
+      <span class="metric__value">{{ summary().areas }}</span>
+      <span class="metric__hint">From auth to connections</span>
+    </div>
+  </div>
+
+  <div class="audit-filters">
+    <div class="contact-filters" role="group" aria-label="Filter by area">
+      <button
+        type="button"
+        class="contact-filter"
+        [attr.aria-pressed]="activeArea() === null"
+        (click)="selectArea(null)"
+      >
+        All areas
+      </button>
+      @for (area of areas; track area) {
+        <button
+          type="button"
+          class="contact-filter"
+          [attr.aria-pressed]="activeArea() === area"
+          (click)="selectArea(area)"
+        >
+          {{ areaLabel(area) }}
+        </button>
+      }
+    </div>
+
+    <div class="contact-filters" role="group" aria-label="Filter by severity">
+      @for (level of levels; track level) {
+        <button
+          type="button"
+          class="contact-filter"
+          [attr.aria-pressed]="activeLevel() === level"
+          (click)="selectLevel(level)"
+        >
+          {{ levelLabel(level) }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    caption="Workspace audit log"
+    exportName="bugconnect-workspace-audit"
+    searchPlaceholder="Search by actor, action or target"
+    emptyTitle="No audit rows match these filters"
+    emptyDescription="Actions you take in this workspace will be recorded here."
+    [initialSort]="{ key: 'createdAt', direction: 'desc' }"
+  >
+    <ng-template appCell="createdAt" let-row>
+      <span class="data-table__primary">{{ when(row.createdAt) }}</span>
+      <span class="data-table__subdued"> · {{ ago(row.createdAt) }}</span>
+    </ng-template>
+
+    <ng-template appCell="actor" let-row>
+      <strong class="data-table__primary">{{ row.actor }}</strong>
+      <span class="data-table__subdued"> · {{ row.actorRole }}</span>
+    </ng-template>
+
+    <ng-template appCell="area" let-row>
+      <span class="badge badge-neutral">{{ areaLabel(row.area) }}</span>
+    </ng-template>
+
+    <ng-template appCell="action" let-row>
+      {{ row.action }}
+      <span class="data-table__subdued"> → {{ row.target }}</span>
+    </ng-template>
+
+    <ng-template appCell="level" let-row>
+      <app-status-pill [label]="levelLabel(row.level)" [tone]="levelTone(row.level)" />
+    </ng-template>
+  </app-data-table>
+</div>

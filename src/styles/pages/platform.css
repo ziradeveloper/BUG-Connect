@@ -540,3 +540,225 @@
 .callback-card p {
   margin: 0;
 }
+
+/* ── Wave 5: workspace billing (/billing) ────────────────────── */
+
+.tier-card--current {
+  border-color: var(--theme-brand);
+  box-shadow: var(--theme-shadow-sm);
+}
+
+.tier-card__head h3 {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+}
+
+.tier-card__price {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tier-card .button {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.checkout-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--theme-border);
+  background: linear-gradient(135deg, var(--theme-surface-raised), var(--theme-surface));
+}
+
+.checkout-card__brand {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
+  color: var(--theme-brand);
+}
+
+.checkout-card__number {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.checkout-card__meta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.checkout-sheet {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px dashed var(--theme-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface-raised);
+  display: grid;
+  gap: 0.9rem;
+}
+
+.checkout-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.checkout-sheet__head h3 {
+  margin: 0.15rem 0 0;
+  font-size: 1.1rem;
+}
+
+.checkout-sheet__lines {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkout-sheet__lines li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--theme-border);
+  padding-bottom: 0.45rem;
+}
+
+.checkout-sheet__lines li span {
+  color: var(--theme-text-secondary);
+}
+
+.checkout-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
+/* ── Wave 5: audit logs (client /audit and platform /audit) ──── */
+
+.audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.audit-flag {
+  display: inline-grid;
+  place-items: center;
+  margin-right: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--theme-warning-surface);
+  font-size: 0.85rem;
+}
+
+/* ── Wave 5: platform settings (/settings) ───────────────────── */
+
+.settings-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.settings-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.settings-switches {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settings-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.settings-switch:hover {
+  background: var(--theme-surface-hover);
+}
+
+.settings-switch input {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  margin-top: 0.15rem;
+  accent-color: var(--theme-brand);
+}
+
+.settings-switch span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.settings-switch small {
+  color: var(--theme-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.settings-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg, var(--radius-md));
+  background: var(--theme-surface);
+}
+
+.settings-save p {
+  margin: 0;
+}
+
+.settings-save__stamp {
+  font-weight: 600;
+}
+
+/*
+ * Wave 5 blocks on a phone. The billing, audit and settings surfaces are already
+ * fluid (auto-fit grids, clamps, wrapping chips); these two rows are the only
+ * ones with a fixed two-part line that needs to stack rather than squeeze.
+ */
+
+@media (max-width: 40rem) {
+  .checkout-sheet__head {
+    flex-wrap: wrap;
+  }
+
+  .audit-filters {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .settings-save {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .settings-save .button {
+    width: 100%;
+    justify-content: center;
+  }
+}

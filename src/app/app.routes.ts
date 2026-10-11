@@ -25,6 +25,32 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/errors/error-pages').then((pages) => pages.NoAccessPage),
   },
   {
+    // Self-service auth (wave 5). Shared across hosts: an invite or a reset
+    // link has to open whether it was sent from the platform or a workspace.
+    path: 'forgot-password',
+    title: 'Forgot password',
+    loadComponent: () =>
+      import('./pages/forgot-password-page/forgot-password-page').then(
+        (page) => page.ForgotPasswordPage,
+      ),
+  },
+  {
+    path: 'reset-password',
+    title: 'Reset password',
+    loadComponent: () =>
+      import('./pages/reset-password-page/reset-password-page').then(
+        (page) => page.ResetPasswordPage,
+      ),
+  },
+  {
+    path: 'accept-invite',
+    title: 'Accept invitation',
+    loadComponent: () =>
+      import('./pages/accept-invite-page/accept-invite-page').then(
+        (page) => page.AcceptInvitePage,
+      ),
+  },
+  {
     path: '',
     canMatch: [workspaceGuard('platform')],
     loadChildren: () => import('./admin/admin.routes').then((routes) => routes.ADMIN_ROUTES),
