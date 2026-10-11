@@ -4,15 +4,20 @@ import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Wave 6 styling guard, the companion to `wave5-styling.spec.ts`: the flow
- * builder screens wear classes that must all resolve in `src/styles`, and the
- * canvas layout has to fold to one column with a phone-sized connector editor.
+ * Wave 6 styling guard, the companion to `wave5-styling.spec.ts`: the automation
+ * and growth screens wear classes that must all resolve in `src/styles`, and the
+ * wide layouts have to fold down to a phone.
  */
 const TEMPLATES = [
   'src/app/client/flows/flows-page/flows-page.html',
   'src/app/client/flows/flow-canvas-page/flow-canvas-page.html',
   'src/app/client/flows/flow-simulator-page/flow-simulator-page.html',
   'src/app/client/flows/flow-versions-page/flow-versions-page.html',
+  'src/app/client/whatsapp-flows/whatsapp-flows-page/whatsapp-flows-page.html',
+  'src/app/client/whatsapp-flows/whatsapp-form-studio-page/whatsapp-form-studio-page.html',
+  'src/app/client/campaigns/campaigns-page/campaigns-page.html',
+  'src/app/client/campaigns/campaign-wizard-page/campaign-wizard-page.html',
+  'src/app/client/campaigns/campaign-monitor-page/campaign-monitor-page.html',
 ];
 
 const STYLE_ROOT = join(process.cwd(), 'src/styles');
@@ -26,6 +31,7 @@ function walk(dir: string): string[] {
 
 const stylesheets = walk(STYLE_ROOT).filter((file) => file.endsWith('.css'));
 const automationCss = readFileSync(join(STYLE_ROOT, 'pages/automation.css'), 'utf8');
+const growthCss = readFileSync(join(STYLE_ROOT, 'pages/growth.css'), 'utf8');
 const allCss = stylesheets.map((file) => readFileSync(file, 'utf8')).join('\n');
 
 describe('wave 6 styling contract', () => {
@@ -87,6 +93,21 @@ describe('wave 6 styling contract', () => {
         `${selector} has no narrow-screen rule`,
       ).toBe(true);
     }
+  });
+
+  it('folds the form studio and keeps the delivery chart bar-based', () => {
+    // The studio is three panes wide, two at 70rem and one by 60rem.
+    expect(automationCss).toMatch(/@media \(max-width: 70rem\)/);
+    const studioBlock = automationCss.slice(automationCss.indexOf('@media (max-width: 70rem)'));
+    expect(studioBlock).toMatch(/\.waform-studio/);
+    expect(studioBlock).toMatch(/\.waform-palette/);
+
+    // The monitor's chart is divs sized in percent — no charting dependency.
+    expect(growthCss).toMatch(/\.camp-chart\s*\{[^}]*display:\s*flex/);
+    expect(growthCss).toMatch(/\.camp-chart__bar\s*\{/);
+    expect(growthCss).toMatch(/\.camp-chart__bar--delivered\s*\{/);
+    expect(growthCss).toMatch(/\.camp-chart__bar--read\s*\{/);
+    expect(growthCss).toMatch(/@media \(max-width: 40rem\)/);
   });
 
   it('keeps the canvas a positioned surface with drawn connectors', () => {

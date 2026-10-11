@@ -5,6 +5,7 @@ import type {
   TenantStatus,
   BusinessProfile,
   Campaign,
+  CampaignSample,
   ChatFlow,
   Contact,
   ContactSegment,
@@ -21,6 +22,12 @@ import type {
   SubscriptionEvent,
   Team,
   Tenant,
+  WaFormCategory,
+  WaFormComponentType,
+  WaFormInputType,
+  WaFormScreen,
+  WaFormStatus,
+  WhatsAppFlowForm,
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
@@ -648,6 +655,9 @@ export type Dataset = {
   /** Wave 6: the editable graph behind each flow, plus its published snapshots. */
   flowGraphs: FlowGraph[];
   flowVersions: FlowVersion[];
+  /** Wave 6: native WhatsApp forms and the delivery series of each broadcast. */
+  whatsappFlows: WhatsAppFlowForm[];
+  campaignSamples: CampaignSample[];
 };
 
 /** The node set a freshly seeded flow starts from, keyed to its position. */
@@ -775,6 +785,409 @@ function snapshotNodes(nodes: FlowNode[], ageInVersions: number): FlowNode[] {
   return copy;
 }
 
+/* ── Wave 6: WhatsApp Flows (native in-chat forms) ─────────────── */
+
+/**
+ * A form as a blueprint: plain data, hydrated per tenant below so every screen
+ * and field gets a stable id inside its workspace. The studio edits the
+ * hydrated record; the generator in `whatsapp-flows.ts` turns it back into
+ * Meta's flow JSON.
+ */
+type WaFormBlueprintField = {
+  type: WaFormComponentType;
+  label: string;
+  /** Data key the response posts under; empty for text-only components. */
+  name: string;
+  required?: boolean;
+  inputType?: WaFormInputType;
+  options?: [string, string][];
+  placeholder?: string;
+};
+
+type WaFormBlueprintScreen = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  terminal: boolean;
+  footerLabel: string;
+  nextScreenId: string | null;
+  fields: WaFormBlueprintField[];
+};
+
+interface WaFormBlueprint {
+  name: string;
+  category: WaFormCategory;
+  screens: WaFormBlueprintScreen[];
+}
+
+/** Two screens: details, then a confirmation that carries the consent checkbox. */
+function appointmentForm(
+  name: string,
+  slots: [string, string][],
+  serviceLabel: string,
+  services: [string, string][],
+): WaFormBlueprint {
+  return {
+    name,
+    category: 'APPOINTMENT_BOOKING',
+    screens: [
+      {
+        id: 'BOOKING',
+        title: name,
+        subtitle: 'Takes under a minute. We confirm on WhatsApp.',
+        terminal: false,
+        footerLabel: 'Continue',
+        nextScreenId: 'CONFIRM',
+        fields: [
+          { type: 'TextInput', label: 'Full name', name: 'full_name', inputType: 'text' },
+          {
+            type: 'TextInput',
+            label: 'WhatsApp number',
+            name: 'phone',
+            inputType: 'phone',
+            placeholder: '+91',
+          },
+          { type: 'Dropdown', label: serviceLabel, name: 'service', options: services },
+          { type: 'DatePicker', label: 'Preferred date', name: 'preferred_date' },
+          { type: 'RadioButtonsGroup', label: 'Preferred time', name: 'slot', options: slots },
+        ],
+      },
+      {
+        id: 'CONFIRM',
+        title: 'Confirm your visit',
+        subtitle: 'Check the details and send them to the store team.',
+        terminal: true,
+        footerLabel: 'Confirm booking',
+        nextScreenId: null,
+        fields: [
+          { type: 'OptIn', label: 'Send me reminders and new arrivals on WhatsApp', name: 'consent' },
+        ],
+      },
+    ],
+  };
+}
+
+/** One terminal screen: the classic advert-reply lead capture. */
+function leadForm(
+  name: string,
+  interestLabel: string,
+  interests: [string, string][],
+  budgetLabel: string,
+  budgets: [string, string][],
+): WaFormBlueprint {
+  return {
+    name,
+    category: 'LEAD_GENERATION',
+    screens: [
+      {
+        id: 'LEAD_CAPTURE',
+        title: name,
+        subtitle: 'Share a few details and our team calls you back the same day.',
+        terminal: true,
+        footerLabel: 'Send',
+        nextScreenId: null,
+        fields: [
+          { type: 'TextInput', label: 'Your name', name: 'full_name', inputType: 'text' },
+          { type: 'TextInput', label: 'Phone number', name: 'phone', inputType: 'phone' },
+          {
+            type: 'CheckboxGroup',
+            label: interestLabel,
+            name: 'interests',
+            required: false,
+            options: interests,
+          },
+          { type: 'Dropdown', label: budgetLabel, name: 'budget', required: false, options: budgets },
+          {
+            type: 'TextArea',
+            label: 'Anything we should know?',
+            name: 'notes',
+            required: false,
+            placeholder: 'Occasion, sizes, delivery city…',
+          },
+          { type: 'OptIn', label: 'I agree to be contacted about this enquiry', name: 'consent' },
+        ],
+      },
+    ],
+  };
+}
+
+/** Two screens: what went wrong, then how to reach the customer. */
+function supportForm(
+  name: string,
+  issueLabel: string,
+  issues: [string, string][],
+  referenceLabel: string,
+): WaFormBlueprint {
+  return {
+    name,
+    category: 'CUSTOMER_SUPPORT',
+    screens: [
+      {
+        id: 'ISSUE',
+        title: name,
+        subtitle: 'Tell us what happened and we will pick it up from here.',
+        terminal: false,
+        footerLabel: 'Next',
+        nextScreenId: 'CONTACT',
+        fields: [
+          {
+            type: 'TextInput',
+            label: referenceLabel,
+            name: 'reference',
+            required: false,
+            inputType: 'text',
+          },
+          { type: 'RadioButtonsGroup', label: issueLabel, name: 'issue', options: issues },
+          {
+            type: 'TextArea',
+            label: 'What happened?',
+            name: 'details',
+            placeholder: 'Dates, sizes, what you were promised…',
+          },
+        ],
+      },
+      {
+        id: 'CONTACT',
+        title: 'How should we reach you?',
+        subtitle: null,
+        terminal: true,
+        footerLabel: 'Send to support',
+        nextScreenId: null,
+        fields: [
+          { type: 'TextInput', label: 'Best number to call', name: 'callback_number', inputType: 'phone' },
+          {
+            type: 'Dropdown',
+            label: 'Best time to call',
+            name: 'callback_window',
+            required: false,
+            options: [
+              ['morning', 'Morning (10–1)'],
+              ['afternoon', 'Afternoon (1–5)'],
+              ['evening', 'Evening (5–8)'],
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * Forms per workspace, keyed by subdomain so each tenant's forms read like its
+ * own business. Tenants added later fall back to the generic set.
+ */
+const WA_FORM_SETS: Record<string, WaFormBlueprint[]> = {
+  nazeel: [
+    appointmentForm(
+      'Bridal trial booking',
+      [
+        ['morning', 'Morning (10–1)'],
+        ['afternoon', 'Afternoon (1–5)'],
+        ['evening', 'Evening (5–8)'],
+      ],
+      'Trial for',
+      [
+        ['bridal', 'Bridal lehenga'],
+        ['silk', 'Kanjivaram silk'],
+        ['groom', 'Groom wear'],
+      ],
+    ),
+    leadForm(
+      'Catalogue request',
+      'What are you looking for?',
+      [
+        ['bridal', 'Bridal collection'],
+        ['silk', 'Silk sarees'],
+        ['mens', "Men's wear"],
+        ['kids', 'Kids wear'],
+      ],
+      'Budget range',
+      [
+        ['u10', 'Under ₹10,000'],
+        ['10_50', '₹10,000 – ₹50,000'],
+        ['50p', 'Above ₹50,000'],
+      ],
+    ),
+    supportForm(
+      'Order enquiry',
+      'What is this about?',
+      [
+        ['delivery', 'Delivery not received'],
+        ['wrong_item', 'Wrong item or size'],
+        ['refund', 'Refund or exchange'],
+        ['other', 'Something else'],
+      ],
+      'Order number',
+    ),
+  ],
+  'nellai-sweets': [
+    appointmentForm(
+      'Bulk order enquiry',
+      [
+        ['morning', 'Morning pickup'],
+        ['afternoon', 'Afternoon pickup'],
+        ['evening', 'Evening pickup'],
+      ],
+      'Order type',
+      [
+        ['wedding', 'Wedding return gifts'],
+        ['corporate', 'Corporate gifting'],
+        ['festival', 'Festival bulk order'],
+      ],
+    ),
+    leadForm(
+      'Festival pre-order',
+      'Which boxes interest you?',
+      [
+        ['halwa', 'Tirunelveli halwa'],
+        ['laddu', 'Laddu assortment'],
+        ['mixture', 'Mixture and snacks'],
+        ['dryfruit', 'Dry fruit boxes'],
+      ],
+      'Approximate quantity',
+      [
+        ['u25', 'Under 25 boxes'],
+        ['25_100', '25 – 100 boxes'],
+        ['100p', 'Over 100 boxes'],
+      ],
+    ),
+    supportForm(
+      'Delivery issue',
+      'What went wrong?',
+      [
+        ['late', 'Delivery is late'],
+        ['damaged', 'Damaged on arrival'],
+        ['missing', 'Items missing'],
+        ['other', 'Something else'],
+      ],
+      'Order number',
+    ),
+  ],
+  scanwell: [
+    appointmentForm(
+      'Test appointment',
+      [
+        ['early', '6:30 – 9:00 am'],
+        ['morning', '9:00 – 12:00'],
+        ['evening', '4:00 – 7:00 pm'],
+      ],
+      'Test',
+      [
+        ['full_body', 'Full body check-up'],
+        ['diabetes', 'Diabetes profile'],
+        ['thyroid', 'Thyroid profile'],
+        ['single', 'Single test'],
+      ],
+    ),
+    leadForm(
+      'Health package request',
+      'Who is the check-up for?',
+      [
+        ['self', 'Myself'],
+        ['parents', 'Parents'],
+        ['family', 'Whole family'],
+        ['corporate', 'Company staff'],
+      ],
+      'Preferred package',
+      [
+        ['basic', 'Basic'],
+        ['advanced', 'Advanced'],
+        ['premium', 'Premium'],
+      ],
+    ),
+    supportForm(
+      'Report request',
+      'What do you need?',
+      [
+        ['copy', 'Copy of an old report'],
+        ['missing', 'Report not received'],
+        ['correction', 'Correction in a report'],
+        ['other', 'Something else'],
+      ],
+      'Patient ID',
+    ),
+  ],
+  venkateswara: [
+    appointmentForm(
+      'Demo class booking',
+      [
+        ['weekday_morning', 'Weekday morning'],
+        ['weekday_evening', 'Weekday evening'],
+        ['saturday', 'Saturday batch'],
+      ],
+      'Course',
+      [
+        ['neet', 'NEET foundation'],
+        ['jee', 'JEE foundation'],
+        ['board', 'Board exam batch'],
+      ],
+    ),
+    leadForm(
+      'Course enquiry',
+      'Which exam?',
+      [
+        ['neet', 'NEET'],
+        ['jee', 'JEE'],
+        ['board', 'Board exams'],
+        ['olympiad', 'Olympiads'],
+      ],
+      'Current class',
+      [
+        ['8', 'Class 8'],
+        ['9', 'Class 9'],
+        ['10', 'Class 10'],
+        ['11', 'Class 11'],
+        ['12', 'Class 12'],
+      ],
+    ),
+    supportForm(
+      'Fee plan request',
+      'What do you need help with?',
+      [
+        ['instalment', 'Instalment plan'],
+        ['refund', 'Refund'],
+        ['receipt', 'Fee receipt copy'],
+        ['other', 'Something else'],
+      ],
+      'Student ID',
+    ),
+  ],
+};
+
+const DEFAULT_WA_FORMS: WaFormBlueprint[] = WA_FORM_SETS['nazeel'] as WaFormBlueprint[];
+
+/** Give a blueprint's screens and fields workspace-unique, stable ids. */
+function hydrateWhatsAppForm(
+  blueprint: WaFormBlueprint,
+  tenantId: string,
+  index: number,
+): { name: string; category: WaFormCategory; screens: WaFormScreen[] } {
+  const formId = `${tenantId}-waf-${index + 1}`;
+
+  const screens: WaFormScreen[] = blueprint.screens.map((screen) => ({
+    id: screen.id,
+    title: screen.title,
+    subtitle: screen.subtitle,
+    terminal: screen.terminal,
+    nextScreenId: screen.nextScreenId,
+    footerLabel: screen.footerLabel,
+    fields: screen.fields.map((field, fieldIndex) => ({
+      id: `${formId}-s${screen.id.toLowerCase()}-f${fieldIndex + 1}`,
+      type: field.type,
+      label: field.label,
+      name: field.name,
+      required: field.required ?? true,
+      ...(field.inputType ? { inputType: field.inputType } : {}),
+      ...(field.placeholder ? { placeholder: field.placeholder } : {}),
+      ...(field.options
+        ? { options: field.options.map(([id, title]) => ({ id, title })) }
+        : {}),
+    })),
+  }));
+
+  return { name: blueprint.name, category: blueprint.category, screens };
+}
+
 export function buildDataset(seed = SEED): Dataset {
   const rng = new Rng(seed);
   const tenants: Tenant[] = [];
@@ -795,6 +1208,8 @@ export function buildDataset(seed = SEED): Dataset {
   const auditEvents: AuditEvent[] = [];
   const flowGraphs: FlowGraph[] = [];
   const flowVersions: FlowVersion[] = [];
+  const whatsappFlows: WhatsAppFlowForm[] = [];
+  const campaignSamples: CampaignSample[] = [];
 
   TENANT_SEEDS.forEach((seedTenant, tenantIndex) => {
     const tenantId = `tenant-${tenantIndex + 1}`;
@@ -1079,6 +1494,13 @@ export function buildDataset(seed = SEED): Dataset {
         read,
         replied: Math.round((read * rng.int(6, 28)) / 100),
         optOuts: Math.round((size * rng.int(1, 7)) / 1000),
+        // Placeholders: the wave-6 post-processing pass below fills these in on
+        // a private stream, so the shared sequence is not disturbed.
+        failed: 0,
+        templateId: null,
+        segmentId: null,
+        createdBy: '',
+        createdAt: '',
         pacePerHour: rng.pick([120, 250, 500, 1000]),
         qualityRating: rng.pick(['high', 'high', 'medium', 'low'] as const),
         scheduledAt: rng.chance(0.5) ? isoAt(rng.int(-10, 96) * HOUR) : null,
@@ -1550,6 +1972,124 @@ export function buildDataset(seed = SEED): Dataset {
     }
   });
 
+  // ---- wave 6: native WhatsApp forms. The blueprints above are hydrated per
+  // tenant and their status and traffic roll on a private stream
+  // (SEED + 5000 + index), so no existing seed shifts by a single draw.
+  const adminNameByTenant = new Map<string, string>();
+  for (const user of workspaceUsers) {
+    if (user.role === 'admin' && !adminNameByTenant.has(user.tenantId)) {
+      adminNameByTenant.set(user.tenantId, user.fullName);
+    }
+  }
+
+  tenants.forEach((tenant, tenantIndex) => {
+    const blueprints = WA_FORM_SETS[tenant.subdomain] ?? DEFAULT_WA_FORMS;
+    const formRng = new Rng(SEED + 5000 + tenantIndex);
+    const tenantFlows = flows.filter((flow) => flow.tenantId === tenant.id);
+    // Meta only accepts a flow once the WABA is connected.
+    const canPublish = tenant.status === 'active';
+
+    blueprints.forEach((blueprint, formIndex) => {
+      const hydrated = hydrateWhatsAppForm(blueprint, tenant.id, formIndex);
+      const createdAt = isoAt(-formRng.int(20, 170) * 24 * HOUR);
+      const updatedAt = isoAt(-formRng.int(1, 19) * 24 * HOUR);
+      const status: WaFormStatus = !canPublish
+        ? 'draft'
+        : formIndex < 2
+          ? 'published'
+          : formRng.chance(0.5)
+            ? 'pending'
+            : 'draft';
+
+      whatsappFlows.push({
+        id: `${tenant.id}-waf-${formIndex + 1}`,
+        tenantId: tenant.id,
+        name: hydrated.name,
+        metaFlowId: `${formRng.int(100_000_000_000_000, 999_999_999_999_999)}`,
+        category: hydrated.category,
+        language: 'en',
+        status,
+        screens: hydrated.screens,
+        linkedFlowId:
+          status === 'published' && tenantFlows.length
+            ? (tenantFlows[formIndex % tenantFlows.length] as ChatFlow).id
+            : null,
+        submissions30d: status === 'published' ? formRng.int(24, 940) : 0,
+        completionRate: status === 'published' ? formRng.int(41, 92) : 0,
+        createdAt,
+        updatedAt,
+        publishedAt: status === 'published' ? updatedAt : null,
+      });
+    });
+  });
+
+  // ---- wave 6: campaign wiring + the delivery series the monitor polls. Also
+  // post-processed (SEED + 6000 + index) so the seeded counters stay as rolled.
+  const templatesByTenant = new Map<string, MessageTemplate[]>();
+  for (const template of templates) {
+    if (template.status !== 'approved') {
+      continue;
+    }
+    const list = templatesByTenant.get(template.tenantId) ?? [];
+    list.push(template);
+    templatesByTenant.set(template.tenantId, list);
+  }
+  const segmentsByTenant = new Map<string, ContactSegment[]>();
+  for (const segment of segments) {
+    const list = segmentsByTenant.get(segment.tenantId) ?? [];
+    list.push(segment);
+    segmentsByTenant.set(segment.tenantId, list);
+  }
+
+  campaigns.forEach((campaign, campaignIndex) => {
+    const campaignRng = new Rng(SEED + 6000 + campaignIndex);
+    const approved = templatesByTenant.get(campaign.tenantId) ?? [];
+    const tenantSegments = segmentsByTenant.get(campaign.tenantId) ?? [];
+    const pickFrom = <T,>(list: T[]): T | undefined =>
+      list.length ? list[campaignRng.int(0, list.length - 1)] : undefined;
+
+    const template = pickFrom(approved);
+    const segment = pickFrom(tenantSegments);
+
+    campaign.templateId = campaign.status === 'draft' ? null : (template?.id ?? null);
+    campaign.segmentId = segment?.id ?? null;
+    campaign.createdBy =
+      adminNameByTenant.get(campaign.tenantId) ?? 'Workspace Administrator';
+    campaign.createdAt = campaign.scheduledAt
+      ? new Date(
+          Date.parse(campaign.scheduledAt) - campaignRng.int(6, 96) * HOUR,
+        ).toISOString()
+      : isoAt(-campaignRng.int(2, 70) * 24 * HOUR);
+    campaign.failed =
+      campaign.sent > 0
+        ? Math.max(1, Math.round((campaign.sent * campaignRng.int(4, 26)) / 1000))
+        : 0;
+
+    if (campaign.sent === 0) {
+      return;
+    }
+
+    // A short series that ends exactly on the campaign's current counters, so
+    // the monitor's first poll continues the line instead of restarting it.
+    const steps = Math.min(8, Math.max(3, Math.round(campaign.sent / 240)));
+    const startStamp = Date.parse(campaign.createdAt);
+    const endStamp = startStamp + campaignRng.int(4, 40) * HOUR;
+
+    for (let step = 1; step <= steps; step += 1) {
+      const ratio = step / steps;
+      campaignSamples.push({
+        id: `${campaign.id}-s${step}`,
+        tenantId: campaign.tenantId,
+        campaignId: campaign.id,
+        at: new Date(startStamp + (endStamp - startStamp) * ratio).toISOString(),
+        sent: Math.round(campaign.sent * ratio),
+        delivered: Math.round(campaign.delivered * ratio),
+        read: Math.round(campaign.read * ratio),
+        failed: Math.round(campaign.failed * ratio),
+      });
+    }
+  });
+
   messages.sort((a, b) => a.sentAt.localeCompare(b.sentAt));
 
   return {
@@ -1572,5 +2112,7 @@ export function buildDataset(seed = SEED): Dataset {
     auditEvents,
     flowGraphs,
     flowVersions,
+    whatsappFlows,
+    campaignSamples,
   };
 }

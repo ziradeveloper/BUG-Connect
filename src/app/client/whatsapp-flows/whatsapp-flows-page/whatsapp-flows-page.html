@@ -1,0 +1,136 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="AUTOMATION"
+    title="WhatsApp Forms"
+    description="Meta's native in-chat forms — one JSON document per form, rendered inside the chat and posted back in a single response. The studio writes the document; this list publishes it."
+  >
+    <a class="button button-secondary" pageActions routerLink="/flows">Chat flows</a>
+    @if (canManage()) {
+      <a class="button button-primary" pageActions routerLink="/whatsapp-flows/new">
+        New form
+      </a>
+    }
+  </app-page-header>
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Forms</span>
+      <span class="metric__value">{{ summary().total }}</span>
+      <span class="metric__hint">{{ summary().drafts }} still in draft</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Published</span>
+      <span class="metric__value">{{ summary().published }}</span>
+      <span class="metric__hint">Sendable from the composer</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Submissions (30d)</span>
+      <span class="metric__value">{{ summary().submissions }}</span>
+      <span class="metric__hint">{{ summary().screens }} screens across every form</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Avg completion</span>
+      <span class="metric__value">{{ summary().completion }}%</span>
+      <span class="metric__hint">Opened forms that reached the last screen</span>
+    </div>
+  </div>
+
+  @if (notice(); as message) {
+    <p class="login-status" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+  @if (error(); as message) {
+    <p class="login-status login-status--error" role="alert">
+      Meta would reject this form: {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="loading()"
+    caption="Native WhatsApp forms"
+    exportName="bugconnect-whatsapp-forms"
+    searchPlaceholder="Search by name, category or status"
+    emptyTitle="No WhatsApp forms yet"
+    emptyDescription="Build the first one in the form studio — it writes Meta's flow JSON for you."
+    [activatable]="true"
+    (rowClick)="openStudio($event)"
+  >
+    <ng-template appCell="name" let-form>
+      <strong class="data-table__primary">{{ form.name }}</strong>
+      <span class="data-table__subdued">
+        · {{ form.screens.length }} screens · {{ fieldCount(form) }} components ·
+        {{ postsLabel(form) }} · {{ linkedLabel(form) }}
+      </span>
+    </ng-template>
+
+    <ng-template appCell="status" let-form>
+      <app-status-pill [label]="statusLabel(form)" [tone]="statusTone(form)" />
+    </ng-template>
+
+    <ng-template appCell="actions" let-form>
+      <span class="data-table__actions">
+        <a class="data-table__action" [routerLink]="['/whatsapp-flows', form.id]">Studio</a>
+        @if (canManage()) {
+          @if (form.status !== 'published') {
+            <button
+              class="data-table__action"
+              type="button"
+              [disabled]="form.status === 'archived' || blocker(form) !== null"
+              [title]="blocker(form) ?? 'Publish to Meta'"
+              (click)="ask(form, 'publish'); $event.stopPropagation()"
+            >
+              Publish
+            </button>
+          } @else {
+            <button
+              class="data-table__action"
+              type="button"
+              (click)="ask(form, 'withdraw'); $event.stopPropagation()"
+            >
+              Withdraw
+            </button>
+          }
+          @if (form.status !== 'archived') {
+            <button
+              class="data-table__action"
+              type="button"
+              (click)="ask(form, 'archive'); $event.stopPropagation()"
+            >
+              Archive
+            </button>
+          }
+          @if (form.status === 'draft') {
+            <button
+              class="data-table__action data-table__action--danger"
+              type="button"
+              (click)="ask(form, 'delete'); $event.stopPropagation()"
+            >
+              Delete
+            </button>
+          }
+        }
+      </span>
+    </ng-template>
+  </app-data-table>
+
+  <p class="data-table__subdued">
+    Forms are published as flow JSON version {{ specVersion }}: a routing model of screens, a
+    single-column layout per screen and a footer action that either navigates on or completes the
+    response. A form that fails validation cannot be published — the studio shows the same list of
+    problems Meta would return.
+  </p>
+
+  <app-confirm-dialog
+    [open]="pending() !== null"
+    [title]="dialogTitle()"
+    [description]="dialogBody()"
+    [confirmLabel]="dialogConfirm()"
+    (cancel)="pending.set(null)"
+    (confirm)="confirm()"
+  />
+</div>

@@ -1,0 +1,116 @@
+/*
+ * Wave 6 — growth surfaces: the campaign delivery monitor's chart.
+ *
+ * Bars are plain divs sized in percent, so the chart is server-renderable and
+ * needs no charting library. Three bars per sample sit side by side: sent,
+ * delivered, read — the same three numbers the metric cards above report.
+ */
+
+.camp-chart__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.camp-chart__head .ops-card__title {
+  font-size: 0.9375rem;
+}
+
+.camp-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.camp-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.camp-legend__swatch {
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
+  border-radius: var(--radius-xs);
+  background: var(--theme-brand);
+}
+
+.camp-legend__swatch--sent {
+  background: var(--theme-brand);
+}
+
+.camp-legend__swatch--delivered {
+  background: var(--theme-info);
+}
+
+.camp-legend__swatch--read {
+  background: var(--theme-success);
+}
+
+.camp-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  min-height: 9rem;
+  margin: 0.75rem 0 0.25rem;
+  padding: 0.75rem 0.5rem 0;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface-sunken);
+  overflow-x: auto;
+}
+
+.camp-chart__col {
+  flex: 1 1 0;
+  min-width: 1.6rem;
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+}
+
+.camp-chart__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  block-size: 7rem;
+}
+
+.camp-chart__bar {
+  inline-size: 0.4rem;
+  min-height: 2px;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  background: var(--theme-brand);
+}
+
+.camp-chart__bar--delivered {
+  background: var(--theme-info);
+}
+
+.camp-chart__bar--read {
+  background: var(--theme-success);
+}
+
+.camp-chart__label {
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .camp-chart__bars {
+    block-size: 5rem;
+  }
+
+  .camp-chart__col {
+    min-width: 1.1rem;
+  }
+
+  .camp-chart__label {
+    display: none;
+  }
+}

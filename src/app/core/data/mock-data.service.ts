@@ -8,6 +8,7 @@ import type {
   AuditLevel,
   BusinessProfile,
   Campaign,
+  CampaignSample,
   ChatFlow,
   Contact,
   ContactSegment,
@@ -31,9 +32,13 @@ import type {
   SubscriptionState,
   Team,
   Tenant,
+  WaFormScreen,
+  WaFormStatus,
+  WhatsAppFlowForm,
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
+import { validateFlow } from './whatsapp-flows';
 import { SEED_META_CONFIG, SEED_PLANS, SEED_PLATFORM_SETTINGS } from './plan.seed';
 import {
   payloadPreview,
@@ -137,6 +142,16 @@ export class MockDataService {
     this.dataset().campaigns.filter((campaign) => campaign.tenantId === this.tenantId()),
   );
 
+  /** Wave 6: native WhatsApp forms belonging to this workspace. */
+  readonly whatsappFlows = computed(() =>
+    this.dataset().whatsappFlows.filter((form) => form.tenantId === this.tenantId()),
+  );
+
+  /** Wave 6: delivery samples for this workspace's broadcasts, oldest first. */
+  readonly campaignSamples = computed(() =>
+    this.dataset().campaignSamples.filter((sample) => sample.tenantId === this.tenantId()),
+  );
+
   /** Wave 6: graph + published snapshots for this workspace's flows. */
   readonly flowGraphs = computed(() =>
     this.dataset().flowGraphs.filter((graph) => graph.tenantId === this.tenantId()),
@@ -213,6 +228,11 @@ export class MockDataService {
 
   async listCampaigns(): Promise<Page<Campaign>> {
     const items = await this.latency(this.campaigns());
+    return { items, total: items.length };
+  }
+
+  async listWhatsAppFlows(): Promise<Page<WhatsAppFlowForm>> {
+    const items = await this.latency(this.whatsappFlows());
     return { items, total: items.length };
   }
 
@@ -1522,6 +1542,421 @@ export class MockDataService {
     );
 
     return outcome?.version ?? null;
+  }
+
+  // ── WhatsApp Flows: native in-chat forms (wave 6) ────────────────
+
+  waFlowById(formId: string | null | undefined): WhatsAppFlowForm | null {
+    if (!formId) {
+      return null;
+    }
+    return this.whatsappFlows().find((form) => form.id === formId) ?? null;
+  }
+
+  /** The chat flow that sends a form, so the list can name its trigger. */
+  linkedFlowFor(formId: string): ChatFlow | null {
+    const linkedId = this.waFlowById(formId)?.linkedFlowId ?? null;
+    return linkedId ? this.flowById(linkedId) : null;
+  }
+
+  /**
+   * Create or update a form. The studio owns the screens; this is the only write
+   * path, so a save can never bypass the audit trail. Drafts stay drafts —
+   * publishing is a separate, deliberate step.
+   */
+  async saveWhatsAppFlow(
+    form: Partial<WhatsAppFlowForm> & { name: string; screens: WaFormScreen[] },
+  ): Promise<WhatsAppFlowForm> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const existing = form.id
+      ? (dataset.whatsappFlows.find((candidate) => candidate.id === form.id) ?? null)
+      : null;
+
+    const screens = form.screens.map((screen) => ({
+      ...screen,
+      fields: screen.fields.map((field) => ({
+        ...field,
+        ...(field.options ? { options: field.options.map((option) => ({ ...option })) } : {}),
+      })),
+    }));
+
+    const saved: WhatsAppFlowForm = existing
+      ? { ...existing, ...form, screens, updatedAt: now }
+      : {
+          id: `waf-${Date.now().toString(36)}`,
+          tenantId: this.tenantId(),
+          name: form.name,
+          metaFlowId: form.metaFlowId ?? `${Date.now().toString(36)}`,
+          category: form.category ?? 'OTHER',
+          language: form.language ?? 'en',
+          status: 'draft',
+          screens,
+          linkedFlowId: form.linkedFlowId ?? null,
+          submissions30d: 0,
+          completionRate: 0,
+          createdAt: now,
+          updatedAt: now,
+          publishedAt: null,
+        };
+
+    this.dataset.set({
+      ...dataset,
+      whatsappFlows: existing
+        ? dataset.whatsappFlows.map((candidate) => (candidate.id === saved.id ? saved : candidate))
+        : [...dataset.whatsappFlows, saved],
+    });
+
+    this.recordAudit({
+      area: 'flows',
+      action: existing
+        ? `Saved the ${saved.name} WhatsApp form draft`
+        : `Created the ${saved.name} WhatsApp form draft`,
+      target: `${saved.name} · ${screens.length} screen${screens.length === 1 ? '' : 's'}`,
+      level: 'info',
+    });
+
+    await this.sleep(180);
+    return saved;
+  }
+
+  /**
+   * Publish a form, or pull it back. Publishing runs the same validation Meta
+   * would, so the platform never receives a document the studio knew was broken.
+   * Returns the reason it refused, or null when the change went through.
+   */
+  async setWaFormStatus(
+    formId: string,
+    status: WaFormStatus,
+  ): Promise<{ form: WhatsAppFlowForm | null; error: string | null }> {
+    const form = this.waFlowById(formId);
+    if (!form) {
+      return { form: null, error: 'Form not found.' };
+    }
+
+    if (status === 'published') {
+      const errors = validateFlow(form);
+      if (errors.length) {
+        return { form, error: errors[0] as string };
+      }
+    }
+
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const saved: WhatsAppFlowForm = {
+      ...form,
+      status,
+      updatedAt: now,
+      publishedAt: status === 'published' ? now : form.publishedAt,
+    };
+
+    this.dataset.set({
+      ...dataset,
+      whatsappFlows: dataset.whatsappFlows.map((candidate) =>
+        candidate.id === form.id ? saved : candidate,
+      ),
+    });
+
+    this.recordAudit({
+      area: 'flows',
+      action:
+        status === 'published'
+          ? `Published the ${saved.name} WhatsApp form`
+          : status === 'archived'
+            ? `Archived the ${saved.name} WhatsApp form`
+            : status === 'pending'
+              ? `Submitted the ${saved.name} WhatsApp form for review`
+              : `Moved the ${saved.name} WhatsApp form back to draft`,
+      target: `${saved.name} · ${saved.screens.length} screens`,
+      level: status === 'archived' ? 'warning' : 'info',
+    });
+
+    await this.sleep(180);
+    return { form: saved, error: null };
+  }
+
+  /** Only drafts can be removed — Meta keeps a published flow id for good. */
+  async deleteWhatsAppFlow(formId: string): Promise<boolean> {
+    const form = this.waFlowById(formId);
+    if (!form || form.status !== 'draft') {
+      return false;
+    }
+
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      whatsappFlows: dataset.whatsappFlows.filter((candidate) => candidate.id !== formId),
+    });
+    this.recordAudit({
+      area: 'flows',
+      action: `Deleted the ${form.name} WhatsApp form draft`,
+      target: `${form.name} · ${form.screens.length} screens`,
+      level: 'warning',
+    });
+
+    await this.sleep(160);
+    return true;
+  }
+
+  // ── Campaign Manager (wave 6) ────────────────────────────────────
+
+  campaignById(campaignId: string | null | undefined): Campaign | null {
+    if (!campaignId) {
+      return null;
+    }
+    return this.campaigns().find((campaign) => campaign.id === campaignId) ?? null;
+  }
+
+  segmentFor(campaignId: string): ContactSegment | null {
+    const segmentId = this.campaignById(campaignId)?.segmentId ?? null;
+    return segmentId ? (this.segments().find((segment) => segment.id === segmentId) ?? null) : null;
+  }
+
+  templateFor(campaignId: string): MessageTemplate | null {
+    const templateId = this.campaignById(campaignId)?.templateId ?? null;
+    return templateId ? (this.templates().find((tpl) => tpl.id === templateId) ?? null) : null;
+  }
+
+  /** The delivery series behind a monitor chart, oldest first. */
+  samplesFor(campaignId: string | null | undefined): CampaignSample[] {
+    if (!campaignId) {
+      return [];
+    }
+    return this.campaignSamples()
+      .filter((sample) => sample.campaignId === campaignId)
+      .sort((a, b) => a.at.localeCompare(b.at));
+  }
+
+  /**
+   * Rates the monitor and the list both read, so "87% delivered" means the same
+   * thing in both places. Every rate is against the step before it, the way
+   * Meta reports a broadcast.
+   */
+  campaignMetrics(campaignId: string): {
+    progress: number;
+    deliveryRate: number;
+    readRate: number;
+    replyRate: number;
+    failureRate: number;
+    optOutRate: number;
+    remaining: number;
+    etaMinutes: number;
+  } | null {
+    const campaign = this.campaignById(campaignId);
+    if (!campaign) {
+      return null;
+    }
+
+    const rate = (value: number, base: number): number =>
+      base > 0 ? Math.round((value / base) * 100) : 0;
+
+    const remaining = Math.max(0, campaign.audienceSize - campaign.sent);
+
+    return {
+      progress: rate(campaign.sent, campaign.audienceSize),
+      deliveryRate: rate(campaign.delivered, campaign.sent),
+      readRate: rate(campaign.read, campaign.delivered),
+      replyRate: rate(campaign.replied, campaign.read),
+      failureRate: rate(campaign.failed, campaign.sent),
+      optOutRate: Math.round((campaign.optOuts / Math.max(1, campaign.audienceSize)) * 1000) / 10,
+      remaining,
+      etaMinutes:
+        campaign.pacePerHour > 0 ? Math.round((remaining / campaign.pacePerHour) * 60) : 0,
+    };
+  }
+
+  /**
+   * Create a draft broadcast. The audience is evaluated when it sends, not here,
+   * because a segment's membership moves between the wizard and the send.
+   */
+  async createCampaign(input: {
+    name: string;
+    segmentId: string | null;
+    templateId: string | null;
+    pacePerHour: number;
+    scheduledAt: string | null;
+    audienceSize: number;
+  }): Promise<Campaign> {
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const actor = this.actor();
+
+    const campaign: Campaign = {
+      id: `camp-${Date.now().toString(36)}`,
+      tenantId: this.tenantId(),
+      name: input.name.trim() || 'Untitled broadcast',
+      status: input.scheduledAt ? 'scheduled' : 'draft',
+      audienceSize: Math.max(0, Math.round(input.audienceSize)),
+      sent: 0,
+      delivered: 0,
+      read: 0,
+      replied: 0,
+      optOuts: 0,
+      failed: 0,
+      pacePerHour: input.pacePerHour,
+      qualityRating: 'high',
+      scheduledAt: input.scheduledAt,
+      templateId: input.templateId,
+      segmentId: input.segmentId,
+      createdBy: actor.name,
+      createdAt: now,
+    };
+
+    this.dataset.set({ ...dataset, campaigns: [...dataset.campaigns, campaign] });
+    this.recordAudit({
+      area: 'campaigns',
+      action: input.scheduledAt
+        ? `Scheduled the ${campaign.name} broadcast`
+        : `Created the ${campaign.name} broadcast draft`,
+      target: `${campaign.name} · ${campaign.audienceSize.toLocaleString('en-IN')} recipients`,
+      level: 'info',
+    });
+
+    await this.sleep(200);
+    return campaign;
+  }
+
+  /** Move a draft or paused broadcast onto the clock. */
+  async scheduleCampaign(campaignId: string, scheduledAt: string | null): Promise<Campaign | null> {
+    const campaign = this.campaignById(campaignId);
+    if (!campaign || campaign.status === 'sending' || campaign.status === 'completed') {
+      return null;
+    }
+
+    return this.writeCampaign(campaignId, {
+      scheduledAt,
+      status: scheduledAt ? 'scheduled' : 'draft',
+    });
+  }
+
+  /**
+   * Hand the broadcast to the sender. Delivery then advances through
+   * `tickCampaign()`, which is what the monitor's polling loop calls.
+   */
+  async startCampaign(campaignId: string): Promise<Campaign | null> {
+    const campaign = this.campaignById(campaignId);
+    if (!campaign) {
+      return null;
+    }
+    if (campaign.status === 'completed') {
+      return campaign;
+    }
+    if (!campaign.templateId || campaign.audienceSize === 0) {
+      return null;
+    }
+
+    const saved = await this.writeCampaign(campaignId, { status: 'sending' });
+    this.recordAudit({
+      area: 'campaigns',
+      action: `Started sending ${campaign.name}`,
+      target: `${campaign.audienceSize.toLocaleString('en-IN')} recipients · ${campaign.pacePerHour}/hour`,
+      level: 'info',
+    });
+    return saved;
+  }
+
+  /** Stop a running broadcast. What already went out stays out. */
+  async pauseCampaign(campaignId: string): Promise<Campaign | null> {
+    const campaign = this.campaignById(campaignId);
+    if (!campaign || campaign.status !== 'sending') {
+      return null;
+    }
+
+    const saved = await this.writeCampaign(campaignId, { status: 'paused' });
+    this.recordAudit({
+      area: 'campaigns',
+      action: `Paused ${campaign.name} after ${campaign.sent.toLocaleString('en-IN')} sends`,
+      target: `${campaign.name} · ${campaign.sent.toLocaleString('en-IN')} of ${campaign.audienceSize.toLocaleString('en-IN')} sent`,
+      level: 'warning',
+    });
+    return saved;
+  }
+
+  /**
+   * One delivery tick: the stand-in for the status webhooks a live deployment
+   * would receive. Deterministic, monotone, and it appends the sample the
+   * monitor charts — so polling the same campaign twice shows real movement.
+   * Completes the broadcast when the audience is exhausted.
+   */
+  async tickCampaign(campaignId: string): Promise<Campaign | null> {
+    const campaign = this.campaignById(campaignId);
+    if (!campaign || campaign.status !== 'sending') {
+      return campaign;
+    }
+
+    const step = Math.max(1, Math.round(campaign.pacePerHour / 120));
+    const sent = Math.min(campaign.audienceSize, campaign.sent + step);
+    const delivered = Math.min(sent, campaign.delivered + Math.round(step * 0.94));
+    const read = Math.min(delivered, campaign.read + Math.round(step * 0.52));
+    const replied = Math.min(read, campaign.replied + Math.round(step * 0.07));
+    const failed = Math.min(sent, campaign.failed + Math.floor(step / 180));
+    const optOuts = Math.min(
+      campaign.audienceSize,
+      campaign.optOuts + Math.floor(sent / 250) - Math.floor(campaign.sent / 250),
+    );
+    const complete = sent >= campaign.audienceSize;
+
+    const sample: CampaignSample = {
+      id: `${campaign.id}-s${Date.now().toString(36)}`,
+      tenantId: campaign.tenantId,
+      campaignId: campaign.id,
+      at: new Date().toISOString(),
+      sent,
+      delivered,
+      read,
+      failed,
+    };
+
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      campaigns: dataset.campaigns.map((row) =>
+        row.id === campaign.id
+          ? {
+              ...row,
+              sent,
+              delivered,
+              read,
+              replied,
+              failed,
+              optOuts,
+              status: complete ? 'completed' : 'sending',
+            }
+          : row,
+      ),
+      campaignSamples: [...dataset.campaignSamples, sample],
+    });
+
+    if (complete) {
+      this.recordAudit({
+        area: 'campaigns',
+        action: `Completed ${campaign.name}: ${sent.toLocaleString('en-IN')} sent`,
+        target: `${campaign.name} · ${Math.round((delivered / Math.max(1, sent)) * 100)}% delivered`,
+        level: 'info',
+      });
+    }
+
+    await this.sleep(120);
+    return this.campaignById(campaignId);
+  }
+
+  private async writeCampaign(
+    campaignId: string,
+    patch: Partial<Campaign>,
+  ): Promise<Campaign | null> {
+    const campaign = this.campaignById(campaignId);
+    if (!campaign) {
+      return null;
+    }
+
+    const dataset = this.dataset();
+    this.dataset.set({
+      ...dataset,
+      campaigns: dataset.campaigns.map((row) => (row.id === campaignId ? { ...row, ...patch } : row)),
+    });
+
+    await this.sleep(140);
+    return this.campaignById(campaignId);
   }
 
   // ── Invitations ──────────────────────────────────────────────────

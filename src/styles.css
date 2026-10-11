@@ -34,8 +34,11 @@
 /* 5. Wave 5 — self-service auth and the suspended lock screen. */
 @import './styles/pages/auth.css';
 
-/* 6. Wave 6 — automation (flow canvas) and its simulator. */
+/* 6. Wave 6 — automation (flow canvas, form studio) and its simulator. */
 @import './styles/pages/automation.css';
+
+/* 7. Wave 6 — growth (campaign delivery monitor). */
+@import './styles/pages/growth.css';
 
 /* 4. Team Inbox — layout, bubbles and composer are separate concerns. */
 @import './styles/pages/inbox.css';
