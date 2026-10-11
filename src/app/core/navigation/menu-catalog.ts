@@ -85,7 +85,6 @@ export const CLIENT_MENU: MenuEntry[] = [
     icon: '◮',
     group: 'insights',
     capability: 'reports.view',
-    planned: true,
   },
   {
     key: 'teams',
@@ -134,7 +133,6 @@ export const CLIENT_MENU: MenuEntry[] = [
     icon: '⌘',
     group: 'insights',
     capability: 'developer.manage',
-    planned: true,
   },
   {
     key: 'billing',
@@ -252,7 +250,6 @@ export const PLATFORM_MENU: MenuEntry[] = [
     icon: '▷',
     group: 'platform',
     capability: 'announcements.manage',
-    planned: true,
   },
   {
     key: 'audit',

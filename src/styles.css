@@ -40,6 +40,15 @@
 /* 7. Wave 6 — growth (campaign delivery monitor). */
 @import './styles/pages/growth.css';
 
+/* 8. Wave 6 — insights (analytics charts, funnel and leaderboard). */
+@import './styles/pages/insights.css';
+
+/* 9. Wave 6 — integrations (developer hub keys, webhooks, snippets). */
+@import './styles/pages/integrations.css';
+
+/* 10. Wave 6 — platform announcements (editor, preview, reach). */
+@import './styles/pages/announcements.css';
+
 /* 4. Team Inbox — layout, bubbles and composer are separate concerns. */
 @import './styles/pages/inbox.css';
 @import './styles/pages/inbox-bubbles.css';

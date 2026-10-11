@@ -1,0 +1,315 @@
+/*
+ * Wave 6 — integration surfaces: the Developer Hub (`/developer`).
+ *
+ * The hub is mostly text that has to stay readable and copyable: a base URL, a
+ * secret shown once, a fact list, and code blocks wide enough for a Postman
+ * collection. So the rules here are about monospace legibility, scrollable code
+ * and a form that folds on a phone.
+ */
+
+.dev-base {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.dev-base__label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-secondary);
+}
+
+.dev-base__value {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--theme-text-primary);
+}
+
+/* ---- panels ----------------------------------------------------------- */
+
+.dev-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.dev-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.dev-panel__hint {
+  margin: 0.2rem 0 0;
+  max-width: 62ch;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.dev-panel__sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.dev-panel code {
+  font-family: var(--font-mono);
+  font-size: 0.8125em;
+}
+
+.dev-danger {
+  color: var(--theme-danger);
+}
+
+/* ---- one-time secret -------------------------------------------------- */
+
+.dev-secret {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem;
+  border-color: var(--theme-warning);
+}
+
+.dev-secret__key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--theme-text-primary);
+}
+
+.dev-secret__key code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.dev-secret__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dev-secret__value {
+  flex: 1 1 16rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--theme-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.dev-secret__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.dev-secret__hint code {
+  font-family: var(--font-mono);
+}
+
+/* ---- key form --------------------------------------------------------- */
+
+.dev-form {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface);
+}
+
+.dev-scopes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.5rem 1rem;
+}
+
+.dev-scopes__text {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.dev-scopes__text strong {
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+}
+
+.dev-scopes__text code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.dev-scopes__text small {
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+.dev-key__prefix {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- endpoint facts --------------------------------------------------- */
+
+.dev-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin: 0;
+}
+
+.dev-facts div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dev-facts dt {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-secondary);
+}
+
+.dev-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.dev-facts dd code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.dev-chip {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  margin: 0 0.2rem 0.2rem 0;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- code ------------------------------------------------------------- */
+
+.dev-code {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--theme-text-primary);
+  white-space: pre;
+}
+
+.dev-code--tall {
+  max-height: 30rem;
+}
+
+/* ---- snippet tabs ----------------------------------------------------- */
+
+.dev-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface);
+}
+
+.dev-tabs__tab {
+  padding: 0.35rem 0.8rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.dev-tabs__tab:hover {
+  color: var(--theme-text-primary);
+  background: var(--theme-surface-hover);
+}
+
+.dev-tabs__tab--now {
+  color: var(--theme-text-on-brand);
+  background: var(--theme-brand);
+}
+
+.dev-tabs__tab:focus-visible {
+  outline: 2px solid var(--theme-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- folding ---------------------------------------------------------- */
+
+@media (max-width: 70rem) {
+  .dev-panel__head {
+    flex-direction: column;
+  }
+
+  .dev-code {
+    max-height: 18rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .dev-scopes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dev-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dev-secret__row .button {
+    flex: 1 1 auto;
+  }
+
+  .dev-code,
+  .dev-code--tall {
+    max-height: 15rem;
+    font-size: 0.6875rem;
+  }
+
+  .dev-tabs__tab {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

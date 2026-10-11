@@ -1,0 +1,323 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="PLATFORM"
+    [title]="isNew() ? 'New announcement' : 'Edit announcement'"
+    description="One notice, addressed to every workspace or a slice of them. The preview on the right is what a workspace actually sees, and the reach count is measured against the live tenant list — not a number typed in here."
+  >
+    <a class="button" pageActions routerLink="/announcements">All announcements</a>
+    <app-status-pill pageActions [label]="stateLabel()" [tone]="stateTone()" />
+  </app-page-header>
+
+  @if (notice(); as message) {
+    <p class="ops-notice" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  @if (error(); as message) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  <div class="ann-grid">
+    <form class="surface ann-form" (ngSubmit)="publish()">
+      <label class="form-field">
+        <span>
+          Title
+          <em class="ann-count">{{ title().length }}/{{ titleLimit }}</em>
+        </span>
+        <input
+          class="form-control"
+          name="title"
+          [ngModel]="title()"
+          (ngModelChange)="title.set($event)"
+          autocomplete="off"
+          maxlength="140"
+          placeholder="Scheduled maintenance: webhook ingestion, 12 October 02:00–03:00 IST"
+          [class.form-control--invalid]="title().length > titleLimit"
+        />
+        <small>One line in the workspace banner.</small>
+      </label>
+
+      <fieldset class="ops-fieldset">
+        <legend>Kind</legend>
+        <div class="ann-choices">
+          @for (option of kinds; track option.value) {
+            <label class="ops-radio">
+              <input
+                type="radio"
+                name="announcement-kind"
+                [checked]="kind() === option.value"
+                (change)="kind.set(option.value)"
+              />
+              <span class="ann-choices__text">
+                <strong>{{ option.label }}</strong>
+                <small>{{ option.hint }}</small>
+              </span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <fieldset class="ops-fieldset">
+        <legend>Audience</legend>
+        <div class="ann-choices">
+          @for (option of audiences; track option.value) {
+            <label class="ops-radio">
+              <input
+                type="radio"
+                name="announcement-audience"
+                [checked]="audienceType() === option.value"
+                (change)="setAudience(option.value)"
+              />
+              <span class="ann-choices__text">
+                <strong>{{ option.label }}</strong>
+                <small>{{ option.hint }}</small>
+              </span>
+            </label>
+          }
+        </div>
+
+        @if (audienceType() === 'tiers') {
+          <div class="ann-tiers">
+            @for (tier of tiersAvailable; track tier) {
+              <label class="ops-check">
+                <input
+                  type="checkbox"
+                  [checked]="tiers().includes(tier)"
+                  (change)="toggleTier(tier)"
+                />
+                {{ tier }}
+              </label>
+            }
+          </div>
+        }
+
+        @if (audienceType() === 'industry') {
+          <label class="form-field">
+            <span>Industry</span>
+            <select
+              class="form-control"
+              name="announcement-industry"
+              [ngModel]="industry()"
+              (ngModelChange)="industry.set($event)"
+            >
+              <option [ngValue]="null">Choose an industry…</option>
+              @for (option of industries(); track option) {
+                <option [ngValue]="option">{{ option }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        @if (audienceType() === 'tenants') {
+          <div class="ann-tenants">
+            @for (tenant of tenants(); track tenant.id) {
+              <label class="ops-check">
+                <input
+                  type="checkbox"
+                  [checked]="tenantIds().includes(tenant.id)"
+                  (change)="toggleTenant(tenant.id)"
+                />
+                <span class="ann-tenants__text">
+                  <strong>{{ tenant.businessName }}</strong>
+                  <small>{{ tenant.subscriptionTier }} · {{ tenant.subdomain }}</small>
+                </span>
+              </label>
+            }
+          </div>
+        }
+      </fieldset>
+
+      <div class="ann-times">
+        <label class="form-field">
+          <span>Goes out</span>
+          <input
+            class="form-control"
+            type="datetime-local"
+            name="announcement-publish"
+            [ngModel]="publishAtLocal()"
+            (ngModelChange)="publishAtLocal.set($event)"
+          />
+          <span class="ann-presets">
+            @for (preset of presets; track preset.label) {
+              <button
+                class="form-link"
+                type="button"
+                (click)="applyPreset(preset.value)"
+              >
+                {{ preset.label }}
+              </button>
+            }
+          </span>
+        </label>
+
+        <label class="form-field">
+          <span>Expires (optional)</span>
+          <input
+            class="form-control"
+            type="datetime-local"
+            name="announcement-expiry"
+            [ngModel]="expiresAtLocal()"
+            (ngModelChange)="expiresAtLocal.set($event)"
+          />
+          <span class="ann-presets">
+            <button class="form-link" type="button" (click)="applyExpiryPreset(3)">3 days</button>
+            <button class="form-link" type="button" (click)="applyExpiryPreset(7)">7 days</button>
+            <button class="form-link" type="button" (click)="expiresAtLocal.set('')">Never</button>
+          </span>
+        </label>
+      </div>
+
+      <label class="form-field">
+        <span>Notice</span>
+        <textarea
+          class="form-control ann-body"
+          name="announcement-body"
+          rows="8"
+          [ngModel]="body()"
+          (ngModelChange)="body.set($event)"
+          placeholder="What is changing, when, and what the workspace has to do. A blank line starts a new paragraph."
+        ></textarea>
+        <small>
+          Blank line = new paragraph. At least {{ bodyMinimum }} characters — say something worth
+          interrupting someone for.
+        </small>
+      </label>
+
+      <label class="ops-check">
+        <input
+          type="checkbox"
+          [ngModel]="pinned()"
+          (ngModelChange)="pinned.set($event)"
+          name="announcement-pinned"
+        />
+        Pin above the other notices in every console it reaches
+      </label>
+
+      <div class="ops-actions">
+        @if (canManage()) {
+          <button class="button button-primary" type="submit" [disabled]="loading()">
+            {{ loading() ? 'Saving…' : state() === 'scheduled' ? 'Schedule' : 'Publish now' }}
+          </button>
+          <button class="button" type="button" (click)="saveDraft()" [disabled]="loading()">
+            Save draft
+          </button>
+          @if (!isNew() && state() !== 'withdrawn' && state() !== 'draft') {
+            <button class="form-link ann-danger" type="button" (click)="askWithdraw()">
+              Withdraw
+            </button>
+          }
+          @if (!isNew() && state() === 'draft') {
+            <button class="form-link ann-danger" type="button" (click)="askDelete()">
+              Delete draft
+            </button>
+          }
+        } @else {
+          <span class="data-table__subdued">
+            Your role can read announcements but not change them.
+          </span>
+        }
+      </div>
+    </form>
+
+    <div class="ann-side">
+      <section class="surface ann-panel" aria-labelledby="ann-reach">
+        <h2 class="ops-card__title" id="ann-reach">Who it reaches</h2>
+        <p class="ann-reach">
+          <strong>{{ reach().workspaces }}</strong>
+          workspaces · <strong>{{ reach().seats }}</strong> seats
+        </p>
+        <p class="ann-panel__hint">{{ audienceSummary() }}</p>
+
+        @if (matched().length) {
+          <ul class="ann-matched">
+            @for (tenant of matched(); track tenant.id) {
+              <li>
+                <strong>{{ tenant.businessName }}</strong>
+                <small>{{ tenant.subscriptionTier }} · {{ tenant.seatsUsed }} seats</small>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="surface ann-panel" aria-labelledby="ann-preview">
+        <h2 class="ops-card__title" id="ann-preview">As a workspace sees it</h2>
+
+        <div class="ann-preview" [class.ann-preview--pinned]="pinned()">
+          <span class="ann-kind ann-kind--{{ kind() }}">
+            @for (option of kinds; track option.value) {
+              @if (option.value === kind()) {
+                {{ option.label }}
+              }
+            }
+          </span>
+          <strong class="ann-preview__title">
+            {{ title() || 'The title goes here' }}
+          </strong>
+          @for (paragraph of paragraphs(); track $index) {
+            <p>{{ paragraph }}</p>
+          }
+          @if (!paragraphs().length) {
+            <p class="ann-preview__empty">The notice body appears here.</p>
+          }
+        </div>
+        <p class="ann-panel__hint">
+          Shown from {{ formatDateTime(draft().publishAt) }}
+          @if (draft().expiresAt) {
+            until {{ formatDateTime(draft().expiresAt) }}
+          } @else {
+            with no expiry
+          }
+        </p>
+      </section>
+
+      <section class="surface ann-panel" aria-labelledby="ann-checks">
+        <h2 class="ops-card__title" id="ann-checks">Before it goes out</h2>
+
+        @if (refused().length) {
+          <p class="ann-panel__hint">The last publish attempt was refused:</p>
+          <ul class="ann-issues">
+            @for (problem of refused(); track problem) {
+              <li>{{ problem }}</li>
+            }
+          </ul>
+        }
+
+        @if (issues().length) {
+          <ul class="ann-issues">
+            @for (problem of issues(); track problem) {
+              <li>{{ problem }}</li>
+            }
+          </ul>
+        } @else {
+          <p class="login-status login-status--success">
+            Ready to send to {{ reach().workspaces }} workspaces.
+          </p>
+        }
+      </section>
+    </div>
+  </div>
+
+  <app-confirm-dialog
+    [open]="pendingWithdraw()"
+    title="Withdraw this announcement?"
+    description="Workspaces stop seeing it immediately. The notice stays in the list as withdrawn, so the record shows it went out and came back."
+    confirmLabel="Withdraw"
+    (cancel)="pendingWithdraw.set(false)"
+    (confirm)="confirmWithdraw()"
+  />
+
+  <app-confirm-dialog
+    [open]="pendingDelete()"
+    title="Delete this draft?"
+    description="The draft is removed for good. Only drafts can be deleted — anything that was published stays in the record."
+    confirmLabel="Delete draft"
+    (cancel)="pendingDelete.set(false)"
+    (confirm)="confirmDelete()"
+  />
+</div>

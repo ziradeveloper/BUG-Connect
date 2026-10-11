@@ -1,0 +1,414 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="INTEGRATIONS"
+    title="Developer Hub"
+    description="Scoped API keys, one signed webhook endpoint and a Postman collection generated for this workspace. Every snippet below uses this workspace's own base URL, templates and endpoint — a secret is shown once, at the moment it is issued."
+  >
+    <span class="dev-base" pageActions>
+      <span class="dev-base__label">API base</span>
+      <code class="dev-base__value">{{ base() }}</code>
+      <button class="form-link" type="button" (click)="copyText(base())">Copy</button>
+    </span>
+  </app-page-header>
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">API keys</span>
+      <span class="metric__value">{{ summary().keys }}</span>
+      <span class="metric__hint">{{ summary().live }} live</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Requests, 30 days</span>
+      <span class="metric__value">{{ formatNumber(summary().calls30d) }}</span>
+      <span class="metric__hint">Across every key</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Webhook</span>
+      <span class="metric__value">
+        @if (endpoint(); as hook) {
+          <app-status-pill
+            [label]="hook.status === 'active' ? 'Delivering' : hook.status === 'paused' ? 'Paused' : 'Failing'"
+            [tone]="endpointTone()"
+          />
+        } @else {
+          Not configured
+        }
+      </span>
+      <span class="metric__hint">{{ summary().events }} subscribed events</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Rate limit</span>
+      <span class="metric__value">{{ rateLimit }}/min</span>
+      <span class="metric__hint">Per key, then 429</span>
+    </div>
+  </div>
+
+  @if (notice(); as message) {
+    <p class="ops-notice" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  @if (error(); as message) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  @if (issued(); as granted) {
+    <section class="surface dev-secret" aria-labelledby="dev-secret">
+      <h2 class="ops-card__title" id="dev-secret">
+        Copy this secret now — it is not stored and will not be shown again
+      </h2>
+      <p class="dev-secret__key">
+        <strong>{{ granted.key.name }}</strong>
+        <code>{{ granted.key.prefix }}</code>
+      </p>
+      <div class="dev-secret__row">
+        <code class="dev-secret__value">{{
+          secretRevealed() ? granted.secret : '•'.repeat(38)
+        }}</code>
+        <button class="button" type="button" (click)="secretRevealed.set(!secretRevealed())">
+          {{ secretRevealed() ? 'Hide' : 'Reveal' }}
+        </button>
+        <button class="button" type="button" (click)="copyText(granted.secret)">Copy secret</button>
+      </div>
+      <p class="dev-secret__hint">
+        Digest on file: <code>{{ granted.key.secretDigest }}</code> — that is all the workspace
+        keeps, so a lost secret means rotating the key.
+      </p>
+      <div class="ops-actions">
+        <button class="button button-primary" type="button" (click)="dismissIssued()">
+          I have stored it
+        </button>
+      </div>
+    </section>
+  }
+
+  <section class="surface dev-panel" aria-labelledby="dev-keys">
+    <header class="dev-panel__head">
+      <div>
+        <h2 class="ops-card__title" id="dev-keys">API keys</h2>
+        <p class="dev-panel__hint">
+          Every request is authorised with <code>Authorization: Bearer &lt;secret&gt;</code> and is
+          limited to the scopes on the key that sent it.
+        </p>
+      </div>
+      @if (canManage()) {
+        <div class="ops-actions">
+          @if (!showKeyForm()) {
+            <button class="button button-primary" type="button" (click)="openKeyForm()">
+              Issue a key
+            </button>
+          } @else {
+            <button class="button" type="button" (click)="closeKeyForm()">Cancel</button>
+          }
+        </div>
+      }
+    </header>
+
+    @if (showKeyForm()) {
+      <form class="dev-form" (ngSubmit)="createKey()">
+        <label class="form-field">
+          <span>What is this key for?</span>
+          <input
+            class="form-control"
+            name="keyName"
+            [ngModel]="keyName()"
+            (ngModelChange)="keyName.set($event)"
+            autocomplete="off"
+            placeholder="e.g. Nightly contact sync"
+          />
+        </label>
+
+        <label class="form-field">
+          <span>Expires</span>
+          <select
+            class="form-control"
+            name="keyExpiry"
+            [ngModel]="keyExpiry()"
+            (ngModelChange)="keyExpiry.set($event)"
+          >
+            @for (option of expiryOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+
+        <fieldset class="ops-fieldset dev-scopes">
+          <legend>Scopes</legend>
+          @for (option of scopeOptions; track option.value) {
+            <label class="ops-check">
+              <input
+                type="checkbox"
+                [checked]="keyScopes().includes(option.value)"
+                (change)="toggleScope(option.value)"
+              />
+              <span class="dev-scopes__text">
+                <strong>{{ option.label }}</strong>
+                <code>{{ option.value }}</code>
+                <small>{{ option.hint }}</small>
+              </span>
+            </label>
+          }
+        </fieldset>
+
+        @if (keyFormError(); as message) {
+          <p class="field-error" role="alert">{{ message }}</p>
+        }
+
+        <div class="ops-actions">
+          <button class="button button-primary" type="submit" [disabled]="loading()">
+            {{ loading() ? 'Issuing…' : 'Issue key' }}
+          </button>
+          <span class="data-table__subdued">
+            Least privilege wins: a read-only key cannot send anything.
+          </span>
+        </div>
+      </form>
+    }
+
+    <app-data-table
+      [columns]="columns"
+      [rows]="keys()"
+      caption="API keys issued for this workspace"
+      [rowKey]="keyRowKey"
+      [loading]="loading()"
+      searchPlaceholder="Search keys"
+      exportName="bugconnect-api-keys"
+      emptyTitle="No API keys yet"
+      emptyDescription="Issue a key to start calling the workspace API from your own systems."
+    >
+      <ng-template appCell="name" let-key>
+        <strong class="data-table__primary">{{ key.name }}</strong>
+        <code class="dev-key__prefix">{{ key.prefix }}</code>
+        <span class="data-table__subdued">{{ describeScopes(key.scopes) }}</span>
+      </ng-template>
+
+      <ng-template appCell="state" let-key>
+        <app-status-pill [label]="stateLabel(key)" [tone]="stateTone(key)" />
+        @if (key.lastUsedAt) {
+          <span class="data-table__subdued">Used {{ formatRelative(key.lastUsedAt) }}</span>
+        } @else {
+          <span class="data-table__subdued">Never used</span>
+        }
+      </ng-template>
+
+      <ng-template appCell="actions" let-key>
+        @if (canManage() && !key.revokedAt) {
+          <div class="ops-buttons">
+            <button class="form-link" type="button" (click)="rotateKey(key)">Rotate</button>
+            <button class="form-link dev-danger" type="button" (click)="askRevoke(key)">
+              Revoke
+            </button>
+          </div>
+        } @else if (key.revokedAt) {
+          <span class="data-table__subdued">{{ formatDateTime(key.revokedAt) }}</span>
+        }
+      </ng-template>
+    </app-data-table>
+  </section>
+
+  <section class="surface dev-panel" aria-labelledby="dev-webhook">
+    <header class="dev-panel__head">
+      <div>
+        <h2 class="ops-card__title" id="dev-webhook">Webhook endpoint</h2>
+        <p class="dev-panel__hint">
+          Deliveries are signed with HMAC-SHA256 and sent as
+          <code>x-bugconnect-signature</code>. Retry runs for 24 hours; three
+          consecutive failures mark the endpoint failing.
+        </p>
+      </div>
+      @if (endpoint(); as hook) {
+        <app-status-pill
+          [label]="hook.status === 'active' ? 'Delivering' : hook.status === 'paused' ? 'Paused' : 'Failing'"
+          [tone]="endpointTone()"
+        />
+      }
+    </header>
+
+    @if (endpoint(); as hook) {
+      <dl class="dev-facts">
+        <div>
+          <dt>Endpoint</dt>
+          <dd><code>{{ hook.url }}</code></dd>
+        </div>
+        <div>
+          <dt>Subscribed events</dt>
+          <dd>
+            @for (event of hook.events; track event) {
+              <code class="dev-chip">{{ event }}</code>
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Last delivery</dt>
+          <dd>
+            {{ formatRelative(hook.lastDeliveryAt) }}
+            @if (hook.lastStatus) {
+              <span class="data-table__subdued">HTTP {{ hook.lastStatus }}</span>
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Signing secret</dt>
+          <dd>
+            <code>{{ signingRevealed() ? hook.secret : '•'.repeat(28) }}</code>
+            <button class="form-link" type="button" (click)="signingRevealed.set(!signingRevealed())">
+              {{ signingRevealed() ? 'Hide' : 'Reveal' }}
+            </button>
+            @if (canManage()) {
+              <button class="form-link" type="button" (click)="copyText(hook.secret)">Copy</button>
+            }
+          </dd>
+        </div>
+      </dl>
+
+      @if (hook.status === 'failing') {
+        <p class="ops-notice ops-notice--error" role="alert">
+          {{ hook.failureCount }} consecutive deliveries failed. Pause the endpoint until the
+          receiver answers, or events will keep being retried for 24 hours.
+        </p>
+      }
+
+      @if (testResult(); as result) {
+        <p class="login-status" [class.login-status--success]="result.ok" [class.login-status--error]="!result.ok">
+          Test delivery answered HTTP {{ result.status }} in {{ result.latencyMs }} ms.
+        </p>
+      }
+    } @else {
+      <p class="dev-panel__hint">No endpoint registered yet — add one below.</p>
+    }
+
+    @if (canManage()) {
+      <form class="dev-form" (ngSubmit)="saveWebhook()">
+        <label class="form-field">
+          <span>Delivery URL</span>
+          <input
+            class="form-control"
+            name="webhookUrl"
+            [ngModel]="webhookUrl()"
+            (ngModelChange)="webhookUrl.set($event)"
+            autocomplete="off"
+            placeholder="https://crm.example.com/bugconnect"
+          />
+          <small>
+            @if (endpoint() && !webhookUrl()) {
+              <button class="form-link" type="button" (click)="editWebhook()">
+                Load the saved endpoint
+              </button>
+            } @else {
+              https only; the receiver must answer 2xx within 10 seconds.
+            }
+          </small>
+        </label>
+
+        <fieldset class="ops-fieldset dev-scopes">
+          <legend>Events</legend>
+          @for (option of eventOptions; track option.value) {
+            <label class="ops-check">
+              <input
+                type="checkbox"
+                [checked]="webhookEvents().includes(option.value)"
+                (change)="toggleEvent(option.value)"
+              />
+              <span class="dev-scopes__text">
+                <code>{{ option.value }}</code>
+                <small>{{ option.hint }}</small>
+              </span>
+            </label>
+          }
+        </fieldset>
+
+        @if (webhookFormError(); as message) {
+          <p class="field-error" role="alert">{{ message }}</p>
+        }
+
+        <div class="ops-actions">
+          <button class="button button-primary" type="submit" [disabled]="loading()">
+            {{ loading() ? 'Saving…' : 'Save endpoint' }}
+          </button>
+          @if (endpoint()) {
+            <button class="button" type="button" (click)="testWebhook()" [disabled]="loading()">
+              Send a test delivery
+            </button>
+            <button class="button" type="button" (click)="toggleWebhook()" [disabled]="loading()">
+              {{ endpoint()?.status === 'paused' ? 'Resume deliveries' : 'Pause deliveries' }}
+            </button>
+            <button class="form-link dev-danger" type="button" (click)="rotateSecret()">
+              Rotate signing secret
+            </button>
+          }
+        </div>
+      </form>
+    }
+
+    <h3 class="dev-panel__sub">Sample delivery</h3>
+    <pre class="dev-code"><code>{{ deliverySample() }}</code></pre>
+  </section>
+
+  <section class="surface dev-panel" aria-labelledby="dev-snippets">
+    <header class="dev-panel__head">
+      <div>
+        <h2 class="ops-card__title" id="dev-snippets">Snippets</h2>
+        <p class="dev-panel__hint">
+          Generated for this workspace. The collection only contains requests the live key's scopes
+          allow.
+        </p>
+      </div>
+      <div class="ops-actions">
+        <button class="button" type="button" (click)="copySnippet()">
+          {{ snippetCopied() ? 'Copied' : 'Copy' }}
+        </button>
+        <button class="button" type="button" (click)="downloadSnippet()">Download</button>
+      </div>
+    </header>
+
+    <div class="dev-tabs" role="tablist" aria-label="Snippet">
+      <button
+        type="button"
+        role="tab"
+        class="dev-tabs__tab"
+        [class.dev-tabs__tab--now]="snippet() === 'postman'"
+        [attr.aria-selected]="snippet() === 'postman'"
+        (click)="setSnippet('postman')"
+      >
+        Postman
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="dev-tabs__tab"
+        [class.dev-tabs__tab--now]="snippet() === 'curl'"
+        [attr.aria-selected]="snippet() === 'curl'"
+        (click)="setSnippet('curl')"
+      >
+        curl
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="dev-tabs__tab"
+        [class.dev-tabs__tab--now]="snippet() === 'signature'"
+        [attr.aria-selected]="snippet() === 'signature'"
+        (click)="setSnippet('signature')"
+      >
+        Verify signatures
+      </button>
+    </div>
+
+    <p class="dev-panel__hint">{{ snippetLabel() }}</p>
+    <pre class="dev-code dev-code--tall"><code>{{ snippetText() }}</code></pre>
+  </section>
+
+  <app-confirm-dialog
+    [open]="pendingRevoke() !== null"
+    title="Revoke this API key?"
+    description="Anything still holding the secret starts getting 401 immediately. The row stays in the list and the audit log, but the key can never be used again."
+    confirmLabel="Revoke key"
+    (cancel)="pendingRevoke.set(null)"
+    (confirm)="confirmRevoke()"
+  />
+</div>

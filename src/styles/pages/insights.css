@@ -1,0 +1,473 @@
+/*
+ * Wave 6 — insights surfaces: Analytics & Insights (`/reports`).
+ *
+ * Three kinds of picture, none of them a charting library:
+ *   • the volume chart is one inline SVG (grid lines, an area path, two series
+ *     and a focusable circle per day),
+ *   • the containment ring is a conic gradient with a punched-out centre,
+ *   • the funnel, the form bars and the leaderboard bars are divs sized in
+ *     percent.
+ *
+ * Everything here has to survive a phone: the two-panel grid folds to one
+ * column, the funnel labels stack, and the chart keeps its aspect ratio rather
+ * than squashing its strokes.
+ */
+
+.rep-summary {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- window switcher -------------------------------------------------- */
+
+.rep-ranges {
+  display: inline-flex;
+  padding: 0.15rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-full);
+  background: var(--theme-surface);
+}
+
+.rep-ranges__option {
+  padding: 0.3rem 0.8rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.rep-ranges__option:hover {
+  color: var(--theme-text-primary);
+  background: var(--theme-surface-hover);
+}
+
+.rep-ranges__option--now {
+  color: var(--theme-text-on-brand);
+  background: var(--theme-brand);
+}
+
+.rep-ranges__option--now:hover {
+  color: var(--theme-text-on-brand);
+  background: var(--theme-brand-hover);
+}
+
+.rep-ranges__option:focus-visible {
+  outline: 2px solid var(--theme-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- panels ------------------------------------------------------------ */
+
+.rep-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.rep-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.rep-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.rep-panel__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--theme-text-primary);
+}
+
+.rep-panel__hint {
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.rep-panel__sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.rep-empty {
+  margin: 0;
+  padding: 1.25rem 0.75rem;
+  border: 1px dashed var(--theme-border);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+  text-align: center;
+}
+
+/* ---- volume chart ------------------------------------------------------ */
+
+.rep-chart {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+.rep-chart__grid {
+  stroke: var(--theme-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.rep-chart__axis {
+  fill: var(--theme-text-secondary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.rep-chart__area {
+  fill: var(--theme-brand-soft);
+  opacity: 0.55;
+}
+
+.rep-chart__line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.rep-chart__line--inbound {
+  stroke: var(--theme-brand);
+}
+
+.rep-chart__line--outbound {
+  stroke: var(--theme-info);
+}
+
+.rep-chart__dot {
+  fill: var(--theme-surface);
+  stroke: var(--theme-brand);
+  stroke-width: 2;
+}
+
+.rep-chart__dot:focus-visible {
+  outline: none;
+  stroke: var(--theme-focus-ring);
+  stroke-width: 3;
+}
+
+.rep-chart__days {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-inline: 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+.rep-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+}
+
+.rep-legend__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rep-legend__swatch {
+  inline-size: 0.85rem;
+  block-size: 0.2rem;
+  border-radius: var(--radius-full);
+}
+
+.rep-legend__swatch--inbound {
+  background: var(--theme-brand);
+}
+
+.rep-legend__swatch--outbound {
+  background: var(--theme-info);
+}
+
+/* ---- containment ring -------------------------------------------------- */
+
+.rep-ring {
+  display: grid;
+  place-items: center;
+  inline-size: 8.5rem;
+  block-size: 8.5rem;
+  margin-inline: auto;
+  border-radius: var(--radius-full);
+}
+
+.rep-ring__hole {
+  display: grid;
+  place-content: center;
+  gap: 0.1rem;
+  inline-size: 6.25rem;
+  block-size: 6.25rem;
+  border-radius: var(--radius-full);
+  background: var(--theme-surface);
+  text-align: center;
+}
+
+.rep-ring__hole strong {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.rep-ring__hole span {
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+/* ---- facts, bars, funnel ----------------------------------------------- */
+
+.rep-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0;
+}
+
+.rep-facts--wide {
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--theme-border);
+}
+
+.rep-facts div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.rep-facts dt {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-secondary);
+}
+
+.rep-facts dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.rep-bars {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rep-bars__row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(4rem, 1.6fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8125rem;
+}
+
+.rep-bars__label {
+  overflow: hidden;
+  color: var(--theme-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rep-bars__label a {
+  color: inherit;
+}
+
+.rep-bars__track {
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--theme-surface-hover);
+  overflow: hidden;
+}
+
+.rep-bars__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--theme-success);
+}
+
+.rep-bars__value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--theme-text-primary);
+  white-space: nowrap;
+}
+
+.rep-bars__value em {
+  margin-inline-start: 0.3rem;
+  color: var(--theme-text-secondary);
+  font-style: normal;
+}
+
+.rep-funnel {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rep-funnel__row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rep-funnel__label {
+  font-size: 0.8125rem;
+  color: var(--theme-text-secondary);
+}
+
+.rep-funnel__track {
+  block-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-hover);
+  overflow: hidden;
+}
+
+.rep-funnel__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--duration-base) var(--ease-out);
+}
+
+.rep-funnel__fill--neutral {
+  background: var(--theme-border-strong);
+}
+
+.rep-funnel__fill--info {
+  background: var(--theme-info);
+}
+
+.rep-funnel__fill--brand {
+  background: var(--theme-brand);
+}
+
+.rep-funnel__fill--success {
+  background: var(--theme-success);
+}
+
+.rep-funnel__fill--warning {
+  background: var(--theme-warning);
+}
+
+.rep-funnel__value {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--theme-text-primary);
+  white-space: nowrap;
+}
+
+.rep-funnel__value em {
+  margin-inline-start: 0.35rem;
+  color: var(--theme-text-secondary);
+  font-style: normal;
+}
+
+/* ---- leaderboard ------------------------------------------------------- */
+
+.rep-agent {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.rep-agent__name {
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.rep-agent__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+.rep-agent__bar {
+  block-size: 0.3rem;
+  border-radius: var(--radius-full);
+  background: var(--theme-surface-hover);
+  overflow: hidden;
+}
+
+.rep-agent__bar-fill {
+  display: block;
+  block-size: 100%;
+  background: var(--theme-brand);
+}
+
+/* ---- folding ----------------------------------------------------------- */
+
+@media (max-width: 70rem) {
+  .rep-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rep-ring {
+    inline-size: 7.5rem;
+    block-size: 7.5rem;
+  }
+
+  .rep-ring__hole {
+    inline-size: 5.5rem;
+    block-size: 5.5rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .rep-funnel__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.2rem;
+  }
+
+  .rep-funnel__label {
+    grid-column: 1 / -1;
+  }
+
+  .rep-bars__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .rep-bars__track {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .rep-chart__days {
+    font-size: 0.625rem;
+  }
+
+  .rep-summary {
+    font-size: 0.75rem;
+  }
+}

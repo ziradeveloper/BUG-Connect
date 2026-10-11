@@ -110,13 +110,14 @@ export const CLIENT_ROUTES: Routes = [
       {
         path: 'reports',
         title: 'Analytics & Insights',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.REPORTS_ROUTES),
+        loadChildren: () =>
+          import('./reports/reports.routes').then((routes) => routes.REPORTS_ROUTES),
       },
       {
         path: 'developer',
         title: 'Developer Hub',
         loadChildren: () =>
-          import('./later/later.routes').then((routes) => routes.DEVELOPER_ROUTES),
+          import('./developer/developer.routes').then((routes) => routes.DEVELOPER_ROUTES),
       },
       {
         path: 'billing',

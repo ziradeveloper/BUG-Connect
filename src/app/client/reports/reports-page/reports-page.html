@@ -1,0 +1,292 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="INSIGHTS"
+    title="Analytics & Insights"
+    description="How fast the team answers, how much the automation contains, and whether the broadcasts landed. Every figure is measured from this workspace's own conversations, messages, flows and campaigns — nothing here is estimated."
+  >
+    <div class="rep-ranges" pageActions role="group" aria-label="Reporting window">
+      @for (option of ranges; track option) {
+        <button
+          type="button"
+          class="rep-ranges__option"
+          [class.rep-ranges__option--now]="range() === option"
+          [attr.aria-pressed]="range() === option"
+          (click)="setRange(option)"
+        >
+          {{ option }} days
+        </button>
+      }
+    </div>
+  </app-page-header>
+
+  <p class="rep-summary" role="status">{{ summary() }}</p>
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Messages</span>
+      <span class="metric__value">{{ formatNumber(report().messagesTotal) }}</span>
+      <span class="metric__hint">
+        {{ formatNumber(report().inboundTotal) }} in ·
+        {{ formatNumber(report().outboundTotal) }} out
+      </span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Median first reply</span>
+      <span class="metric__value">{{ minutes(report().response.medianFirstResponseMin) }}</span>
+      <span class="metric__hint">Target {{ target }} minutes</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Answered in time</span>
+      <span class="metric__value">
+        @if (report().response.withinTargetPct === null) {
+          —
+        } @else {
+          {{ report().response.withinTargetPct }}%
+        }
+      </span>
+      <span class="metric__hint">Of the threads an agent picked up</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Resolution rate</span>
+      <span class="metric__value">{{ report().response.resolvedPct }}%</span>
+      <span class="metric__hint">
+        {{ report().response.resolvedCount }} resolved of
+        {{ report().response.counted }}
+      </span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Contained by automation</span>
+      <span class="metric__value">{{ report().automation.containedPct }}%</span>
+      <span class="metric__hint">
+        {{ formatNumber(report().automation.containedSessions) }} sessions, no agent
+      </span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Broadcast delivery</span>
+      <span class="metric__value">{{ report().funnel.deliveryPct }}%</span>
+      <span class="metric__hint">{{ report().funnel.readPct }}% of delivered were read</span>
+    </div>
+  </div>
+
+  <div class="rep-grid">
+    <section class="surface rep-panel" aria-labelledby="rep-volume">
+      <header class="rep-panel__head">
+        <h2 class="rep-panel__title" id="rep-volume">Message volume</h2>
+        <span class="rep-panel__hint">Peak {{ report().peakLabel }}</span>
+      </header>
+
+      @if (report().messagesTotal === 0) {
+        <p class="rep-empty">
+          No messages in the last {{ range() }} days. Widen the window or send something first.
+        </p>
+      } @else {
+        <svg
+          class="rep-chart"
+          viewBox="0 0 600 220"
+          role="img"
+          [attr.aria-label]="`Daily message volume for the last ${report().range} days. ${summary()}.`"
+        >
+          @for (line of chart().gridlines; track line.label) {
+            <line class="rep-chart__grid" x1="46" x2="586" [attr.y1]="line.y" [attr.y2]="line.y" />
+            <text class="rep-chart__axis" x="40" [attr.y]="line.y + 4" text-anchor="end">
+              {{ line.label }}
+            </text>
+          }
+          <path class="rep-chart__area" [attr.d]="chart().area" />
+          <path class="rep-chart__line rep-chart__line--outbound" [attr.d]="chart().outbound" />
+          <path class="rep-chart__line rep-chart__line--inbound" [attr.d]="chart().inbound" />
+          @for (entry of chart().points; track entry.point.date) {
+            <circle
+              class="rep-chart__dot"
+              [attr.cx]="entry.x"
+              [attr.cy]="entry.y"
+              r="3.5"
+              tabindex="0"
+              role="img"
+              [attr.aria-label]="`${entry.point.label}: ${entry.point.inbound} inbound, ${entry.point.outbound} outbound`"
+            >
+              <title>
+                {{ entry.point.label }} — {{ entry.point.inbound }} inbound,
+                {{ entry.point.outbound }} outbound
+              </title>
+            </circle>
+          }
+        </svg>
+
+        <div class="rep-chart__days" aria-hidden="true">
+          @for (label of chart().labels; track $index) {
+            <span>{{ label }}</span>
+          }
+        </div>
+
+        <p class="rep-legend">
+          <span class="rep-legend__key">
+            <span class="rep-legend__swatch rep-legend__swatch--inbound"></span>
+            Inbound from contacts
+          </span>
+          <span class="rep-legend__key">
+            <span class="rep-legend__swatch rep-legend__swatch--outbound"></span>
+            Sent by the team
+          </span>
+        </p>
+
+        <table class="sr-only">
+          <caption>Daily message volume</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col">Inbound</th>
+              <th scope="col">Outbound</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (point of report().volume; track point.date) {
+              <tr>
+                <th scope="row">{{ point.label }}</th>
+                <td>{{ point.inbound }}</td>
+                <td>{{ point.outbound }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+
+    <section class="surface rep-panel" aria-labelledby="rep-automation">
+      <header class="rep-panel__head">
+        <h2 class="rep-panel__title" id="rep-automation">Automation</h2>
+        <span class="rep-panel__hint">Last 30 days</span>
+      </header>
+
+      <div class="rep-ring" [style.background]="ring()">
+        <span class="rep-ring__hole">
+          <strong>{{ report().automation.containedPct }}%</strong>
+          <span>contained</span>
+        </span>
+      </div>
+
+      <dl class="rep-facts">
+        <div>
+          <dt>Bot sessions</dt>
+          <dd>{{ formatNumber(report().automation.sessions30d) }}</dd>
+        </div>
+        <div>
+          <dt>Handed to a human</dt>
+          <dd>{{ report().automation.handoffPct }}%</dd>
+        </div>
+        <div>
+          <dt>Live chat flows</dt>
+          <dd>{{ report().automation.activeFlows }}</dd>
+        </div>
+        <div>
+          <dt>Published forms</dt>
+          <dd>{{ report().automation.publishedForms }}</dd>
+        </div>
+      </dl>
+
+      <h3 class="rep-panel__sub">WhatsApp form completion</h3>
+      @if (report().automation.forms.length === 0) {
+        <p class="rep-empty">No published form has taken a submission yet.</p>
+      } @else {
+        <ul class="rep-bars">
+          @for (form of report().automation.forms; track form.id) {
+            <li class="rep-bars__row">
+              <span class="rep-bars__label">
+                @if (canManageFlows()) {
+                  <a [routerLink]="['/whatsapp-flows', form.id]">{{ form.name }}</a>
+                } @else {
+                  {{ form.name }}
+                }
+              </span>
+              <span class="rep-bars__track">
+                <span class="rep-bars__fill" [style.width.%]="form.completionPct"></span>
+              </span>
+              <span class="rep-bars__value">
+                {{ form.completionPct }}%
+                <em>{{ formatNumber(form.submissions30d) }}</em>
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  <section class="surface rep-panel" aria-labelledby="rep-funnel">
+    <header class="rep-panel__head">
+      <h2 class="rep-panel__title" id="rep-funnel">Broadcast funnel</h2>
+      <span class="rep-panel__hint">
+        {{ report().funnel.broadcasts }} broadcasts · {{ report().funnel.live }} live
+      </span>
+    </header>
+
+    <ol class="rep-funnel">
+      @for (stage of report().funnel.stages; track stage.key) {
+        <li class="rep-funnel__row">
+          <span class="rep-funnel__label">{{ stage.label }}</span>
+          <span class="rep-funnel__track">
+            <span
+              [class]="'rep-funnel__fill rep-funnel__fill--' + funnelTone(stage.key)"
+              [style.width.%]="stage.pctOfAudience"
+            ></span>
+          </span>
+          <span class="rep-funnel__value">
+            {{ formatNumber(stage.value) }}
+            <em>{{ stage.pctOfAudience }}%</em>
+          </span>
+        </li>
+      }
+    </ol>
+
+    <dl class="rep-facts rep-facts--wide">
+      <div>
+        <dt>Matched contacts</dt>
+        <dd>{{ formatNumber(report().funnel.audience) }}</dd>
+      </div>
+      <div>
+        <dt>Failed sends</dt>
+        <dd>{{ formatNumber(report().funnel.failed) }}</dd>
+      </div>
+      <div>
+        <dt>Opt-outs</dt>
+        <dd>{{ formatNumber(report().funnel.optOuts) }}</dd>
+      </div>
+      <div>
+        <dt>Reply rate of readers</dt>
+        <dd>{{ report().funnel.replyPct }}%</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="surface rep-panel" aria-labelledby="rep-agents">
+    <header class="rep-panel__head">
+      <h2 class="rep-panel__title" id="rep-agents">Team performance</h2>
+      <span class="rep-panel__hint">Last {{ range() }} days</span>
+    </header>
+
+    <app-data-table
+      [columns]="columns"
+      [rows]="report().agents"
+      caption="Conversations handled per agent"
+      [rowKey]="agentKey"
+      [searchable]="false"
+      emptyTitle="No agent handled a conversation in this window"
+      emptyDescription="Widen the window, or check that conversations are being assigned from the team inbox."
+    >
+      <ng-template appCell="name" let-agent>
+        <span class="rep-agent">
+          <span class="rep-agent__name">{{ agent.name }}</span>
+          <span class="rep-agent__meta">
+            {{ agent.role }}
+            @if (agent.online) {
+              <span class="status-indicator status-indicator--success">Online</span>
+            }
+          </span>
+          <span class="rep-agent__bar">
+            <span class="rep-agent__bar-fill" [style.width.%]="agent.sharePct"></span>
+          </span>
+        </span>
+      </ng-template>
+    </app-data-table>
+  </section>
+</div>

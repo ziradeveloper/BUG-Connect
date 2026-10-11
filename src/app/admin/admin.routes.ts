@@ -107,7 +107,9 @@ export const ADMIN_ROUTES: Routes = [
         path: 'announcements',
         title: 'Announcements',
         loadChildren: () =>
-          import('./admin-later.routes').then((routes) => routes.ANNOUNCEMENTS_ROUTES),
+          import('./announcements/announcements.routes').then(
+            (routes) => routes.ANNOUNCEMENT_ROUTES,
+          ),
       },
       {
         path: 'audit',

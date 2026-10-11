@@ -1,8 +1,16 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 
 import { WorkspaceContext } from '../workspace/workspace-context';
+import {
+  buildReportSnapshot,
+  type ReportRange,
+  type ReportSnapshot,
+} from './analytics';
 import { buildDataset, type Dataset } from './mock-data';
 import type {
+  Announcement,
+  ApiKeyScope,
+  ApiKeyToken,
   AuditArea,
   AuditEvent,
   AuditLevel,
@@ -34,10 +42,13 @@ import type {
   Tenant,
   WaFormScreen,
   WaFormStatus,
+  WebhookEndpoint,
+  WebhookEventName,
   WhatsAppFlowForm,
   WebhookEvent,
   WorkspaceUser,
 } from './entities';
+import { audienceReach, validateAnnouncement } from './announcements';
 import { validateFlow } from './whatsapp-flows';
 import { SEED_META_CONFIG, SEED_PLANS, SEED_PLATFORM_SETTINGS } from './plan.seed';
 import {
@@ -48,6 +59,23 @@ import {
 } from './whatsapp';
 
 export type Page<T> = { items: T[]; total: number };
+
+const HEX_ALPHABET = '0123456789abcdef';
+
+/**
+ * Hex for identifiers and secrets minted by a user action — an API key, a
+ * webhook secret. The seeded dataset has its own deterministic RNG and never
+ * calls this, so a new key cannot shift any seeded row.
+ */
+function randomToken(length: number): string {
+  let token = '';
+
+  for (let index = 0; index < length; index += 1) {
+    token += HEX_ALPHABET[Math.floor(Math.random() * HEX_ALPHABET.length)] as string;
+  }
+
+  return token;
+}
 
 /**
  * Everything the composer can stage. Mirrors one Cloud API request body: a
@@ -1766,6 +1794,31 @@ export class MockDataService {
   }
 
   /**
+   * Analytics & Insights (`/reports`, wave 6).
+   *
+   * Nothing here is invented: the snapshot is derived from this tenant's own
+   * conversations, messages, flows, forms and campaigns by the pure maths in
+   * `core/data/analytics.ts`. Messages are grouped by conversation first so the
+   * per-thread timings stay a single pass.
+   */
+  reportSnapshot(range: ReportRange = 30): ReportSnapshot {
+    const conversations = this.conversations();
+    const threadIds = new Set(conversations.map((conversation) => conversation.id));
+
+    return buildReportSnapshot(
+      {
+        conversations,
+        messages: this.dataset().messages.filter((message) => threadIds.has(message.conversationId)),
+        users: this.users(),
+        flows: this.flows(),
+        forms: this.whatsappFlows(),
+        campaigns: this.campaigns(),
+      },
+      range,
+    );
+  }
+
+  /**
    * Create a draft broadcast. The audience is evaluated when it sends, not here,
    * because a segment's membership moves between the wizard and the send.
    */
@@ -2282,6 +2335,462 @@ export class MockDataService {
   private async latency<T>(items: T[]): Promise<T[]> {
     await this.sleep(140);
     return [...items];
+  }
+
+  // ── Developer hub (wave 6) ───────────────────────────────────────
+
+  /** API keys for this workspace, newest first. */
+  readonly apiKeys = computed<ApiKeyToken[]>(() =>
+    this.dataset()
+      .apiKeys.filter((key) => key.tenantId === this.tenantId())
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+  );
+
+  /** One endpoint per workspace: where deliveries go, and how they are signed. */
+  readonly webhookEndpoint = computed<WebhookEndpoint | null>(
+    () =>
+      this.dataset().webhookEndpoints.find(
+        (endpoint) => endpoint.tenantId === this.tenantId(),
+      ) ?? null,
+  );
+
+  apiKeyById(id: string | null | undefined): ApiKeyToken | null {
+    if (!id) return null;
+
+    return this.dataset().apiKeys.find((key) => key.id === id) ?? null;
+  }
+
+  private patchApiKey(id: string, patch: Partial<ApiKeyToken>): ApiKeyToken | null {
+    const dataset = this.dataset();
+    let updated: ApiKeyToken | null = null;
+
+    this.dataset.set({
+      ...dataset,
+      apiKeys: dataset.apiKeys.map((key) => {
+        if (key.id !== id) return key;
+        updated = { ...key, ...patch };
+
+        return updated;
+      }),
+    });
+
+    return updated;
+  }
+
+  /**
+   * Issues a key and hands back the secret exactly once. The row keeps only the
+   * public prefix and a digest, so the console can never show the secret again —
+   * the caller has to surface it now or it is gone.
+   */
+  async createApiKey(input: {
+    name: string;
+    scopes: ApiKeyScope[];
+    expiresAt: string | null;
+  }): Promise<{ key: ApiKeyToken; secret: string }> {
+    const stamp = Date.now().toString(36);
+    const key: ApiKeyToken = {
+      id: `${this.tenantId()}-key-${stamp}`,
+      tenantId: this.tenantId(),
+      name: input.name.trim() || 'Untitled key',
+      scopes: [...input.scopes],
+      prefix: `bc_live_${randomToken(8)}`,
+      secretDigest: `sha256:${randomToken(16)}`,
+      createdAt: new Date().toISOString(),
+      createdBy: this.actor().name,
+      lastUsedAt: null,
+      expiresAt: input.expiresAt,
+      revokedAt: null,
+      calls30d: 0,
+    };
+    const secret = `bc_secret_${randomToken(32)}`;
+
+    this.dataset.set({ ...this.dataset(), apiKeys: [...this.dataset().apiKeys, key] });
+    this.recordAudit({
+      area: 'developer',
+      action: `Issued the API key “${key.name}”`,
+      target: `${key.prefix} · ${key.scopes.length} scopes`,
+    });
+
+    await this.sleep(160);
+
+    return { key, secret };
+  }
+
+  /** Revoking is permanent: the key stops working, the row stays for the log. */
+  async revokeApiKey(id: string): Promise<boolean> {
+    const key = this.apiKeyById(id);
+
+    if (!key || key.revokedAt) return false;
+
+    this.patchApiKey(id, { revokedAt: new Date().toISOString() });
+    this.recordAudit({
+      area: 'developer',
+      action: `Revoked the API key “${key.name}”`,
+      target: key.prefix,
+      level: 'warning',
+    });
+
+    await this.sleep(140);
+
+    return true;
+  }
+
+  /** Keeps the key's name and scopes, replaces the secret. */
+  async rotateApiKey(id: string): Promise<{ key: ApiKeyToken; secret: string } | null> {
+    const existing = this.apiKeyById(id);
+
+    if (!existing || existing.revokedAt) return null;
+
+    const updated = this.patchApiKey(id, { secretDigest: `sha256:${randomToken(16)}` });
+
+    if (!updated) return null;
+
+    this.recordAudit({
+      area: 'developer',
+      action: `Rotated the secret for “${updated.name}”`,
+      target: updated.prefix,
+      level: 'warning',
+    });
+
+    await this.sleep(150);
+
+    return { key: updated, secret: `bc_secret_${randomToken(32)}` };
+  }
+
+  /** Saves the delivery endpoint. Pausing keeps the configuration. */
+  async saveWebhook(input: {
+    url: string;
+    events: WebhookEventName[];
+    status?: WebhookEndpoint['status'];
+  }): Promise<WebhookEndpoint | null> {
+    const endpoint = this.webhookEndpoint();
+    const now = new Date().toISOString();
+    const next: WebhookEndpoint = endpoint
+      ? {
+          ...endpoint,
+          url: input.url.trim(),
+          events: [...input.events],
+          status: input.status ?? endpoint.status,
+          updatedAt: now,
+        }
+      : {
+          id: `${this.tenantId()}-hook-${Date.now().toString(36)}`,
+          tenantId: this.tenantId(),
+          url: input.url.trim(),
+          secret: `whsec_${randomToken(24)}`,
+          events: [...input.events],
+          status: input.status ?? 'active',
+          failureCount: 0,
+          lastDeliveryAt: null,
+          lastStatus: null,
+          updatedAt: now,
+        };
+    const dataset = this.dataset();
+
+    this.dataset.set({
+      ...dataset,
+      webhookEndpoints: endpoint
+        ? dataset.webhookEndpoints.map((candidate) =>
+            candidate.id === endpoint.id ? next : candidate,
+          )
+        : [...dataset.webhookEndpoints, next],
+    });
+    this.recordAudit({
+      area: 'developer',
+      action: endpoint ? 'Updated the webhook endpoint' : 'Registered a webhook endpoint',
+      target: `${next.url} · ${next.events.length} events`,
+    });
+
+    await this.sleep(150);
+
+    return next;
+  }
+
+  /** Pauses or resumes deliveries without touching the URL or the secret. */
+  async setWebhookStatus(status: 'active' | 'paused'): Promise<WebhookEndpoint | null> {
+    const endpoint = this.webhookEndpoint();
+
+    if (!endpoint) return null;
+
+    const next: WebhookEndpoint = {
+      ...endpoint,
+      status,
+      failureCount: status === 'active' ? 0 : endpoint.failureCount,
+      updatedAt: new Date().toISOString(),
+    };
+    const dataset = this.dataset();
+
+    this.dataset.set({
+      ...dataset,
+      webhookEndpoints: dataset.webhookEndpoints.map((candidate) =>
+        candidate.id === endpoint.id ? next : candidate,
+      ),
+    });
+    this.recordAudit({
+      area: 'developer',
+      action: status === 'active' ? 'Resumed webhook deliveries' : 'Paused webhook deliveries',
+      target: endpoint.url,
+      level: status === 'active' ? 'info' : 'warning',
+    });
+
+    await this.sleep(120);
+
+    return next;
+  }
+
+  /**
+   * Sends one signed delivery to the endpoint and records what came back. The
+   * endpoint's own state decides the outcome, so a failing URL keeps failing
+   * until it is fixed or paused.
+   */
+  async sendTestWebhook(): Promise<{ ok: boolean; status: number; latencyMs: number } | null> {
+    const endpoint = this.webhookEndpoint();
+
+    if (!endpoint || endpoint.status === 'paused') return null;
+
+    const failing = endpoint.status === 'failing';
+    const status = failing ? 500 : 200;
+    const latencyMs = 40 + (this.tick % 9) * 17;
+    const next: WebhookEndpoint = {
+      ...endpoint,
+      failureCount: failing ? endpoint.failureCount + 1 : 0,
+      lastDeliveryAt: new Date().toISOString(),
+      lastStatus: status,
+      status: failing ? 'failing' : 'active',
+    };
+    const dataset = this.dataset();
+
+    this.dataset.set({
+      ...dataset,
+      webhookEndpoints: dataset.webhookEndpoints.map((candidate) =>
+        candidate.id === endpoint.id ? next : candidate,
+      ),
+    });
+    this.recordAudit({
+      area: 'developer',
+      action: failing ? 'Webhook test delivery failed' : 'Sent a webhook test delivery',
+      target: `${endpoint.url} · HTTP ${status}`,
+      level: failing ? 'critical' : 'info',
+    });
+
+    await this.sleep(180);
+
+    return { ok: !failing, status, latencyMs };
+  }
+
+  /** Regenerates the signing secret; receivers must be updated to match. */
+  async rotateWebhookSecret(): Promise<WebhookEndpoint | null> {
+    const endpoint = this.webhookEndpoint();
+
+    if (!endpoint) return null;
+
+    const next: WebhookEndpoint = {
+      ...endpoint,
+      secret: `whsec_${randomToken(24)}`,
+      updatedAt: new Date().toISOString(),
+    };
+    const dataset = this.dataset();
+
+    this.dataset.set({
+      ...dataset,
+      webhookEndpoints: dataset.webhookEndpoints.map((candidate) =>
+        candidate.id === endpoint.id ? next : candidate,
+      ),
+    });
+    this.recordAudit({
+      area: 'developer',
+      action: 'Rotated the webhook signing secret',
+      target: endpoint.url,
+      level: 'warning',
+    });
+
+    await this.sleep(140);
+
+    return next;
+  }
+
+  // ── Platform announcements (wave 6) ──────────────────────────────
+
+  /** Every notice, next to go out first. */
+  readonly announcements = computed<Announcement[]>(() =>
+    [...this.dataset().announcements].sort((a, b) => b.publishAt.localeCompare(a.publishAt)),
+  );
+
+  announcementById(id: string | null | undefined): Announcement | null {
+    if (!id) return null;
+
+    return this.dataset().announcements.find((announcement) => announcement.id === id) ?? null;
+  }
+
+  /** The workspaces and seats a notice would land in. */
+  announcementReach(announcement: Pick<Announcement, 'audience'>): {
+    workspaces: number;
+    seats: number;
+    label: string;
+  } {
+    return audienceReach(announcement, this.dataset().tenants);
+  }
+
+  /** Why a notice cannot go out yet, judged against the live tenant list. */
+  announcementProblems(
+    announcement: Pick<
+      Announcement,
+      'title' | 'body' | 'audience' | 'publishAt' | 'expiresAt'
+    >,
+  ): string[] {
+    return validateAnnouncement(announcement, this.dataset().tenants);
+  }
+
+  /**
+   * Creates or updates a notice. Saving as a draft never validates — half-written
+   * copy is the point of a draft — but publishing refuses with the same reasons
+   * the editor shows, so the button and the write path cannot disagree.
+   */
+  async saveAnnouncement(input: {
+    id?: string | null;
+    title: string;
+    body: string;
+    kind: Announcement['kind'];
+    audience: Announcement['audience'];
+    publishAt: string;
+    expiresAt: string | null;
+    pinned: boolean;
+    publish: boolean;
+  }): Promise<{ announcement: Announcement | null; problems: string[] }> {
+    const draft = {
+      title: input.title,
+      body: input.body,
+      audience: input.audience,
+      publishAt: input.publishAt,
+      expiresAt: input.expiresAt,
+    };
+    const problems = input.publish ? validateAnnouncement(draft, this.dataset().tenants) : [];
+
+    if (problems.length) {
+      return { announcement: null, problems };
+    }
+
+    const dataset = this.dataset();
+    const now = new Date().toISOString();
+    const existing = this.announcementById(input.id ?? null);
+    const saved: Announcement = {
+      id: existing?.id ?? `ann-${Date.now().toString(36)}`,
+      title: input.title.trim(),
+      body: input.body.trim(),
+      kind: input.kind,
+      audience: { ...input.audience },
+      publishAt: input.publishAt,
+      expiresAt: input.expiresAt,
+      pinned: input.pinned,
+      status: input.publish ? 'published' : 'draft',
+      createdBy: existing?.createdBy ?? this.actor().name,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      views: existing?.views ?? 0,
+    };
+
+    this.dataset.set({
+      ...dataset,
+      announcements: existing
+        ? dataset.announcements.map((candidate) =>
+            candidate.id === existing.id ? saved : candidate,
+          )
+        : [...dataset.announcements, saved],
+    });
+    this.recordAudit({
+      area: 'platform',
+      action: input.publish
+        ? `${existing ? 'Updated' : 'Published'} the announcement “${saved.title}”`
+        : `Saved “${saved.title}” as a draft`,
+      target: `${audienceReach(saved, this.dataset().tenants).workspaces} workspaces`,
+      tenantId: null,
+    });
+
+    await this.sleep(160);
+
+    return { announcement: saved, problems: [] };
+  }
+
+  /** Pulls a notice back. The row stays, so the trail shows it was withdrawn. */
+  async withdrawAnnouncement(id: string): Promise<boolean> {
+    const announcement = this.announcementById(id);
+
+    if (!announcement || announcement.status === 'withdrawn') return false;
+
+    const dataset = this.dataset();
+
+    this.dataset.set({
+      ...dataset,
+      announcements: dataset.announcements.map((candidate) =>
+        candidate.id === id
+          ? { ...candidate, status: 'withdrawn', updatedAt: new Date().toISOString() }
+          : candidate,
+      ),
+    });
+    this.recordAudit({
+      area: 'platform',
+      action: `Withdrew the announcement “${announcement.title}”`,
+      target: announcement.id,
+      level: 'warning',
+      tenantId: null,
+    });
+
+    await this.sleep(140);
+
+    return true;
+  }
+
+  /** Drafts can be deleted; anything that went out stays in the record. */
+  async deleteAnnouncement(id: string): Promise<boolean> {
+    const announcement = this.announcementById(id);
+
+    if (!announcement || announcement.status !== 'draft') return false;
+
+    const dataset = this.dataset();
+
+    this.dataset.set({
+      ...dataset,
+      announcements: dataset.announcements.filter((candidate) => candidate.id !== id),
+    });
+    this.recordAudit({
+      area: 'platform',
+      action: `Deleted the draft announcement “${announcement.title}”`,
+      target: announcement.id,
+      level: 'warning',
+      tenantId: null,
+    });
+
+    await this.sleep(140);
+
+    return true;
+  }
+
+  /** Pins or unpins without touching the copy. */
+  async setAnnouncementPinned(id: string, pinned: boolean): Promise<boolean> {
+    const announcement = this.announcementById(id);
+
+    if (!announcement) return false;
+
+    const dataset = this.dataset();
+
+    this.dataset.set({
+      ...dataset,
+      announcements: dataset.announcements.map((candidate) =>
+        candidate.id === id
+          ? { ...candidate, pinned, updatedAt: new Date().toISOString() }
+          : candidate,
+      ),
+    });
+    this.recordAudit({
+      area: 'platform',
+      action: pinned ? 'Pinned an announcement' : 'Unpinned an announcement',
+      target: announcement.title,
+      tenantId: null,
+    });
+
+    await this.sleep(120);
+
+    return true;
   }
 
   private sleep(baseMs: number): Promise<void> {

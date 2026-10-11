@@ -5,6 +5,8 @@ import type {
   TenantStatus,
   BusinessProfile,
   Campaign,
+  Announcement,
+  ApiKeyToken,
   CampaignSample,
   ChatFlow,
   Contact,
@@ -27,6 +29,7 @@ import type {
   WaFormInputType,
   WaFormScreen,
   WaFormStatus,
+  WebhookEndpoint,
   WhatsAppFlowForm,
   WebhookEvent,
   WorkspaceUser,
@@ -658,6 +661,11 @@ export type Dataset = {
   /** Wave 6: native WhatsApp forms and the delivery series of each broadcast. */
   whatsappFlows: WhatsAppFlowForm[];
   campaignSamples: CampaignSample[];
+  /** Wave 6: the integration surface — scoped API keys and one webhook endpoint. */
+  apiKeys: ApiKeyToken[];
+  webhookEndpoints: WebhookEndpoint[];
+  /** Wave 6: platform notices, targeted by plan, industry or named workspace. */
+  announcements: Announcement[];
 };
 
 /** The node set a freshly seeded flow starts from, keyed to its position. */
@@ -1210,6 +1218,9 @@ export function buildDataset(seed = SEED): Dataset {
   const flowVersions: FlowVersion[] = [];
   const whatsappFlows: WhatsAppFlowForm[] = [];
   const campaignSamples: CampaignSample[] = [];
+  const apiKeys: ApiKeyToken[] = [];
+  const webhookEndpoints: WebhookEndpoint[] = [];
+  const announcements: Announcement[] = [];
 
   TENANT_SEEDS.forEach((seedTenant, tenantIndex) => {
     const tenantId = `tenant-${tenantIndex + 1}`;
@@ -2090,6 +2101,193 @@ export function buildDataset(seed = SEED): Dataset {
     }
   });
 
+  // ---- wave 6: the developer hub — two API keys and one signed webhook
+  // endpoint per workspace. Post-processed on its own stream (SEED + 7000 +
+  // index) so no earlier collection's draws move.
+  const HEX = '0123456789abcdef';
+
+  tenants.forEach((tenant, tenantIndex) => {
+    const hubRng = new Rng(SEED + 7000 + tenantIndex);
+    const hex = (length: number): string =>
+      Array.from({ length: length }, () => HEX[hubRng.int(0, 15)] as string).join('');
+    // Seat three is the integration user in every tenant.
+    const owner = `${tenant.id}-user-3`;
+
+    apiKeys.push({
+      id: `${tenant.id}-key-1`,
+      tenantId: tenant.id,
+      name: 'Production integration',
+      scopes: ['messages.send', 'conversations.read', 'templates.read'],
+      prefix: `bc_live_${hex(8)}`,
+      secretDigest: `sha256:${hex(16)}`,
+      createdAt: isoAt(-hubRng.int(40, 200) * 24 * HOUR),
+      createdBy: owner,
+      lastUsedAt: isoAt(-hubRng.int(1, 400) * 60_000),
+      expiresAt: null,
+      revokedAt: null,
+      calls30d: hubRng.int(600, 18_400),
+    });
+
+    // The second key shows what the end of a key's life looks like: one tenant
+    // in three has a revoked key, one in three a key about to expire.
+    const second = tenantIndex % 3;
+
+    apiKeys.push({
+      id: `${tenant.id}-key-2`,
+      tenantId: tenant.id,
+      name: second === 2 ? 'Nightly contact sync' : 'Sandbox script',
+      scopes:
+        second === 2
+          ? (['contacts.write', 'reports.read'] as const).slice()
+          : (['conversations.read', 'flows.read'] as const).slice(),
+      prefix: `bc_test_${hex(8)}`,
+      secretDigest: `sha256:${hex(16)}`,
+      createdAt: isoAt(-hubRng.int(8, 38) * 24 * HOUR),
+      createdBy: owner,
+      lastUsedAt: second === 0 ? null : isoAt(-hubRng.int(60, 40_000) * 60_000),
+      expiresAt: second === 1 ? isoAt(hubRng.int(3, 12) * 24 * HOUR) : null,
+      revokedAt: second === 0 ? isoAt(-hubRng.int(1, 20) * 24 * HOUR) : null,
+      calls30d: second === 0 ? 0 : hubRng.int(12, 2_400),
+    });
+
+    const failing = hubRng.chance(0.2);
+    const events: WebhookEndpoint['events'] = hubRng.chance(0.5)
+      ? ['message.received', 'message.status', 'flow.completed']
+      : ['message.received', 'message.status'];
+
+    webhookEndpoints.push({
+      id: `${tenant.id}-hook-1`,
+      tenantId: tenant.id,
+      url: `https://crm.${tenant.subdomain}.example.com/bugconnect`,
+      secret: `whsec_${hex(24)}`,
+      events,
+      status: failing ? 'failing' : hubRng.chance(0.25) ? 'paused' : 'active',
+      failureCount: failing ? hubRng.int(3, 9) : 0,
+      lastDeliveryAt: isoAt(-hubRng.int(1, 2_800) * 60_000),
+      lastStatus: failing ? 500 : 200,
+      updatedAt: isoAt(-hubRng.int(1, 60) * 24 * HOUR),
+    });
+  });
+
+  // ---- wave 6: platform announcements. One of each state, so the list shows
+  // live, scheduled, expired, draft and withdrawn without anyone inventing rows.
+  const announcementRng = new Rng(SEED + 8000);
+  const platformOwner = platformStaff[0]?.fullName ?? 'Zira Developer';
+  const platformOps = platformStaff[1]?.fullName ?? 'Platform Operations';
+
+  announcements.push(
+    {
+      id: 'ann-maintenance',
+      title: 'Scheduled maintenance: webhook ingestion, 12 October 02:00–03:00 IST',
+      body: [
+        'We are moving webhook ingestion to a new queue. Inbound messages keep arriving; status updates (delivered, read) can be delayed by up to fifteen minutes inside the window.',
+        'Nothing is dropped. Anything we cannot acknowledge is retried for 24 hours, so a webhook endpoint of yours that is briefly unreachable during the window will recover on its own.',
+      ].join('\n\n'),
+      kind: 'maintenance',
+      audience: { type: 'everyone', tiers: [], industry: null, tenantIds: [] },
+      publishAt: isoAt(-3 * HOUR),
+      expiresAt: isoAt(3 * 24 * HOUR),
+      pinned: true,
+      status: 'published',
+      createdBy: platformOwner,
+      createdAt: isoAt(-2 * 24 * HOUR),
+      updatedAt: isoAt(-3 * HOUR),
+      views: announcementRng.int(4, 9),
+    },
+    {
+      id: 'ann-flow-builder',
+      title: 'Flow Builder and WhatsApp Forms are live in your workspace',
+      body: [
+        'Two new modules are in your sidebar: Flow Builder for the branching conversations, and WhatsApp Forms for the native Meta forms your customers fill in inside the chat.',
+        'Both are included in the Growth and Scale plans at no extra cost. Start from Automation in the sidebar.',
+      ].join('\n\n'),
+      kind: 'release',
+      audience: { type: 'tiers', tiers: ['Growth', 'Scale'], industry: null, tenantIds: [] },
+      publishAt: isoAt(-6 * 24 * HOUR),
+      expiresAt: isoAt(14 * 24 * HOUR),
+      pinned: false,
+      status: 'published',
+      createdBy: platformOps,
+      createdAt: isoAt(-9 * 24 * HOUR),
+      updatedAt: isoAt(-6 * 24 * HOUR),
+      views: announcementRng.int(2, 6),
+    },
+    {
+      id: 'ann-invoices',
+      title: 'Invoice format changes from the November billing run',
+      body: [
+        'From the November run, invoices list WhatsApp conversation charges separately from the platform fee, and GSTIN appears on the first page.',
+        'Nothing changes in what you are charged — only in how it is presented. Historical invoices are untouched.',
+      ].join('\n\n'),
+      kind: 'billing',
+      audience: { type: 'tiers', tiers: ['Pilot'], industry: null, tenantIds: [] },
+      publishAt: isoAt(5 * 24 * HOUR),
+      expiresAt: null,
+      pinned: false,
+      status: 'published',
+      createdBy: platformOwner,
+      createdAt: isoAt(-4 * 24 * HOUR),
+      updatedAt: isoAt(-4 * 24 * HOUR),
+      views: 0,
+    },
+    {
+      id: 'ann-residency',
+      title: 'Data residency: Mumbai region for new workspaces',
+      body: [
+        'New workspaces are provisioned in the Mumbai region by default. Existing workspaces stay where they are unless you ask us to move them.',
+      ].join('\n\n'),
+      kind: 'policy',
+      audience: {
+        type: 'industry',
+        tiers: [],
+        industry: 'Diagnostic centres and clinics',
+        tenantIds: [],
+      },
+      publishAt: isoAt(12 * 24 * HOUR),
+      expiresAt: null,
+      pinned: false,
+      status: 'draft',
+      createdBy: platformOps,
+      createdAt: isoAt(-1 * 24 * HOUR),
+      updatedAt: isoAt(-5 * HOUR),
+      views: 0,
+    },
+    {
+      id: 'ann-trial-billing',
+      title: 'Trial billing started on 1 October',
+      body: [
+        'Workspaces that finished their trial on 30 September moved to the Pilot plan automatically. Cards on file were charged on 1 October.',
+      ].join('\n\n'),
+      kind: 'billing',
+      audience: { type: 'everyone', tiers: [], industry: null, tenantIds: [] },
+      publishAt: isoAt(-40 * 24 * HOUR),
+      expiresAt: isoAt(-20 * 24 * HOUR),
+      pinned: false,
+      status: 'published',
+      createdBy: platformOwner,
+      createdAt: isoAt(-46 * 24 * HOUR),
+      updatedAt: isoAt(-40 * 24 * HOUR),
+      views: announcementRng.int(5, 12),
+    },
+    {
+      id: 'ann-withdrawn',
+      title: 'Withdrawn: pricing page preview',
+      body: [
+        'An early draft of the pricing change notice, pulled before it went out. Kept here so the audit trail shows why nothing was sent.',
+      ].join('\n\n'),
+      kind: 'policy',
+      audience: { type: 'tenants', tiers: [], industry: null, tenantIds: ['tenant-1'] },
+      publishAt: isoAt(-10 * 24 * HOUR),
+      expiresAt: null,
+      pinned: false,
+      status: 'withdrawn',
+      createdBy: platformOps,
+      createdAt: isoAt(-14 * 24 * HOUR),
+      updatedAt: isoAt(-11 * 24 * HOUR),
+      views: 0,
+    },
+  );
+
   messages.sort((a, b) => a.sentAt.localeCompare(b.sentAt));
 
   return {
@@ -2114,5 +2312,8 @@ export function buildDataset(seed = SEED): Dataset {
     flowVersions,
     whatsappFlows,
     campaignSamples,
+    apiKeys,
+    webhookEndpoints,
+    announcements,
   };
 }

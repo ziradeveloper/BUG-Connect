@@ -5,7 +5,11 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /** Reference point for the deterministic dummy data. */
-const DATA_NOW = Date.UTC(2026, 9, 8, 12, 0);
+/**
+ * The fixed “now” of the demo dataset. Exported so the reporting maths buckets
+ * its days against exactly the same instant the relative labels use.
+ */
+export const DATA_NOW = Date.UTC(2026, 9, 8, 12, 0);
 
 export function formatRelative(iso: string | null | undefined): string {
   if (!iso || iso === 'never') {
