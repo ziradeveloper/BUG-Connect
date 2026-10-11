@@ -95,9 +95,17 @@ export const CLIENT_ROUTES: Routes = [
         loadChildren: () => import('./flows/flows.routes').then((routes) => routes.FLOW_ROUTES),
       },
       {
+        path: 'whatsapp-flows',
+        loadChildren: () =>
+          import('./whatsapp-flows/whatsapp-flows.routes').then(
+            (routes) => routes.WHATSAPP_FLOW_ROUTES,
+          ),
+      },
+      {
         path: 'campaigns',
         title: 'Campaign Manager',
-        loadChildren: () => import('./later/later.routes').then((routes) => routes.CAMPAIGN_ROUTES),
+        loadChildren: () =>
+          import('./campaigns/campaigns.routes').then((routes) => routes.CAMPAIGN_ROUTES),
       },
       {
         path: 'reports',

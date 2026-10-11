@@ -1,0 +1,340 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="GROWTH"
+    title="New broadcast"
+    description="Audience, template, variables, schedule — in that order. The audience count is evaluated from the live segment, and the plan's monthly allowance is checked before anything is created."
+  >
+    <a class="button button-secondary" pageActions routerLink="/campaigns">All campaigns</a>
+  </app-page-header>
+
+  <ol class="wizard-steps" aria-label="Broadcast progress">
+    @for (entry of steps; track entry.n) {
+      <li
+        class="wizard-steps__item"
+        [class.wizard-steps__item--done]="step() > entry.n"
+        [class.wizard-steps__item--now]="step() === entry.n"
+        [attr.aria-current]="step() === entry.n ? 'step' : null"
+      >
+        <button class="wizard-steps__link" type="button" (click)="goTo(entry.n)">
+          <span class="wizard-steps__n">{{ entry.n }}</span> {{ entry.label }}
+        </button>
+      </li>
+    }
+  </ol>
+
+  <div class="surface wizard-card">
+    @if (step() === 1) {
+      <div class="wizard-card__grid">
+        <label class="form-field">
+          <span>Campaign name</span>
+          <input
+            class="form-control"
+            name="campaignName"
+            [ngModel]="name()"
+            (ngModelChange)="name.set($event)"
+            autocomplete="off"
+            placeholder="e.g. Diwali bulk order drive"
+            [class.form-control--invalid]="attempted() && !name().trim()"
+          />
+          @if (attempted() && !name().trim()) {
+            <span class="field-error">Name the campaign so the team recognises it later.</span>
+          }
+        </label>
+      </div>
+
+      <h2 class="ops-card__title">Audience</h2>
+      <p class="ops-muted">
+        Segments are evaluated as you pick them, so the number below is the number that would be
+        sent to. Manage rules at
+        <a class="ops-link" routerLink="/contacts/segments">Contact segments</a>.
+      </p>
+
+      <ul class="ops-list">
+        @for (segment of segments(); track segment.id) {
+          <li>
+            <button
+              class="ops-list__item"
+              type="button"
+              [class.ops-list__item--active]="segmentId() === segment.id"
+              (click)="setSegment(segment.id)"
+            >
+              <span class="ops-list__main">
+                <strong>{{ segment.name }}</strong>
+                <small>{{ segment.description }}</small>
+              </span>
+              <span class="badge badge-info">
+                {{ formatNumber(segment.count) }} contact{{ segment.count === 1 ? '' : 's' }}
+              </span>
+            </button>
+          </li>
+        }
+      </ul>
+
+      @if (segment(); as chosen) {
+        <dl class="wizard-review">
+          <div>
+            <dt>Match</dt>
+            <dd>{{ chosen.match === 'all' ? 'Every rule' : 'Any rule' }} · {{ chosen.rules.length }} rules</dd>
+          </div>
+          <div>
+            <dt>Recipients</dt>
+            <dd>{{ formatNumber(audience().length) }}</dd>
+          </div>
+          <div>
+            <dt>Opted out</dt>
+            <dd>{{ optedOut() }} will be skipped</dd>
+          </div>
+          <div>
+            <dt>Sample</dt>
+            <dd>
+              @for (contact of audienceSample(); track contact.id) {
+                {{ contact.displayName }}{{ $last ? '' : ', ' }}
+              }
+              @if (audienceSample().length === 0) {
+                Nobody matches yet
+              }
+            </dd>
+          </div>
+        </dl>
+      }
+    }
+
+    @if (step() === 2) {
+      <h2 class="ops-card__title">Template</h2>
+      <p class="ops-muted">
+        Only Meta-approved templates can be broadcast. Drafts and paused templates stay out of this
+        list on purpose.
+      </p>
+
+      @if (templates().length === 0) {
+        <p class="ops-muted">
+          This workspace has no approved template yet — submit one in the
+          <a class="ops-link" routerLink="/templates">Template Manager</a> and come back.
+        </p>
+      }
+
+      <ul class="ops-list">
+        @for (template of templates(); track template.id) {
+          <li>
+            <button
+              class="ops-list__item"
+              type="button"
+              [class.ops-list__item--active]="templateId() === template.id"
+              (click)="setTemplate(template.id)"
+            >
+              <span class="ops-list__main">
+                <strong>{{ template.name }}</strong>
+                <small>{{ template.body }}</small>
+              </span>
+              <span class="badge badge-neutral">
+                {{ template.category }} · {{ template.variables }} variables
+              </span>
+            </button>
+          </li>
+        }
+      </ul>
+
+      @if (template(); as chosen) {
+        <div class="ops-phone">
+          <div class="ops-phone__bubble">
+            @if (chosen.header?.text) {
+              <strong>{{ chosen.header?.text }}</strong>
+            }
+            <p>{{ chosen.body }}</p>
+            @if (chosen.footer) {
+              <small>{{ chosen.footer }}</small>
+            }
+          </div>
+          @for (button of chosen.buttons ?? []; track button.text) {
+            <span class="ops-phone__button">{{ button.text }}</span>
+          }
+        </div>
+      }
+    }
+
+    @if (step() === 3) {
+      <h2 class="ops-card__title">Variables</h2>
+      @if (variableIndexes().length === 0) {
+        <p class="ops-muted">
+          This template carries no placeholders — every recipient gets the same message.
+        </p>
+      } @else {
+        <p class="ops-muted">
+          Each <code class="data-table__mono">{{ '{{n}}' }}</code> resolves per recipient. Pick where
+          the value comes from, and use the sample text for the preview and for any recipient whose
+          field is empty.
+        </p>
+
+        <div class="form-grid">
+          @for (index of variableIndexes(); track index) {
+            <div class="form-field">
+              <span>Variable {{ '{{' + index + '}}' }}</span>
+              <select
+                class="form-control"
+                [ngModel]="sourceFor(index)"
+                (ngModelChange)="setSource(index, $event)"
+                [attr.aria-label]="'Source for variable ' + index"
+              >
+                @for (entry of sourceOptions; track entry.id) {
+                  <option [value]="entry.id">{{ entry.label }}</option>
+                }
+              </select>
+              <input
+                class="form-control"
+                type="text"
+                [ngModel]="sampleFor(index)"
+                (ngModelChange)="setSample(index, $event)"
+                [attr.aria-label]="'Sample value for variable ' + index"
+                placeholder="Sample value"
+                [disabled]="sourceFor(index) !== 'sample'"
+              />
+              <small>{{ sourceLabel(index) }}</small>
+            </div>
+          }
+        </div>
+      }
+
+      <h2 class="ops-card__title">Preview</h2>
+      <div class="ops-phone">
+        <div class="ops-phone__bubble">
+          @if (template()?.header?.text) {
+            <strong>{{ template()?.header?.text }}</strong>
+          }
+          <p>{{ previewBody() }}</p>
+          @if (template()?.footer) {
+            <small>{{ template()?.footer }}</small>
+          }
+        </div>
+      </div>
+    }
+
+    @if (step() === 4) {
+      <div class="wizard-card__grid">
+        <label class="form-field">
+          <span>Send</span>
+          <select
+            class="form-control"
+            [ngModel]="when()"
+            (ngModelChange)="when.set($event)"
+            name="when"
+          >
+            <option value="now">Immediately, at the chosen pace</option>
+            <option value="later">Schedule for later</option>
+          </select>
+        </label>
+
+        @if (when() === 'later') {
+          <label class="form-field">
+            <span>Date and time</span>
+            <input
+              class="form-control"
+              type="datetime-local"
+              [ngModel]="scheduledLocal()"
+              (ngModelChange)="scheduledLocal.set($event)"
+              name="scheduledAt"
+            />
+            <small>Times are read in the workspace timezone.</small>
+          </label>
+        }
+
+        <label class="form-field">
+          <span>Pace (messages per hour)</span>
+          <select
+            class="form-control"
+            [ngModel]="pacePerHour()"
+            (ngModelChange)="pacePerHour.set($event)"
+            name="pacePerHour"
+          >
+            @for (pace of paceOptions; track pace) {
+              <option [ngValue]="pace">{{ formatNumber(pace) }} / hour</option>
+            }
+          </select>
+          <small>
+            {{ formatNumber(audience().length) }} recipients finish in about
+            {{ etaMinutes() }} minute{{ etaMinutes() === 1 ? '' : 's' }}.
+          </small>
+        </label>
+      </div>
+
+      <h2 class="ops-card__title">Review</h2>
+      <dl class="wizard-review">
+        <div>
+          <dt>Campaign</dt>
+          <dd>{{ name() || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Audience</dt>
+          <dd>{{ segment()?.name ?? '—' }} · {{ formatNumber(audience().length) }} recipients</dd>
+        </div>
+        <div>
+          <dt>Template</dt>
+          <dd>{{ template()?.name ?? '—' }}</dd>
+        </div>
+        <div>
+          <dt>Variables</dt>
+          <dd>
+            @for (index of variableIndexes(); track index) {
+              {{ '{{' + index + '}}' }} ← {{ sourceLabel(index) }}{{ $last ? '' : ', ' }}
+            }
+            @if (variableIndexes().length === 0) {
+              None
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>When</dt>
+          <dd>{{ scheduleLabel() }}</dd>
+        </div>
+        <div>
+          <dt>Plan</dt>
+          <dd>
+            {{ allowance().used }} of
+            {{ allowance().limit === null ? 'unlimited' : allowance().limit }} broadcasts used on
+            {{ allowance().tier }}
+          </dd>
+        </div>
+      </dl>
+
+      @if (allowance().exhausted) {
+        <p class="ops-notice ops-notice--error">
+          This workspace has used its {{ allowance().limit }} monthly broadcasts on
+          {{ allowance().tier }}. Upgrade the tier at
+          <a class="ops-link" routerLink="/billing">Subscription</a> to send another.
+        </p>
+      }
+    }
+
+    <footer class="wizard-card__actions">
+      @if (notice(); as text) {
+        <p class="login-status" role="status">{{ text }}</p>
+      }
+      @if (error(); as text) {
+        <p class="login-status login-status--error" role="alert">{{ text }}</p>
+      }
+      <span class="wizard-card__spacer"></span>
+      @if (step() > 1) {
+        <button class="button button-secondary" type="button" (click)="back()">Back</button>
+      }
+      @if (step() < 4) {
+        <button class="button button-primary" type="button" (click)="next()">Continue</button>
+      } @else {
+        <button
+          class="button button-secondary"
+          type="button"
+          [disabled]="saving() || !canManage() || allowance().exhausted"
+          (click)="finish(false)"
+        >
+          Save as draft
+        </button>
+        <button
+          class="button button-primary"
+          type="button"
+          [disabled]="saving() || !canManage() || allowance().exhausted"
+          (click)="finish(true)"
+        >
+          {{ saving() ? 'Working…' : 'Create and start' }}
+        </button>
+      }
+    </footer>
+  </div>
+</div>

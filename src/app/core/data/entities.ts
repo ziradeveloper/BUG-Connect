@@ -166,9 +166,33 @@ export interface Campaign {
   read: number;
   replied: number;
   optOuts: number;
+  /** Template sends that Meta rejected (unsubscribed number, template paused). */
+  failed: number;
   pacePerHour: number;
   qualityRating: 'high' | 'medium' | 'low';
   scheduledAt: string | null;
+  /** The approved template the broadcast sends; null on a draft. */
+  templateId: string | null;
+  /** The saved audience it targets, evaluated again at send time. */
+  segmentId: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+/**
+ * One delivery sample of a running broadcast, oldest first. The monitor polls
+ * `tickCampaign()` and appends a row, so the chart is a real time series rather
+ * than four static numbers — the dummy layer's stand-in for a websocket.
+ */
+export interface CampaignSample {
+  id: string;
+  tenantId: string;
+  campaignId: string;
+  at: string;
+  sent: number;
+  delivered: number;
+  read: number;
+  failed: number;
 }
 
 export interface WebhookEvent {
@@ -498,4 +522,103 @@ export interface FlowVersion {
   nodeCount: number;
   publishedAt: string;
   nodes: FlowNode[];
+}
+
+/* ── Wave 6: WhatsApp Flows (native in-chat forms) ─────────────── */
+
+/**
+ * Component types the form studio can place on a screen. Names are Meta's own —
+ * the studio edits this model and the generator emits the matching flow JSON,
+ * so nothing is renamed on the way out.
+ */
+export type WaFormComponentType =
+  | 'TextHeading'
+  | 'TextBody'
+  | 'TextInput'
+  | 'TextArea'
+  | 'Dropdown'
+  | 'RadioButtonsGroup'
+  | 'CheckboxGroup'
+  | 'DatePicker'
+  | 'OptIn';
+
+/** `TextInput` flavours Meta accepts, kept as its `input-type` enum. */
+export type WaFormInputType = 'text' | 'number' | 'email' | 'password' | 'passcode' | 'phone';
+
+/** One option in a choice component: Meta's `data-source` entry. */
+export interface WaFormChoice {
+  id: string;
+  title: string;
+}
+
+/**
+ * A single form component as the studio holds it. Which properties apply
+ * depends on `type` — the generator in `whatsapp-flows.ts` decides what to emit,
+ * so the editor can keep one flat record.
+ */
+export interface WaFormField {
+  id: string;
+  type: WaFormComponentType;
+  /** Displayed in the form; also the heading/body copy for the text components. */
+  label: string;
+  /** Data key in the response payload, unique per screen. Empty for text blocks. */
+  name: string;
+  required: boolean;
+  inputType?: WaFormInputType;
+  options?: WaFormChoice[];
+  placeholder?: string;
+  helperText?: string;
+}
+
+/**
+ * One screen of a WhatsApp form. Meta renders it as a `SingleColumnLayout`;
+ * `nextScreenId` null plus `terminal` true is how a form posts its response.
+ */
+export interface WaFormScreen {
+  /** Meta screen id: uppercase snake case, unique inside the flow. */
+  id: string;
+  title: string;
+  /** Optional intro rendered as a TextBody above the fields. */
+  subtitle: string | null;
+  fields: WaFormField[];
+  /** Terminal screens collect nothing more and send the response. */
+  terminal: boolean;
+  /** Screen the footer button navigates to; null means "complete". */
+  nextScreenId: string | null;
+  footerLabel: string;
+}
+
+/** Meta's own flow categories, as accepted by the Flows API. */
+export type WaFormCategory =
+  | 'APPOINTMENT_BOOKING'
+  | 'LEAD_GENERATION'
+  | 'CUSTOMER_SUPPORT'
+  | 'ORDER_MANAGEMENT'
+  | 'OTHER';
+
+export type WaFormStatus = 'draft' | 'pending' | 'published' | 'archived';
+
+/**
+ * A native WhatsApp form. Separate from `ChatFlow` on purpose: a chat flow is a
+ * conversation tree the engine walks, while a WhatsApp form is one JSON document
+ * Meta renders inside the chat and posts back in a single response.
+ */
+export interface WhatsAppFlowForm {
+  id: string;
+  tenantId: string;
+  name: string;
+  /** The id Meta returns when the flow is created on the WABA. */
+  metaFlowId: string;
+  category: WaFormCategory;
+  language: string;
+  status: WaFormStatus;
+  screens: WaFormScreen[];
+  /** Chat flow that sends this form as an interactive Flow message. */
+  linkedFlowId: string | null;
+  submissions30d: number;
+  /** Percentage of opened forms that reached a terminal screen. */
+  completionRate: number;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
 }

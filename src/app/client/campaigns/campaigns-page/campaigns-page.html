@@ -1,0 +1,131 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="GROWTH"
+    title="Campaign Manager"
+    description="Segmented broadcasts on approved templates. Delivery is paced against the plan tier, and every send keeps its own counters, sample trail and audit row."
+  >
+    <span class="data-table__subdued" pageActions>
+      {{ allowance().used }} of
+      {{ allowance().limit === null ? 'unlimited' : allowance().limit }} broadcasts on
+      {{ allowance().tier }}
+    </span>
+    @if (canManage()) {
+      <a class="button button-primary" pageActions routerLink="/campaigns/new">New broadcast</a>
+    }
+  </app-page-header>
+
+  <div class="metric-grid">
+    <div class="metric metric--brand">
+      <span class="metric__label">Campaigns</span>
+      <span class="metric__value">{{ summary().total }}</span>
+      <span class="metric__hint">{{ summary().scheduled }} scheduled</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Sending now</span>
+      <span class="metric__value">{{ summary().sending }}</span>
+      <span class="metric__hint">Paced by the sender</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Recipients</span>
+      <span class="metric__value">{{ summary().audience }}</span>
+      <span class="metric__hint">{{ summary().sent }} messages sent so far</span>
+    </div>
+    <div class="metric">
+      <span class="metric__label">Delivery / read</span>
+      <span class="metric__value">{{ summary().deliveryRate }}%</span>
+      <span class="metric__hint">{{ summary().readRate }}% of delivered were read</span>
+    </div>
+  </div>
+
+  @if (notice(); as message) {
+    <p class="ops-notice" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+  @if (error(); as message) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="loading()"
+    caption="Broadcast campaigns"
+    exportName="bugconnect-campaigns"
+    searchPlaceholder="Search by name, status or audience"
+    emptyTitle="No campaigns yet"
+    emptyDescription="Build the first broadcast from a saved segment and an approved template."
+    [activatable]="true"
+    (rowClick)="openMonitor($event)"
+  >
+    <ng-template appCell="name" let-campaign>
+      <strong class="data-table__primary">{{ campaign.name }}</strong>
+      <span class="data-table__subdued">
+        · {{ audienceLabel(campaign) }} · {{ templateLabel(campaign) }} ·
+        {{ formatNumber(campaign.audienceSize) }} recipients
+      </span>
+    </ng-template>
+
+    <ng-template appCell="status" let-campaign>
+      <app-status-pill [label]="statusLabel(campaign)" [tone]="statusTone(campaign)" />
+    </ng-template>
+
+    <ng-template appCell="progress" let-campaign>
+      <span class="ops-share">
+        <span class="ops-share__bar">
+          <span [style.width.%]="progress(campaign)"></span>
+        </span>
+        <small class="data-table__subdued">
+          {{ progress(campaign) }}% · {{ formatNumber(campaign.sent) }} of
+          {{ formatNumber(campaign.audienceSize) }}
+        </small>
+      </span>
+    </ng-template>
+
+    <ng-template appCell="actions" let-campaign>
+      <span class="data-table__actions">
+        <a class="data-table__action" [routerLink]="['/campaigns', campaign.id]">Monitor</a>
+        @if (campaign.status === 'sending') {
+          @if (canManage()) {
+            <button
+              class="data-table__action"
+              type="button"
+              (click)="ask(campaign, 'pause'); $event.stopPropagation()"
+            >
+              Pause
+            </button>
+          }
+        } @else if (campaign.status !== 'completed') {
+          <button
+            class="data-table__action"
+            type="button"
+            [disabled]="!canStart(campaign)"
+            [title]="startBlocker(campaign) ?? 'Start sending now'"
+            (click)="ask(campaign, 'start'); $event.stopPropagation()"
+          >
+            Start
+          </button>
+        }
+      </span>
+    </ng-template>
+  </app-data-table>
+
+  <p class="data-table__subdued">
+    Delivery, read and reply rates are each measured against the step before them, the way Meta
+    reports a broadcast. Failed sends are template rejections and unsubscribed numbers; opt-outs are
+    counted separately and never re-messaged.
+  </p>
+
+  <app-confirm-dialog
+    [open]="pending() !== null"
+    [title]="dialogTitle()"
+    [description]="dialogBody()"
+    [confirmLabel]="pending()?.action === 'start' ? 'Start sending' : 'Pause'"
+    (cancel)="pending.set(null)"
+    (confirm)="confirm()"
+  />
+</div>

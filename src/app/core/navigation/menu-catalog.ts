@@ -55,6 +55,14 @@ export const CLIENT_MENU: MenuEntry[] = [
     capability: 'flows.view',
   },
   {
+    key: 'whatsappFlows',
+    label: 'WhatsApp Forms',
+    path: 'whatsapp-flows',
+    icon: '▦',
+    group: 'automation',
+    capability: 'flows.view',
+  },
+  {
     key: 'templates',
     label: 'Template Manager',
     path: 'templates',
@@ -69,7 +77,6 @@ export const CLIENT_MENU: MenuEntry[] = [
     icon: '▷',
     group: 'growth',
     capability: 'campaigns.view',
-    planned: true,
   },
   {
     key: 'reports',

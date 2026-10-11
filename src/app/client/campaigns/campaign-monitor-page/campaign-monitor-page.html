@@ -1,0 +1,276 @@
+<div class="workspace-page">
+  @if (missing()) {
+    <app-page-header
+      eyebrow="GROWTH"
+      title="Campaign not found"
+      description="That broadcast does not belong to this workspace."
+    >
+      <a class="button button-secondary" pageActions routerLink="/campaigns">All campaigns</a>
+    </app-page-header>
+    <section class="ops-card">
+      <p class="ops-muted">
+        No campaign with id <code class="data-table__mono">{{ id() }}</code> here. It may belong to
+        another workspace, or it was never created.
+      </p>
+    </section>
+  } @else if (campaign(); as campaign) {
+    <app-page-header
+      eyebrow="GROWTH"
+      [title]="campaign.name"
+      [description]="
+        campaign.status === 'sending'
+          ? 'Live delivery. The counters below move as each paced batch is acknowledged.'
+          : 'Delivery record for this broadcast.'
+      "
+    >
+      <app-status-pill pageActions [label]="statusLabel()" [tone]="statusTone()" />
+      <a class="button button-ghost" pageActions routerLink="/campaigns">All campaigns</a>
+      @if (canManage()) {
+        @if (campaign.status === 'sending') {
+          <button class="button button-secondary" pageActions type="button" (click)="ask('pause')">
+            Pause
+          </button>
+        } @else if (campaign.status !== 'completed') {
+          <button class="button button-primary" pageActions type="button" (click)="ask('start')">
+            Start sending
+          </button>
+        }
+      }
+    </app-page-header>
+
+    @if (notice(); as message) {
+      <p class="ops-notice" role="status">
+        {{ message }}
+        <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+      </p>
+    }
+    @if (error(); as message) {
+      <p class="ops-notice ops-notice--error" role="alert">
+        {{ message }}
+        <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+      </p>
+    }
+
+    <div class="metric-grid">
+      <div class="metric metric--brand">
+        <span class="metric__label">Sent</span>
+        <span class="metric__value">{{ formatNumber(campaign.sent) }}</span>
+        <span class="metric__hint">of {{ formatNumber(campaign.audienceSize) }} recipients</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Delivered</span>
+        <span class="metric__value">{{ formatNumber(campaign.delivered) }}</span>
+        <span class="metric__hint">{{ metrics()?.deliveryRate }}% of sent</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Read</span>
+        <span class="metric__value">{{ formatNumber(campaign.read) }}</span>
+        <span class="metric__hint">{{ metrics()?.readRate }}% of delivered</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Replied</span>
+        <span class="metric__value">{{ formatNumber(campaign.replied) }}</span>
+        <span class="metric__hint">{{ metrics()?.replyRate }}% of read</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Failed</span>
+        <span class="metric__value">{{ formatNumber(campaign.failed) }}</span>
+        <span class="metric__hint">{{ metrics()?.failureRate }}% of sent</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Opt-outs</span>
+        <span class="metric__value">{{ formatNumber(campaign.optOuts) }}</span>
+        <span class="metric__hint">{{ metrics()?.optOutRate }}% of the audience</span>
+      </div>
+    </div>
+
+    <div class="ops-split ops-split--wide">
+      <div class="ops-stack">
+        <section class="ops-card" aria-label="Delivery progress">
+          <h2 class="ops-card__title">Delivery progress</h2>
+          <span class="ops-share">
+            <span class="ops-share__bar">
+              <span [style.width.%]="metrics()?.progress ?? 0"></span>
+            </span>
+            <small class="ops-muted">
+              {{ metrics()?.progress }}% sent · {{ formatNumber(metrics()?.remaining ?? 0) }} to go
+              @if (campaign.status === 'sending') {
+                · about {{ metrics()?.etaMinutes }} minutes left at
+                {{ formatNumber(campaign.pacePerHour) }}/hour
+              }
+            </small>
+          </span>
+
+          <div class="camp-chart__head">
+            <h3 class="ops-card__title">Delivery over time</h3>
+            <span class="camp-legend">
+              <span class="camp-legend__item">
+                <span class="camp-legend__swatch camp-legend__swatch--sent"></span> Sent
+              </span>
+              <span class="camp-legend__item">
+                <span class="camp-legend__swatch camp-legend__swatch--delivered"></span> Delivered
+              </span>
+              <span class="camp-legend__item">
+                <span class="camp-legend__swatch camp-legend__swatch--read"></span> Read
+              </span>
+            </span>
+          </div>
+
+          @if (chart().length === 0) {
+            <p class="ops-muted">
+              No samples yet. Delivery samples are written as batches are acknowledged.
+            </p>
+          } @else {
+            <div class="camp-chart" role="img" aria-label="Sent, delivered and read per sample">
+              @for (column of chart(); track column.id) {
+                <span class="camp-chart__col" [title]="fullTimeLabel(column.at)">
+                  <span class="camp-chart__bars">
+                    <span class="camp-chart__bar" [style.height.%]="column.sent"></span>
+                    <span
+                      class="camp-chart__bar camp-chart__bar--delivered"
+                      [style.height.%]="column.delivered"
+                    ></span>
+                    <span
+                      class="camp-chart__bar camp-chart__bar--read"
+                      [style.height.%]="column.read"
+                    ></span>
+                  </span>
+                  <small class="camp-chart__label">{{ timeLabel(column.at) }}</small>
+                </span>
+              }
+            </div>
+          }
+
+          <p class="ops-muted">
+            {{ samples().length }} samples recorded · newest
+            {{ relativeLabel(latest().at) }} ·
+            {{ ticks() }} update{{ ticks() === 1 ? '' : 's' }} since this page opened.
+          </p>
+
+          <div class="ops-actions">
+            <button class="button button-secondary" type="button" (click)="toggleLive()">
+              {{ live() ? 'Pause updates' : 'Resume updates' }}
+            </button>
+            <span class="ops-muted">
+              {{
+                live()
+                  ? 'Polling every 2.5 seconds while the campaign is sending.'
+                  : 'Updates paused — the counters are frozen as they are.'
+              }}
+            </span>
+          </div>
+        </section>
+
+        <section class="ops-card" aria-label="What was sent">
+          <h2 class="ops-card__title">What went out</h2>
+          @if (previewBody(); as body) {
+            <div class="ops-phone">
+              <div class="ops-phone__bubble">
+                @if (template()?.header?.text) {
+                  <strong>{{ template()?.header?.text }}</strong>
+                }
+                <p>{{ body }}</p>
+                @if (template()?.footer) {
+                  <small>{{ template()?.footer }}</small>
+                }
+              </div>
+              @for (button of template()?.buttons ?? []; track button.text) {
+                <span class="ops-phone__button">{{ button.text }}</span>
+              }
+            </div>
+            <p class="ops-muted">
+              {{ template()?.name }} · {{ template()?.category }} · {{ template()?.language }} —
+              rendered with the template's sample values.
+            </p>
+          } @else {
+            <p class="ops-muted">
+              This draft has no template yet. Choose one before sending, or the broadcast will not
+              start.
+            </p>
+          }
+        </section>
+      </div>
+
+      <div class="ops-stack">
+        <section class="ops-card" aria-label="Broadcast details">
+          <h2 class="ops-card__title">Details</h2>
+          <dl class="ops-facts">
+            <div>
+              <dt>Audience</dt>
+              <dd>
+                @if (segment(); as audience) {
+                  <a class="ops-link" routerLink="/contacts/segments">{{ audience.name }}</a>
+                } @else {
+                  Ad-hoc list
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Recipients</dt>
+              <dd>{{ formatNumber(campaign.audienceSize) }}</dd>
+            </div>
+            <div>
+              <dt>Pace</dt>
+              <dd>{{ formatNumber(campaign.pacePerHour) }} / hour</dd>
+            </div>
+            <div>
+              <dt>Quality rating</dt>
+              <dd>{{ campaign.qualityRating }}</dd>
+            </div>
+            <div>
+              <dt>Scheduled</dt>
+              <dd>{{ campaign.scheduledAt ? fullTimeLabel(campaign.scheduledAt) : 'Sent on demand' }}</dd>
+            </div>
+            <div>
+              <dt>Created</dt>
+              <dd [title]="fullTimeLabel(campaign.createdAt)">
+                {{ campaign.createdBy }} · {{ relativeLabel(campaign.createdAt) }}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="ops-card" aria-label="Activity">
+          <h2 class="ops-card__title">Activity</h2>
+          @if (activity().length === 0) {
+            <p class="ops-muted">Nothing recorded for this broadcast yet.</p>
+          } @else {
+            <ol class="ops-timeline">
+              @for (event of activity(); track event.id) {
+                <li class="ops-timeline__item">
+                  <div class="ops-timeline__head">
+                    <span class="ops-timeline__subject">{{ event.action }}</span>
+                    <app-status-pill
+                      [label]="event.level"
+                      [tone]="event.level === 'critical' ? 'danger' : event.level === 'warning' ? 'warning' : 'info'"
+                    />
+                  </div>
+                  <p class="ops-muted">
+                    {{ event.actor }} · {{ relativeLabel(event.createdAt) }}
+                  </p>
+                </li>
+              }
+            </ol>
+          }
+          <p class="ops-muted">
+            Every write on a broadcast leaves a row in the
+            <a class="ops-link" routerLink="/audit">workspace audit log</a>.
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <app-confirm-dialog
+      [open]="pending() !== null"
+      [title]="pending() === 'start' ? 'Start sending?' : 'Pause this broadcast?'"
+      [description]="
+        pending() === 'start'
+          ? 'Recipients start receiving the template at the chosen pace. Started sends cannot be recalled.'
+          : 'Sending stops after the current batch. Everything already delivered stays delivered.'
+      "
+      [confirmLabel]="pending() === 'start' ? 'Start sending' : 'Pause'"
+      (cancel)="pending.set(null)"
+      (confirm)="confirm()"
+    />
+  }
+</div>

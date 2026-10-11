@@ -1,0 +1,641 @@
+<div class="workspace-page">
+  <app-page-header
+    eyebrow="AUTOMATION"
+    [title]="draft()?.name || 'New WhatsApp form'"
+    description="Multi-screen form designer. Screens are the routing model, components are Meta's own library, and the JSON pane shows exactly what publishing would post to the Flows API."
+  >
+    <app-status-pill pageActions [label]="statusLabel()" [tone]="statusTone()" />
+    <a class="button button-ghost" pageActions routerLink="/whatsapp-flows">All forms</a>
+    <ng-container pageActions>
+      @if (canManage()) {
+        <button
+          class="button button-secondary"
+          type="button"
+          [disabled]="saving() || !dirty()"
+          (click)="save()"
+        >
+          {{ saving() ? 'Saving…' : 'Save draft' }}
+        </button>
+        <button
+          class="button button-primary"
+          type="button"
+          [disabled]="saving() || issues().length > 0"
+          [title]="issues()[0] || 'Publish to Meta'"
+          (click)="saveAndPublish()"
+        >
+          Publish
+        </button>
+      }
+    </ng-container>
+  </app-page-header>
+
+  @if (notice(); as message) {
+    <p class="ops-notice" role="status">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+  @if (error(); as message) {
+    <p class="ops-notice ops-notice--error" role="alert">
+      {{ message }}
+      <button class="form-link" type="button" (click)="dismiss()">Dismiss</button>
+    </p>
+  }
+
+  @if (missing()) {
+    <section class="ops-card" aria-label="Form not found">
+      <h2 class="ops-card__title">Form not found</h2>
+      <p class="ops-muted">
+        No WhatsApp form with id <code class="data-table__mono">{{ id() }}</code> belongs to this
+        workspace.
+      </p>
+      <div class="ops-actions">
+        <a class="button button-secondary" routerLink="/whatsapp-flows">Back to the list</a>
+      </div>
+    </section>
+  } @else if (draft(); as form) {
+    <div class="waform-studio">
+      <!-- Routing model -->
+      <section class="ops-card waform-pane" aria-label="Screens">
+        <h2 class="ops-card__title">Screens</h2>
+        <p class="ops-muted">
+          Each screen is one step. The footer button navigates on, or posts the response from the
+          last one.
+        </p>
+
+        <ul class="ops-list">
+          @for (screen of screens(); track screen.id; let index = $index) {
+            <li
+              class="waform-screen-row"
+              [class.waform-screen-row--active]="selectedScreen()?.id === screen.id"
+            >
+              <button
+                class="waform-screen"
+                type="button"
+                (click)="selectScreen(screen.id)"
+                [disabled]="!canManage()"
+              >
+                <strong>{{ screenLabel(screen, index) }}</strong>
+                <small>
+                  {{ screen.id }} · {{ screen.fields.length }}
+                  component{{ screen.fields.length === 1 ? '' : 's' }} ·
+                  {{
+                    screen.terminal
+                      ? 'ends the form'
+                      : '→ ' + (screen.nextScreenId ?? 'nowhere yet')
+                  }}
+                </small>
+              </button>
+              @if (canManage()) {
+                <span class="waform-tools">
+                  <button
+                    class="waform-tool"
+                    type="button"
+                    title="Move up"
+                    [disabled]="index === 0"
+                    (click)="moveScreen(screen.id, -1)"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    class="waform-tool"
+                    type="button"
+                    title="Move down"
+                    [disabled]="index === screens().length - 1"
+                    (click)="moveScreen(screen.id, 1)"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    class="waform-tool waform-tool--danger"
+                    type="button"
+                    title="Remove screen"
+                    (click)="askRemoveScreen(screen)"
+                  >
+                    ✕
+                  </button>
+                </span>
+              }
+            </li>
+          }
+        </ul>
+
+        @if (canManage()) {
+          <div class="ops-actions">
+            <button class="button button-secondary" type="button" (click)="addScreen()">
+              Add screen
+            </button>
+          </div>
+        }
+
+        <dl class="ops-facts">
+          <div>
+            <dt>Meta flow id</dt>
+            <dd class="data-table__mono">{{ meta().metaFlowId }}</dd>
+          </div>
+          <div>
+            <dt>Last saved</dt>
+            <dd [title]="meta().updatedFull">{{ meta().updatedLabel }}</dd>
+          </div>
+          <div>
+            <dt>Submissions (30d)</dt>
+            <dd>{{ meta().submissions }}</dd>
+          </div>
+          <div>
+            <dt>Completion</dt>
+            <dd>{{ meta().completion }}%</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Screen editor -->
+      <section class="ops-stack waform-pane" aria-label="Screen editor">
+        <div class="ops-card">
+          <h2 class="ops-card__title">Form</h2>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="waform-name">Name</label>
+              <input
+                id="waform-name"
+                class="form-control"
+                type="text"
+                [ngModel]="form.name"
+                (ngModelChange)="setName($event)"
+                [disabled]="!canManage()"
+                placeholder="Bridal trial booking"
+              />
+            </div>
+            <div class="form-field">
+              <label for="waform-category">Category</label>
+              <select
+                id="waform-category"
+                class="form-control"
+                [ngModel]="form.category"
+                (ngModelChange)="setCategory($event)"
+                [disabled]="!canManage()"
+              >
+                @for (category of categories; track category.id) {
+                  <option [value]="category.id">{{ category.label }}</option>
+                }
+              </select>
+              <small>{{ categoryText(form.category) }} — sent to Meta with the flow.</small>
+            </div>
+            <div class="form-field">
+              <label for="waform-linked">Sent by chat flow</label>
+              <select
+                id="waform-linked"
+                class="form-control"
+                [ngModel]="form.linkedFlowId ?? ''"
+                (ngModelChange)="setLinked($event)"
+                [disabled]="!canManage()"
+              >
+                <option value="">Not attached</option>
+                @for (flow of flows(); track flow.id) {
+                  <option [value]="flow.id">{{ flow.name }}</option>
+                }
+              </select>
+              <small>Optional. The flow's menu node can offer this form as a button.</small>
+            </div>
+          </div>
+        </div>
+
+        @if (selectedScreen(); as screen) {
+          <div class="ops-card">
+            <h2 class="ops-card__title">Screen · {{ screen.id }}</h2>
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="waform-screen-title">Title</label>
+                <input
+                  id="waform-screen-title"
+                  class="form-control"
+                  type="text"
+                  [ngModel]="screen.title"
+                  (ngModelChange)="setScreenTitle($event)"
+                  [disabled]="!canManage()"
+                />
+              </div>
+              <div class="form-field">
+                <label for="waform-screen-id">Screen id</label>
+                <input
+                  id="waform-screen-id"
+                  class="form-control"
+                  type="text"
+                  [ngModel]="screen.id"
+                  (ngModelChange)="setScreenId($event)"
+                  [disabled]="!canManage()"
+                />
+                <small>Uppercase snake case; every footer that points here follows the rename.</small>
+              </div>
+              <div class="form-field">
+                <label for="waform-screen-subtitle">Intro copy</label>
+                <textarea
+                  id="waform-screen-subtitle"
+                  class="form-control"
+                  rows="2"
+                  [ngModel]="screen.subtitle ?? ''"
+                  (ngModelChange)="setSubtitle($event)"
+                  [disabled]="!canManage()"
+                  placeholder="Rendered as a paragraph above the components"
+                ></textarea>
+              </div>
+              <div class="form-field">
+                <label for="waform-screen-next">Footer goes to</label>
+                <select
+                  id="waform-screen-next"
+                  class="form-control"
+                  [ngModel]="screen.nextScreenId ?? ''"
+                  (ngModelChange)="setNextScreen($event)"
+                  [disabled]="!canManage()"
+                >
+                  <option value="">End the form and post the response</option>
+                  @for (option of otherScreens(); track option.id) {
+                    <option [value]="option.id">{{ option.id }} — {{ option.title }}</option>
+                  }
+                </select>
+                <small>{{ screen.terminal ? 'This screen is terminal.' : 'This screen navigates on.' }}</small>
+              </div>
+              <div class="form-field">
+                <label for="waform-screen-footer">Footer label</label>
+                <input
+                  id="waform-screen-footer"
+                  class="form-control"
+                  type="text"
+                  [ngModel]="screen.footerLabel"
+                  (ngModelChange)="setFooterLabel($event)"
+                  [disabled]="!canManage()"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="ops-card">
+            <h2 class="ops-card__title">
+              Components
+              <span class="ops-muted">
+                {{ screen.fields.length }} of {{ maxComponents }}
+              </span>
+            </h2>
+
+            @if (canManage()) {
+              <div class="waform-palette">
+                @for (item of palette; track item.type) {
+                  <button
+                    class="waform-palette__item"
+                    type="button"
+                    [title]="item.hint"
+                    [disabled]="screen.fields.length >= maxComponents"
+                    (click)="addField(item.type)"
+                  >
+                    <span class="waform-palette__glyph">{{ item.glyph }}</span>
+                    <span class="waform-palette__copy">
+                      <strong>{{ item.label }}</strong>
+                      <small>{{ item.hint }}</small>
+                    </span>
+                  </button>
+                }
+              </div>
+            }
+
+            @if (screen.fields.length === 0) {
+              <p class="ops-muted">
+                Nothing on this screen yet. Add a component from the palette above — a form that
+                posts no data cannot be published.
+              </p>
+            }
+
+            <ul class="ops-list">
+              @for (field of screen.fields; track field.id; let index = $index) {
+                <li class="waform-field" [class.waform-field--active]="selectedField()?.id === field.id">
+                  <div class="waform-field__head">
+                    <button
+                      class="waform-field__title"
+                      type="button"
+                      (click)="selectField(field.id)"
+                      [disabled]="!canManage()"
+                    >
+                      <span class="waform-field__glyph">{{ glyph(field.type) }}</span>
+                      <span class="ops-list__main">
+                        <strong>{{ field.label || specLabel(field.type) }}</strong>
+                        <small>{{ fieldSummary(field) }}</small>
+                      </span>
+                    </button>
+                    @if (canManage()) {
+                      <span class="waform-tools">
+                        <button
+                          class="waform-tool"
+                          type="button"
+                          title="Move up"
+                          [disabled]="index === 0"
+                          (click)="moveField(field.id, -1)"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          class="waform-tool"
+                          type="button"
+                          title="Move down"
+                          [disabled]="index === screen.fields.length - 1"
+                          (click)="moveField(field.id, 1)"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          class="waform-tool waform-tool--danger"
+                          type="button"
+                          title="Remove component"
+                          (click)="askRemoveField(field)"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    }
+                  </div>
+
+                  @if (selectedField()?.id === field.id && canManage()) {
+                    <div class="waform-field__body">
+                      <div class="form-grid">
+                        <div class="form-field">
+                          <label [for]="'label-' + field.id">
+                            {{ collects(field.type) ? 'Label' : 'Copy' }}
+                          </label>
+                          <input
+                            [id]="'label-' + field.id"
+                            class="form-control"
+                            type="text"
+                            [ngModel]="field.label"
+                            (ngModelChange)="setFieldLabel(field, $event)"
+                          />
+                        </div>
+
+                        @if (collects(field.type)) {
+                          <div class="form-field">
+                            <label [for]="'name-' + field.id">Data key</label>
+                            <input
+                              [id]="'name-' + field.id"
+                              class="form-control"
+                              type="text"
+                              [ngModel]="field.name"
+                              (ngModelChange)="patchField(field.id, { name: $event })"
+                            />
+                            <small>The response posts under this key.</small>
+                          </div>
+                        }
+
+                        @if (field.type === 'TextInput') {
+                          <div class="form-field">
+                            <label [for]="'input-' + field.id">Input type</label>
+                            <select
+                              [id]="'input-' + field.id"
+                              class="form-control"
+                              [ngModel]="field.inputType ?? 'text'"
+                              (ngModelChange)="patchField(field.id, { inputType: $event })"
+                            >
+                              @for (type of inputTypes; track type.id) {
+                                <option [value]="type.id">{{ type.label }}</option>
+                              }
+                            </select>
+                          </div>
+                        }
+
+                        @if (collects(field.type) && field.type !== 'OptIn') {
+                          <div class="form-field">
+                            <span>Required</span>
+                            <label class="ops-check">
+                              <input
+                                type="checkbox"
+                                [checked]="field.required"
+                                (change)="setFieldRequired(field, $any($event.target).checked)"
+                              />
+                              Meta blocks the submit until it is filled
+                            </label>
+                          </div>
+                        }
+                      </div>
+
+                      @if (hasChoices(field.type)) {
+                        <fieldset class="ops-fieldset waform-options">
+                          <legend>Options</legend>
+                          @for (option of field.options ?? []; track option.id) {
+                            <div class="waform-option">
+                              <input
+                                class="form-control"
+                                type="text"
+                                [ngModel]="option.id"
+                                (ngModelChange)="patchOption(field, option.id, { id: $event })"
+                                aria-label="Option id"
+                              />
+                              <input
+                                class="form-control"
+                                type="text"
+                                [ngModel]="option.title"
+                                (ngModelChange)="patchOption(field, option.id, { title: $event })"
+                                aria-label="Option title"
+                              />
+                              <button
+                                class="waform-tool waform-tool--danger"
+                                type="button"
+                                title="Remove option"
+                                (click)="removeOption(field, option.id)"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          }
+                          <div class="ops-actions">
+                            <button
+                              class="button button-secondary"
+                              type="button"
+                              (click)="addOption(field)"
+                            >
+                              Add option
+                            </button>
+                          </div>
+                        </fieldset>
+                      }
+                    </div>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </section>
+
+      <!-- Preview + generated document -->
+      <aside class="ops-stack waform-pane" aria-label="Preview and flow JSON">
+        @if (selectedScreen(); as screen) {
+          <div class="ops-card">
+            <h2 class="ops-card__title">Preview</h2>
+            <div class="sim-phone">
+              <div class="sim-phone__bar">
+                <span class="sim-phone__avatar">{{ avatarInitials() }}</span>
+                <span class="sim-phone__who">
+                  <strong>{{ businessName() }}</strong>
+                  <span class="sim-phone__status">
+                    WhatsApp form · {{ screen.id }}
+                  </span>
+                </span>
+              </div>
+
+              <div class="sim-phone__thread">
+                <p class="sim-note">
+                  Screen {{ screenIndex() + 1 }} of {{ screens().length }}
+                </p>
+
+                <div class="waform-preview">
+                  @if (screen.subtitle) {
+                    <p class="waform-preview__intro">{{ screen.subtitle }}</p>
+                  }
+
+                  @for (field of screen.fields; track field.id) {
+                    @switch (field.type) {
+                      @case ('TextHeading') {
+                        <h3 class="waform-preview__heading">{{ field.label }}</h3>
+                      }
+                      @case ('TextBody') {
+                        <p class="waform-preview__intro">{{ field.label }}</p>
+                      }
+                      @default {
+                        <div class="waform-preview__field">
+                          @if (field.label && field.type !== 'OptIn') {
+                            <span class="waform-preview__label">
+                              {{ field.label }}
+                              @if (field.required) {
+                                <span class="waform-preview__required">*</span>
+                              }
+                            </span>
+                          }
+
+                          @switch (field.type) {
+                            @case ('TextInput') {
+                              <input
+                                class="form-control"
+                                type="text"
+                                disabled
+                                [placeholder]="field.placeholder ?? field.label"
+                              />
+                            }
+                            @case ('TextArea') {
+                              <textarea
+                                class="form-control"
+                                rows="2"
+                                disabled
+                                [placeholder]="field.placeholder ?? field.label"
+                              ></textarea>
+                            }
+                            @case ('Dropdown') {
+                              <select class="form-control" disabled>
+                                <option>Select…</option>
+                                @for (option of field.options ?? []; track option.id) {
+                                  <option>{{ option.title }}</option>
+                                }
+                              </select>
+                            }
+                            @case ('DatePicker') {
+                              <input class="form-control" type="text" disabled value="dd / mm / yyyy" />
+                            }
+                            @case ('RadioButtonsGroup') {
+                              <span class="waform-choices">
+                                @for (option of field.options ?? []; track option.id) {
+                                  <span class="waform-choice">◉ {{ option.title }}</span>
+                                }
+                              </span>
+                            }
+                            @case ('CheckboxGroup') {
+                              <span class="waform-choices">
+                                @for (option of field.options ?? []; track option.id) {
+                                  <span class="waform-choice">☐ {{ option.title }}</span>
+                                }
+                              </span>
+                            }
+                            @case ('OptIn') {
+                              <span class="waform-choices">
+                                <span class="waform-choice">☑ {{ field.label }}</span>
+                              </span>
+                            }
+                          }
+                        </div>
+                      }
+                    }
+                  }
+                </div>
+              </div>
+
+              <div class="sim-phone__composer">
+                <span class="sim-phone__prompt">
+                  {{
+                    screen.terminal
+                      ? 'Posts the response and closes the form'
+                      : 'Navigates to ' + (screen.nextScreenId ?? 'nowhere yet')
+                  }}
+                </span>
+                <button class="ops-phone__button waform-preview__footer" type="button" disabled>
+                  {{ screen.footerLabel || (screen.terminal ? 'Submit' : 'Continue') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="ops-card">
+          <h2 class="ops-card__title">Response payload</h2>
+          @if (response().length === 0) {
+            <p class="ops-muted">No component posts a value yet.</p>
+          } @else {
+            <ul class="waform-response">
+              @for (row of response(); track row) {
+                <li class="waform-response__row">{{ row }}</li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="ops-card">
+          <h2 class="ops-card__title">Publish check</h2>
+          @if (issues().length === 0) {
+            <p class="ops-muted">
+              Meta would accept this document: {{ screens().length }} screen{{
+                screens().length === 1 ? '' : 's'
+              }}, one terminal, every navigation resolves.
+            </p>
+          } @else {
+            <ul class="waform-issues">
+              @for (issue of issues(); track issue) {
+                <li class="waform-issue">{{ issue }}</li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="ops-card">
+          <h2 class="ops-card__title">
+            Flow JSON
+            <span class="ops-muted">{{ jsonSize() | number }} bytes</span>
+          </h2>
+          <div class="ops-actions">
+            <button class="button button-secondary" type="button" (click)="copyJson()">
+              {{ jsonCopied() ? 'Copied' : 'Copy' }}
+            </button>
+            <button class="button button-ghost" type="button" (click)="downloadJson()">
+              Download .json
+            </button>
+          </div>
+          <pre class="waform-json"><code>{{ json() }}</code></pre>
+        </div>
+      </aside>
+    </div>
+  }
+
+  <app-confirm-dialog
+    [open]="pendingDeleteField() !== null || pendingDeleteScreen() !== null"
+    [title]="pendingDeleteScreen() ? 'Remove this screen?' : 'Remove this component?'"
+    [description]="
+      pendingDeleteScreen()
+        ? 'Screens that navigated here lose their target and the last remaining screen ends the form.'
+        : 'The component and any value it collected are removed from the document.'
+    "
+    [confirmLabel]="'Remove'"
+    (cancel)="pendingDeleteScreen.set(null); pendingDeleteField.set(null)"
+    (confirm)="pendingDeleteScreen() ? removeScreen() : removeField()"
+  />
+</div>

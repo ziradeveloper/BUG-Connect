@@ -4,6 +4,7 @@ export type MenuKey =
   | 'inbox'
   | 'contacts'
   | 'flows'
+  | 'whatsappFlows'
   | 'templates'
   | 'campaigns'
   | 'reports'
@@ -87,6 +88,8 @@ export const MENU_CAPABILITY: Record<MenuKey, Capability> = {
   inbox: 'inbox.view',
   contacts: 'contacts.view',
   flows: 'flows.view',
+  // Native WhatsApp forms live under the same automation rights as chat flows.
+  whatsappFlows: 'flows.view',
   templates: 'templates.view',
   campaigns: 'campaigns.view',
   reports: 'reports.view',
