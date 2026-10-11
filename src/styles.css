@@ -49,6 +49,9 @@
 /* 10. Wave 6 — platform announcements (editor, preview, reach). */
 @import './styles/pages/announcements.css';
 
+/* 11. Platform cross-tenant analytics. */
+@import './styles/pages/analytics.css';
+
 /* 4. Team Inbox — layout, bubbles and composer are separate concerns. */
 @import './styles/pages/inbox.css';
 @import './styles/pages/inbox-bubbles.css';

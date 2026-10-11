@@ -6,32 +6,15 @@ import {
   FIRST_RESPONSE_TARGET_MIN,
   REPORT_RANGES,
   type ReportRange,
-  type VolumePoint,
 } from '../../../core/data/analytics';
 import { MockDataService } from '../../../core/data/mock-data.service';
 import type { AgentScore } from '../../../core/data/analytics';
 import { DataTableComponent } from '../../../shared/data-table/data-table';
 import { DataTableCellDirective } from '../../../shared/data-table/data-table.model';
 import type { DataColumn } from '../../../shared/data-table/data-table.model';
+import { buildLineChart, type ChartGeometry } from '../../../shared/chart-geometry';
 import { formatNumber } from '../../../shared/format';
 import { PageHeader } from '../../../shared/ui/ui';
-
-/** Geometry of the volume chart, in the SVG's own 600×220 user space. */
-interface ChartGeometry {
-  inbound: string;
-  outbound: string;
-  area: string;
-  /** Rounded-up axis maximum, so the gridlines land on whole messages. */
-  max: number;
-  gridlines: { y: number; label: string }[];
-  points: { x: number; y: number; total: number; point: VolumePoint }[];
-  /** Day labels under the chart, thinned out so a 90-day window stays legible. */
-  labels: string[];
-}
-
-const CHART_WIDTH = 600;
-const CHART_HEIGHT = 220;
-const PADDING = { top: 14, right: 14, bottom: 26, left: 46 };
 
 /**
  * Analytics & Insights (`/reports`, wave 6).
@@ -63,8 +46,9 @@ export class ReportsPage {
   /** The snapshot for the selected window; recomputed on the range change alone. */
   protected readonly report = computed(() => this.data.reportSnapshot(this.range()));
 
+  /** The daily series, mapped into SVG coordinates by the shared geometry. */
   protected readonly chart = computed<ChartGeometry>(() =>
-    ReportsPage.buildChart(this.report().volume),
+    buildLineChart(this.report().volume),
   );
 
   protected readonly columns: DataColumn<AgentScore>[] = [
@@ -148,51 +132,4 @@ export class ReportsPage {
   }
 
   protected minutes = ReportsPage.minutes;
-
-  /**
-   * Maps the daily series into SVG coordinates. The axis maximum is rounded up
-   * to the next five so the gridlines read as whole messages, and a flat window
-   * still draws a baseline rather than dividing by zero.
-   */
-  private static buildChart(volume: VolumePoint[]): ChartGeometry {
-    const plotWidth = CHART_WIDTH - PADDING.left - PADDING.right;
-    const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom;
-    const rawMax = Math.max(...volume.map((point) => point.total), 1);
-    const max = Math.max(5, Math.ceil((rawMax * 1.1) / 5) * 5);
-    const step = volume.length > 1 ? plotWidth / (volume.length - 1) : 0;
-    const xAt = (index: number): number => PADDING.left + index * step;
-    const yAt = (value: number): number =>
-      PADDING.top + plotHeight - (value / max) * plotHeight;
-
-    const points = volume.map((point, index) => ({
-      x: Math.round(xAt(index) * 10) / 10,
-      y: Math.round(yAt(point.total) * 10) / 10,
-      total: point.total,
-      point,
-    }));
-    const baseline = PADDING.top + plotHeight;
-    const line = (pick: (point: VolumePoint) => number): string =>
-      points
-        .map((entry, index) => `${index === 0 ? 'M' : 'L'}${entry.x},${yAt(pick(entry.point)).toFixed(1)}`)
-        .join(' ');
-    const area = points.length
-      ? `${line((point) => point.inbound)} L${points[points.length - 1]!.x},${baseline} L${points[0]!.x},${baseline} Z`
-      : '';
-    const labelEvery = Math.max(1, Math.ceil(volume.length / 7));
-
-    return {
-      inbound: line((point) => point.inbound),
-      outbound: line((point) => point.outbound),
-      area,
-      max,
-      gridlines: [1, 0.75, 0.5, 0.25, 0].map((fraction) => ({
-        y: Math.round(yAt(max * fraction) * 10) / 10,
-        label: String(Math.round(max * fraction)),
-      })),
-      points,
-      labels: volume
-        .filter((_, index) => index % labelEvery === 0 || index === volume.length - 1)
-        .map((point) => point.label),
-    };
-  }
 }

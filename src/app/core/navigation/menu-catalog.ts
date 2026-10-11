@@ -225,7 +225,6 @@ export const PLATFORM_MENU: MenuEntry[] = [
     icon: '◮',
     group: 'platform',
     capability: 'analytics.view',
-    planned: true,
   },
   {
     key: 'metaConfig',

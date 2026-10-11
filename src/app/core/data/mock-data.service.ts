@@ -6,6 +6,7 @@ import {
   type ReportRange,
   type ReportSnapshot,
 } from './analytics';
+import { buildPlatformSnapshot, type PlatformSnapshot } from './platform-analytics';
 import { buildDataset, type Dataset } from './mock-data';
 import type {
   Announcement,
@@ -1813,6 +1814,31 @@ export class MockDataService {
         flows: this.flows(),
         forms: this.whatsappFlows(),
         campaigns: this.campaigns(),
+      },
+      range,
+    );
+  }
+
+  /**
+   * Cross-tenant analytics (`/analytics`).
+   *
+   * The platform owner's view, deliberately unfiltered: every workspace's usage
+   * in one snapshot. There is no revenue projection in it — the plan prices are
+   * null in the seed, so the billing figures are the invoices that were actually
+   * issued rather than a price multiplied by a seat count.
+   */
+  platformSnapshot(range: ReportRange = 30): PlatformSnapshot {
+    const dataset = this.dataset();
+
+    return buildPlatformSnapshot(
+      {
+        tenants: dataset.tenants,
+        users: dataset.workspaceUsers,
+        conversations: dataset.conversations,
+        messages: dataset.messages,
+        campaigns: dataset.campaigns,
+        forms: dataset.whatsappFlows,
+        invoices: dataset.invoices,
       },
       range,
     );
